@@ -1,0 +1,156 @@
+{
+  "$schema": "../schema/unit.schema.json",
+  "id": "numbers",
+  "order": 2,
+  "title": "Numbers 0 to 10",
+  "description": "Cardinal numbers 0 to 10. For 1 to 5 the palm faces you; for 6 to 9 it faces out.",
+  "review": {
+    "status": "draft",
+    "reviewed_by": [],
+    "notes": "Awaiting review by a Deaf signer. Regional and contextual variants exist."
+  },
+  "items": [
+    {
+      "id": "0",
+      "gloss": "O",
+      "answer": "0",
+      "kind": "number",
+      "handshape": "Fingertips curve to touch the thumb, forming an O.",
+      "palm": "to the side",
+      "tips": [
+        "Same handshape as the letter O."
+      ],
+      "confusable_with": [
+        "o"
+      ]
+    },
+    {
+      "id": "1",
+      "gloss": "1",
+      "answer": "1",
+      "kind": "number",
+      "handshape": "Index finger straight up; other fingers and thumb closed.",
+      "palm": "toward you",
+      "tips": [
+        "For counting 1 to 5 the palm faces you."
+      ],
+      "confusable_with": [
+        "d"
+      ]
+    },
+    {
+      "id": "2",
+      "gloss": "2",
+      "answer": "2",
+      "kind": "number",
+      "handshape": "Index and middle fingers up and spread; thumb holds the other fingers.",
+      "palm": "toward you",
+      "tips": [
+        "Same handshape as V, but the palm faces you."
+      ],
+      "confusable_with": [
+        "v"
+      ]
+    },
+    {
+      "id": "3",
+      "gloss": "3",
+      "answer": "3",
+      "kind": "number",
+      "handshape": "Thumb, index and middle fingers extended; ring and pinky closed.",
+      "palm": "toward you",
+      "tips": [
+        "ASL 3 uses the thumb, not the ring finger."
+      ]
+    },
+    {
+      "id": "4",
+      "gloss": "4",
+      "answer": "4",
+      "kind": "number",
+      "handshape": "Four fingers up and spread; thumb folded across the palm.",
+      "palm": "toward you",
+      "confusable_with": [
+        "b"
+      ]
+    },
+    {
+      "id": "5",
+      "gloss": "5",
+      "answer": "5",
+      "kind": "number",
+      "handshape": "All five fingers extended and spread.",
+      "palm": "toward you"
+    },
+    {
+      "id": "6",
+      "gloss": "6",
+      "answer": "6",
+      "kind": "number",
+      "handshape": "Pinky tip touches the thumb tip; index, middle and ring fingers up and spread.",
+      "palm": "out",
+      "tips": [
+        "For 6 to 9 the palm faces out.",
+        "6 and the letter W share a handshape."
+      ],
+      "confusable_with": [
+        "w",
+        "7"
+      ]
+    },
+    {
+      "id": "7",
+      "gloss": "7",
+      "answer": "7",
+      "kind": "number",
+      "handshape": "Ring fingertip touches the thumb tip; the other fingers up and spread.",
+      "palm": "out",
+      "confusable_with": [
+        "6",
+        "8"
+      ]
+    },
+    {
+      "id": "8",
+      "gloss": "8",
+      "answer": "8",
+      "kind": "number",
+      "handshape": "Middle fingertip touches the thumb tip; the other fingers up and spread.",
+      "palm": "out",
+      "confusable_with": [
+        "7",
+        "9"
+      ]
+    },
+    {
+      "id": "9",
+      "gloss": "9",
+      "answer": "9",
+      "kind": "number",
+      "handshape": "Index fingertip touches the thumb tip; the other fingers up and spread.",
+      "palm": "out",
+      "tips": [
+        "9 and the letter F share a handshape."
+      ],
+      "confusable_with": [
+        "f",
+        "8"
+      ]
+    },
+    {
+      "id": "10",
+      "gloss": "10",
+      "answer": "10",
+      "kind": "number",
+      "handshape": "Fist with the thumb pointing straight up.",
+      "palm": "to the side",
+      "movement": "Shake or twist the wrist slightly.",
+      "tips": [
+        "Like the letter A with the thumb up, plus a small shake."
+      ],
+      "confusable_with": [
+        "a"
+      ]
+    }
+  ]
+}
