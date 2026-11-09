@@ -1,0 +1,463 @@
+{
+  "$schema": "../schema/unit.schema.json",
+  "id": "alphabet",
+  "order": 1,
+  "title": "Fingerspelling alphabet",
+  "description": "The 26 letters of the ASL manual alphabet. Palm faces out toward the viewer unless noted. Descriptions are for a right-handed signer; left-handed signers mirror them.",
+  "review": {
+    "status": "draft",
+    "reviewed_by": [],
+    "notes": "Descriptions written from standard references; awaiting review by a Deaf signer."
+  },
+  "items": [
+    {
+      "id": "a",
+      "gloss": "A",
+      "answer": "A",
+      "kind": "letter",
+      "handshape": "Closed fist with the thumb resting straight up along the side of the index finger.",
+      "palm": "out",
+      "tips": [
+        "Thumb stays beside the fist, not across the front (that is S)."
+      ],
+      "confusable_with": [
+        "s",
+        "e",
+        "t"
+      ]
+    },
+    {
+      "id": "b",
+      "gloss": "B",
+      "answer": "B",
+      "kind": "letter",
+      "handshape": "Four fingers straight up and pressed together; thumb folded across the palm.",
+      "palm": "out",
+      "tips": [
+        "Keep fingers together, not spread (spread is the number 4 with thumb out)."
+      ]
+    },
+    {
+      "id": "c",
+      "gloss": "C",
+      "answer": "C",
+      "kind": "letter",
+      "handshape": "Fingers together and curved, thumb curved below them, forming the letter C.",
+      "palm": "to the side",
+      "tips": [
+        "Viewed from the front the curve opens toward your non-dominant side."
+      ],
+      "confusable_with": [
+        "o"
+      ]
+    },
+    {
+      "id": "d",
+      "gloss": "D",
+      "answer": "D",
+      "kind": "letter",
+      "handshape": "Index finger points up; the middle, ring and pinky fingertips touch the thumb tip to form a circle.",
+      "palm": "out",
+      "confusable_with": [
+        "f"
+      ]
+    },
+    {
+      "id": "e",
+      "gloss": "E",
+      "answer": "E",
+      "kind": "letter",
+      "handshape": "Fingertips curl down toward the palm and rest on or just above the thumb, which lies across the palm.",
+      "palm": "out",
+      "tips": [
+        "Fingers are bent at the knuckles, not a tight fist."
+      ],
+      "confusable_with": [
+        "a",
+        "s",
+        "m",
+        "n"
+      ]
+    },
+    {
+      "id": "f",
+      "gloss": "F",
+      "answer": "F",
+      "kind": "letter",
+      "handshape": "Index fingertip touches the thumb tip to make a circle; the other three fingers are straight up and spread.",
+      "palm": "out",
+      "confusable_with": [
+        "d",
+        "9"
+      ]
+    },
+    {
+      "id": "g",
+      "gloss": "G",
+      "answer": "G",
+      "kind": "letter",
+      "handshape": "Index finger and thumb extended and parallel, pointing sideways; other fingers closed.",
+      "palm": "toward you",
+      "tips": [
+        "Hand is held sideways, like showing a small gap."
+      ],
+      "confusable_with": [
+        "h",
+        "q"
+      ]
+    },
+    {
+      "id": "h",
+      "gloss": "H",
+      "answer": "H",
+      "kind": "letter",
+      "handshape": "Index and middle fingers extended together pointing sideways; thumb holds the other fingers.",
+      "palm": "toward you",
+      "tips": [
+        "H is G with two fingers instead of one."
+      ],
+      "confusable_with": [
+        "g",
+        "u"
+      ]
+    },
+    {
+      "id": "i",
+      "gloss": "I",
+      "answer": "I",
+      "kind": "letter",
+      "handshape": "Pinky straight up; other fingers in a fist with the thumb across them.",
+      "palm": "out",
+      "confusable_with": [
+        "j",
+        "y"
+      ]
+    },
+    {
+      "id": "j",
+      "gloss": "J",
+      "answer": "J",
+      "kind": "letter",
+      "handshape": "Start in the I handshape and trace a J in the air with the pinky.",
+      "palm": "out, turning toward you",
+      "movement": "Pinky draws a J: down, then curves and hooks up toward your side.",
+      "tips": [
+        "J is I plus movement."
+      ],
+      "confusable_with": [
+        "i"
+      ]
+    },
+    {
+      "id": "k",
+      "gloss": "K",
+      "answer": "K",
+      "kind": "letter",
+      "handshape": "Index finger up and middle finger angled forward in a V; thumb tip touches the middle of the middle finger.",
+      "palm": "out",
+      "confusable_with": [
+        "v",
+        "p"
+      ]
+    },
+    {
+      "id": "l",
+      "gloss": "L",
+      "answer": "L",
+      "kind": "letter",
+      "handshape": "Index finger straight up and thumb straight out, forming an L.",
+      "palm": "out"
+    },
+    {
+      "id": "m",
+      "gloss": "M",
+      "answer": "M",
+      "kind": "letter",
+      "handshape": "Thumb tucked under the index, middle and ring fingers, which fold over it.",
+      "palm": "out",
+      "tips": [
+        "Three fingers over the thumb for M, two for N."
+      ],
+      "confusable_with": [
+        "n",
+        "e",
+        "t"
+      ]
+    },
+    {
+      "id": "n",
+      "gloss": "N",
+      "answer": "N",
+      "kind": "letter",
+      "handshape": "Thumb tucked under the index and middle fingers, which fold over it.",
+      "palm": "out",
+      "tips": [
+        "Two fingers over the thumb for N, three for M."
+      ],
+      "confusable_with": [
+        "m",
+        "t"
+      ]
+    },
+    {
+      "id": "o",
+      "gloss": "O",
+      "answer": "O",
+      "kind": "letter",
+      "handshape": "All fingertips curve to touch the thumb tip, forming an O.",
+      "palm": "to the side",
+      "tips": [
+        "Also used for the number 0."
+      ],
+      "confusable_with": [
+        "c",
+        "0"
+      ]
+    },
+    {
+      "id": "p",
+      "gloss": "P",
+      "answer": "P",
+      "kind": "letter",
+      "handshape": "K handshape pointed downward: index points forward, middle finger points down, thumb touches the middle finger.",
+      "palm": "down",
+      "tips": [
+        "P is K tipped down."
+      ],
+      "confusable_with": [
+        "k",
+        "q"
+      ]
+    },
+    {
+      "id": "q",
+      "gloss": "Q",
+      "answer": "Q",
+      "kind": "letter",
+      "handshape": "G handshape pointed downward: index finger and thumb both point down.",
+      "palm": "down",
+      "tips": [
+        "Q is G tipped down."
+      ],
+      "confusable_with": [
+        "g",
+        "p"
+      ]
+    },
+    {
+      "id": "r",
+      "gloss": "R",
+      "answer": "R",
+      "kind": "letter",
+      "handshape": "Index and middle fingers up and crossed, middle finger over the index.",
+      "palm": "out",
+      "confusable_with": [
+        "u"
+      ]
+    },
+    {
+      "id": "s",
+      "gloss": "S",
+      "answer": "S",
+      "kind": "letter",
+      "handshape": "Closed fist with the thumb wrapped across the front of the fingers.",
+      "palm": "out",
+      "tips": [
+        "Thumb across the front for S, beside the fist for A."
+      ],
+      "confusable_with": [
+        "a",
+        "e"
+      ]
+    },
+    {
+      "id": "t",
+      "gloss": "T",
+      "answer": "T",
+      "kind": "letter",
+      "handshape": "Fist with the thumb tucked between the index and middle fingers.",
+      "palm": "out",
+      "tips": [
+        "Only the thumb tip peeks out between the first two fingers."
+      ],
+      "confusable_with": [
+        "a",
+        "m",
+        "n"
+      ]
+    },
+    {
+      "id": "u",
+      "gloss": "U",
+      "answer": "U",
+      "kind": "letter",
+      "handshape": "Index and middle fingers straight up and together; thumb holds the other fingers.",
+      "palm": "out",
+      "confusable_with": [
+        "v",
+        "r",
+        "h"
+      ]
+    },
+    {
+      "id": "v",
+      "gloss": "V",
+      "answer": "V",
+      "kind": "letter",
+      "handshape": "Index and middle fingers straight up and spread apart; thumb holds the other fingers.",
+      "palm": "out",
+      "tips": [
+        "Also the number 2."
+      ],
+      "confusable_with": [
+        "u",
+        "k",
+        "2"
+      ]
+    },
+    {
+      "id": "w",
+      "gloss": "W",
+      "answer": "W",
+      "kind": "letter",
+      "handshape": "Index, middle and ring fingers up and spread; thumb holds the pinky.",
+      "palm": "out",
+      "tips": [
+        "Thumb touches the pinky for W; the number 6 looks the same."
+      ],
+      "confusable_with": [
+        "6"
+      ]
+    },
+    {
+      "id": "x",
+      "gloss": "X",
+      "answer": "X",
+      "kind": "letter",
+      "handshape": "Index finger raised and bent into a hook; other fingers in a fist.",
+      "palm": "out"
+    },
+    {
+      "id": "y",
+      "gloss": "Y",
+      "answer": "Y",
+      "kind": "letter",
+      "handshape": "Thumb and pinky extended; other fingers closed.",
+      "palm": "out",
+      "confusable_with": [
+        "i"
+      ]
+    },
+    {
+      "id": "z",
+      "gloss": "Z",
+      "answer": "Z",
+      "kind": "letter",
+      "handshape": "Index finger extended; trace a Z in the air.",
+      "palm": "out",
+      "movement": "Index finger draws a Z from the signer's point of view.",
+      "tips": [
+        "Draw it as you would read it; from the front it looks reversed."
+      ]
+    }
+  ],
+  "practice_words": [
+    "AL",
+    "AMY",
+    "ANN",
+    "BEN",
+    "BOB",
+    "DAN",
+    "EVA",
+    "JIM",
+    "JOY",
+    "KIM",
+    "LEE",
+    "MAX",
+    "MIA",
+    "NED",
+    "PAM",
+    "RON",
+    "SAM",
+    "SUE",
+    "TOM",
+    "ZOE",
+    "ADAM",
+    "ALEX",
+    "ANNA",
+    "DAVE",
+    "EMMA",
+    "GREG",
+    "JACK",
+    "JANE",
+    "JOHN",
+    "JUAN",
+    "KATE",
+    "LUIS",
+    "MARK",
+    "MARY",
+    "MIKE",
+    "NICK",
+    "OWEN",
+    "PAUL",
+    "ROSA",
+    "RYAN",
+    "SARA",
+    "ZACK",
+    "CAT",
+    "DOG",
+    "BUS",
+    "CAR",
+    "JOB",
+    "OK",
+    "NO",
+    "TV",
+    "TOY",
+    "BOX",
+    "ICE",
+    "OIL",
+    "FIX",
+    "WAX",
+    "QUIZ",
+    "JAZZ",
+    "PIZZA",
+    "TACO",
+    "SODA",
+    "MILK",
+    "FOOD",
+    "BOOK",
+    "PARK",
+    "ZOO",
+    "HOTEL",
+    "OHIO",
+    "TEXAS",
+    "IOWA",
+    "UTAH",
+    "MAINE",
+    "PARIS",
+    "TOKYO",
+    "APPLE",
+    "BREAD",
+    "CHAIR",
+    "DANCE",
+    "EARLY",
+    "GHOST",
+    "HAPPY",
+    "JUICE",
+    "KNIFE",
+    "LEMON",
+    "MUSIC",
+    "NIGHT",
+    "OCEAN",
+    "PIANO",
+    "QUEEN",
+    "RADIO",
+    "SMILE",
+    "TRAIN",
+    "UNCLE",
+    "VOICE",
+    "WATER",
+    "YOUNG",
+    "ZEBRA"
+  ]
+}
