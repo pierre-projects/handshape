@@ -111,6 +111,13 @@
         <span>New signs per day</span>
         <input type="number" min="0" max="50" bind:value={settings.newItemsPerDay} onchange={save} />
       </label>
+      <label class="field">
+        <span>Signing hand</span>
+        <select bind:value={settings.dominantHand} onchange={save}>
+          <option value="Right">Right</option>
+          <option value="Left">Left</option>
+        </select>
+      </label>
       <label class="check">
         <input type="checkbox" bind:checked={settings.showCameraByDefault} onchange={save} />
         Turn the camera on automatically in drills

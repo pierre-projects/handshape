@@ -30,7 +30,7 @@ export function gradeCard(
   card: StoredCard,
   rating: Grade,
   now: Date,
-  extra: Pick<ReviewEntry, 'correct' | 'typed'> = {},
+  extra: Pick<ReviewEntry, 'correct' | 'typed' | 'camera'> = {},
 ): { card: StoredCard; entry: ReviewEntry } {
   const result = scheduler.next(card.fsrs, now, rating);
   return {
@@ -152,7 +152,7 @@ export class ReviewSession {
   answer(
     rating: Grade,
     now: Date,
-    extra: Pick<ReviewEntry, 'correct' | 'typed'> = {},
+    extra: Pick<ReviewEntry, 'correct' | 'typed' | 'camera'> = {},
   ): { card: StoredCard; entry: ReviewEntry } {
     const current = this.queue.shift();
     if (!current) throw new Error('No card to answer');

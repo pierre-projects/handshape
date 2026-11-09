@@ -5,6 +5,7 @@
   import Learn from './views/Learn.svelte';
   import Fingerspell from './views/Fingerspell.svelte';
   import Progress from './views/Progress.svelte';
+  import Practice from './views/Practice.svelte';
 
   type Route = { name: string; param?: string };
 
@@ -28,7 +29,8 @@
     { name: 'home', label: 'Today', href: '#/' },
     { name: 'review', label: 'Review', href: '#/review' },
     { name: 'learn', label: 'Signs', href: '#/learn' },
-    { name: 'fingerspell', label: 'Fingerspell', href: '#/fingerspell' },
+    { name: 'fingerspell', label: 'Spell', href: '#/fingerspell' },
+    { name: 'practice', label: 'Camera', href: '#/practice' },
     { name: 'progress', label: 'Progress', href: '#/progress' },
   ];
 </script>
@@ -52,6 +54,8 @@
       <Learn itemId={route.param} />
     {:else if route.name === 'fingerspell'}
       <Fingerspell />
+    {:else if route.name === 'practice'}
+      <Practice />
     {:else if route.name === 'progress'}
       <Progress />
     {:else}
@@ -89,7 +93,8 @@
   li a[aria-current='page'] { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
   footer { padding: 24px 16px 40px; text-align: center; }
   @media (max-width: 480px) {
-    nav { gap: 6px; }
-    li a { padding: 8px 6px; font-size: 0.875rem; }
+    .brand { display: none; }
+    ul { gap: 0; }
+    li a { padding: 8px 5px; font-size: 0.8125rem; }
   }
 </style>

@@ -71,6 +71,8 @@ export interface ReviewEntry {
   correct?: boolean;
   /** For recognize cards: what the learner typed. */
   typed?: string;
+  /** For produce cards: whether the camera matched the handshape before grading. */
+  camera?: boolean;
   /** FSRS state before this review (0 new, 1 learning, 2 review, 3 relearning). */
   stateBefore: number;
   at: Date;
@@ -93,6 +95,8 @@ export interface Settings {
   receptiveSpeed: number;
   showCameraByDefault: boolean;
   mirrorMedia: boolean;
+  /** Which hand to check when both are in view. */
+  dominantHand: 'Right' | 'Left';
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -100,4 +104,5 @@ export const DEFAULT_SETTINGS: Settings = {
   receptiveSpeed: 1.5,
   showCameraByDefault: false,
   mirrorMedia: false,
+  dominantHand: 'Right',
 };

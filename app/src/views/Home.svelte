@@ -73,6 +73,7 @@
   <ul class="ways">
     <li><a href="#/review">Review</a>: daily spaced-repetition queue. Sign each prompt, then grade yourself.</li>
     <li><a href="#/fingerspell">Fingerspell</a>: read fingerspelled words at a speed that adapts to you, or spell words yourself against a timer.</li>
+    <li><a href="#/practice">Camera</a>: sign letters and numbers to your camera and get told what to fix. Moves on as soon as you get each one.</li>
     <li><a href="#/learn">Signs</a>: browse every sign with handshape, palm and movement notes.</li>
   </ul>
 </section>

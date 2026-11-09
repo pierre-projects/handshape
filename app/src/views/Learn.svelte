@@ -2,10 +2,17 @@
   import { content } from '../lib/content';
   import SignDetail from '../components/SignDetail.svelte';
   import CameraMirror from '../components/CameraMirror.svelte';
+  import HandCheck from '../components/HandCheck.svelte';
+  import { isCheckable } from '../lib/engine/handshapes';
+  import { getStore } from '../lib/app';
+  import { onMount } from 'svelte';
+  import type { Settings } from '../lib/types';
 
   let { itemId }: { itemId?: string } = $props();
   const selected = $derived(itemId ? content.byId.get(itemId) : undefined);
   let mirror = $state(false);
+  let settings = $state<Settings>();
+  onMount(async () => (settings = await (await getStore()).settings()));
 </script>
 
 {#if selected}
@@ -15,7 +22,11 @@
   </section>
   <section class="card stack">
     <h2>Try it</h2>
-    <CameraMirror />
+    {#if isCheckable(selected.id)}
+      <HandCheck target={selected.id} dominantHand={settings?.dominantHand} />
+    {:else}
+      <CameraMirror />
+    {/if}
   </section>
 {:else}
   {#if itemId}<p class="notice">No sign called “{itemId}”.</p>{/if}

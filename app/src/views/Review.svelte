@@ -4,8 +4,10 @@
   import type { Store } from '../lib/db';
   import { content } from '../lib/content';
   import {
-    buildQueue, checkAnswer, formatInterval, previewIntervals, ReviewSession, State, suggestedRating, type Grade,
+    buildQueue, checkAnswer, formatInterval, previewIntervals, Rating, ReviewSession, State, suggestedRating, type Grade,
   } from '../lib/srs';
+  import { isCheckable } from '../lib/engine/handshapes';
+  import HandCheck from '../components/HandCheck.svelte';
   import type { Settings, StoredCard } from '../lib/types';
   import SignDetail from '../components/SignDetail.svelte';
   import SignMedia from '../components/SignMedia.svelte';
@@ -19,6 +21,7 @@
   let phase = $state<'prompt' | 'answer'>('prompt');
   let typed = $state('');
   let correct = $state<boolean>();
+  let cameraMatched = $state(false);
   let intervals = $state<Record<number, string>>({});
   let mirror = $state(false);
   let showCamera = $state(false);
@@ -61,6 +64,7 @@
     card = session?.current;
     typed = '';
     correct = undefined;
+    cameraMatched = false;
     if (!card) return;
     phase = card.fsrs.state === State.New ? 'answer' : 'prompt';
     intervals = previewIntervals(card, new Date());
@@ -79,7 +83,12 @@
     if (!session || !card || busy || phase !== 'answer') return;
     busy = true;
     try {
-      const extra = card.kind === 'recognize' && correct !== undefined ? { correct, typed: typed.trim() } : {};
+      const extra =
+        card.kind === 'recognize' && correct !== undefined
+          ? { correct, typed: typed.trim() }
+          : card.kind === 'produce' && cameraMatched
+            ? { camera: true }
+            : {};
       const { card: updated, entry } = session.answer(rating, new Date(), extra);
       await store.recordReview(updated, entry);
       await show();
@@ -87,6 +96,11 @@
     } finally {
       busy = false;
     }
+  }
+
+  function onCameraMatch() {
+    cameraMatched = true;
+    if (phase === 'prompt') phase = 'answer';
   }
 
   function onKey(e: KeyboardEvent) {
@@ -155,20 +169,32 @@
       <div class="center stack">
         <p class="muted">Sign this {item.kind === 'sign' ? 'word' : item.kind}:</p>
         <div class="big-gloss">{item.gloss}</div>
-        <CameraMirror autostart={showCamera} />
         <div><button class="primary" onclick={() => (phase = 'answer')}>Show answer <kbd>Space</kbd></button></div>
       </div>
     {:else}
-      {#if !isNew}<p class="muted small">Did your sign match? Check handshape, palm and movement.</p>{/if}
+      {#if cameraMatched}
+        <div class="result good">The camera matched your handshape.</div>
+      {:else if !isNew}
+        <p class="muted small">Did your sign match? Check handshape, palm and movement.</p>
+      {/if}
       <SignDetail {item} bind:mirror />
-      {#if isNew}<CameraMirror autostart={showCamera} />{/if}
     {/if}
   </section>
+
+  {#if card.kind === 'produce'}
+    <section class="card">
+      {#if isCheckable(item.id)}
+        <HandCheck target={item.id} autostart={showCamera} dominantHand={settings?.dominantHand} onMatch={onCameraMatch} />
+      {:else}
+        <CameraMirror autostart={showCamera} />
+      {/if}
+    </section>
+  {/if}
 
   {#if phase === 'answer'}
     <GradeButtons
       {intervals}
-      suggested={correct === undefined ? undefined : suggestedRating(correct)}
+      suggested={correct !== undefined ? suggestedRating(correct) : cameraMatched ? Rating.Good : undefined}
       onGrade={grade}
     />
     <p class="small muted center hint">
