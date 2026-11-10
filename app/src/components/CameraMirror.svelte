@@ -2,6 +2,7 @@
   // Mirrored self-view with optional recording. Recordings live in memory only
   // and are discarded when you leave the page.
   import { onDestroy } from 'svelte';
+  import { cameraSupported, openCamera, problemMessage, stopStream } from '../lib/engine/camera';
 
   let { autostart = false }: { autostart?: boolean } = $props();
 
@@ -13,22 +14,18 @@
   let recording = $state(false);
   let playback = $state<string>();
 
-  const supported = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+  const supported = cameraSupported;
 
   async function start() {
     error = '';
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-    } catch (e) {
-      error = e instanceof DOMException && e.name === 'NotAllowedError'
-        ? 'Camera permission was denied. You can allow it in your browser settings.'
-        : 'Could not start the camera.';
-    }
+    const result = await openCamera();
+    if (typeof result === 'string') error = problemMessage(result);
+    else stream = result;
   }
 
   function stop() {
     if (recording) recorder?.stop();
-    stream?.getTracks().forEach((t) => t.stop());
+    stopStream(stream);
     stream = undefined;
   }
 
@@ -103,7 +100,7 @@
   video { width: 100%; border-radius: 10px; background: #000; display: block; max-height: 300px; object-fit: cover; }
   .rec {
     position: absolute; top: 8px; left: 8px;
-    background: #b23a2e; color: #fff;
+    background: var(--rec); color: #fff;
     font-size: 0.75rem; font-weight: 700;
     padding: 2px 8px; border-radius: 999px;
   }

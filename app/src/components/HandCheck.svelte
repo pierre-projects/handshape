@@ -2,10 +2,10 @@
   // Live camera check of a static handshape. Video is processed on this
   // device and never stored, except a sample you choose to save yourself.
   import { onDestroy } from 'svelte';
-  import type { HandLandmarker } from '@mediapipe/tasks-vision';
   import { computeFeatures, type Features } from '../lib/engine/features';
   import { judge, looksLike, SPECS, type Evaluation } from '../lib/engine/handshapes';
-  import { HAND_CONNECTIONS, type HandFrame, type Handedness } from '../lib/engine/hand';
+  import type { HandFrame, Handedness } from '../lib/engine/hand';
+  import { cameraSupported, drawHand, HandTracker, problemMessage } from '../lib/engine/camera';
   import { HoldTimer, Smoother } from '../lib/engine/tracker';
   import { content } from '../lib/content';
 
@@ -32,11 +32,6 @@
   let error = $state('');
   let video = $state<HTMLVideoElement>();
   let canvas = $state<HTMLCanvasElement>();
-  let stream: MediaStream | undefined;
-  let landmarker: HandLandmarker | undefined;
-  let detect: typeof import('../lib/engine/landmarker').detectHand | undefined;
-  let raf = 0;
-  let lastVideoTime = -1;
 
   let handSeen = $state(false);
   let evaluation = $state<Evaluation>();
@@ -50,7 +45,8 @@
   const smoother = new Smoother(0.5);
   const hold = new HoldTimer(600);
   const recent: HandFrame[] = [];
-  const supported = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+  const supported = cameraSupported;
+  const tracker = new HandTracker(onFrame, () => dominantHand);
   const candidates = [...SPECS.keys()];
   const gloss = (id: string) => content.byId.get(id)?.gloss ?? id.toUpperCase();
   let frameCount = 0;
@@ -73,52 +69,20 @@
   async function start() {
     error = '';
     status = 'loading';
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false,
-      });
-    } catch (e) {
+    const result = await tracker.start();
+    if (result !== 'ok') {
       status = 'error';
-      error =
-        e instanceof DOMException && e.name === 'NotAllowedError'
-          ? 'Camera permission was denied. You can allow it in your browser settings.'
-          : 'Could not start the camera.';
-      return;
-    }
-    try {
-      const m = await import('../lib/engine/landmarker');
-      detect = m.detectHand;
-      landmarker = await m.loadHandLandmarker();
-    } catch {
-      stop();
-      status = 'error';
-      error = 'Hand tracking could not load in this browser.';
+      error = problemMessage(result);
       return;
     }
     status = 'running';
   }
 
   $effect(() => {
-    if (status === 'running' && video && stream) {
-      video.srcObject = stream;
-      video.play().catch(() => {});
-      raf = requestAnimationFrame(loop);
-      return () => cancelAnimationFrame(raf);
-    }
+    if (status === 'running' && video) return tracker.run(video);
   });
 
-  function loop() {
-    raf = requestAnimationFrame(loop);
-    if (!video || !landmarker || video.readyState < 2 || video.currentTime === lastVideoTime) return;
-    lastVideoTime = video.currentTime;
-    const now = performance.now();
-    let frame: HandFrame | undefined;
-    try {
-      frame = detectSafe(now);
-    } catch {
-      return;
-    }
+  function onFrame(frame: HandFrame | undefined, now: number) {
     if (!frame) {
       handSeen = false;
       smoother.reset();
@@ -144,42 +108,12 @@
     draw(smooth, evaluation.pass);
   }
 
-  function detectSafe(now: number): HandFrame | undefined {
-    if (!detect || !landmarker || !video) return undefined;
-    return detect(landmarker, video, now, dominantHand);
-  }
-
   function draw(frame: HandFrame | undefined, ok: boolean) {
-    if (!canvas || !video) return;
-    const w = video.videoWidth;
-    const h = video.videoHeight;
-    if (canvas.width !== w) canvas.width = w;
-    if (canvas.height !== h) canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, w, h);
-    if (!frame) return;
-    const color = ok ? '#2fbf71' : '#f2f2f2';
-    ctx.lineWidth = Math.max(2, w / 200);
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    for (const [a, b] of HAND_CONNECTIONS) {
-      ctx.beginPath();
-      ctx.moveTo(frame.image[a].x * w, frame.image[a].y * h);
-      ctx.lineTo(frame.image[b].x * w, frame.image[b].y * h);
-      ctx.stroke();
-    }
-    for (const p of frame.image) {
-      ctx.beginPath();
-      ctx.arc(p.x * w, p.y * h, Math.max(3, w / 140), 0, Math.PI * 2);
-      ctx.fill();
-    }
+    drawHand(canvas, video, frame, ok ? 'var(--cam-match)' : 'var(--cam-idle)');
   }
 
   function stop() {
-    cancelAnimationFrame(raf);
-    stream?.getTracks().forEach((t) => t.stop());
-    stream = undefined;
+    tracker.stop();
     status = 'off';
     handSeen = false;
     evaluation = undefined;
@@ -329,7 +263,7 @@
     outline: 4px solid transparent; outline-offset: -4px; transition: outline-color 0.2s;
   }
   .fill .view { aspect-ratio: auto; height: 100%; max-height: none; }
-  .view.matched { outline-color: #2fbf71; }
+  .view.matched { outline-color: var(--cam-match); }
   .cam-tools { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; z-index: 2; }
   .cam-tools button { background: rgb(0 0 0 / 0.55); color: #fff; border-color: rgb(255 255 255 / 0.25); backdrop-filter: blur(6px); }
   .cam-tools button:hover { background: rgb(0 0 0 / 0.75); }
@@ -353,7 +287,7 @@
   .meter {
     position: absolute; left: 0; bottom: 0; height: 6px;
     width: calc(var(--p) * 100%);
-    background: #2fbf71;
+    background: var(--cam-match);
     transition: width 80ms linear;
   }
   .meter.done { height: 8px; }

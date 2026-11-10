@@ -2,9 +2,9 @@
   // Camera keyboard: reads whichever letter the hand makes and types it once it's
   // held steady. Fast movement, unclear shapes and long holds don't type.
   import { onDestroy } from 'svelte';
-  import type { HandLandmarker } from '@mediapipe/tasks-vision';
   import { computeFeatures } from '../lib/engine/features';
-  import { HAND_CONNECTIONS, type HandFrame, type Handedness } from '../lib/engine/hand';
+  import type { HandFrame, Handedness } from '../lib/engine/hand';
+  import { cameraSupported, drawHand, HandTracker, problemMessage } from '../lib/engine/camera';
   import { Smoother } from '../lib/engine/tracker';
   import { classifyLetter, handMotion, LetterReader } from '../lib/engine/reader';
 
@@ -28,11 +28,6 @@
   let error = $state('');
   let video = $state<HTMLVideoElement>();
   let canvas = $state<HTMLCanvasElement>();
-  let stream: MediaStream | undefined;
-  let landmarker: HandLandmarker | undefined;
-  let detect: typeof import('../lib/engine/landmarker').detectHand | undefined;
-  let raf = 0;
-  let lastVideoTime = -1;
   let prevPoints: { x: number; y: number }[] | undefined;
 
   let handSeen = $state(false);
@@ -45,7 +40,8 @@
 
   const smoother = new Smoother(0.5);
   const reader = new LetterReader();
-  const supported = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+  const supported = cameraSupported;
+  const tracker = new HandTracker(onFrame, () => dominantHand);
 
   $effect(() => {
     if (autostart && supported && status === 'off') start();
@@ -62,52 +58,20 @@
   async function start() {
     error = '';
     status = 'loading';
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false,
-      });
-    } catch (e) {
+    const result = await tracker.start();
+    if (result !== 'ok') {
       status = 'error';
-      error =
-        e instanceof DOMException && e.name === 'NotAllowedError'
-          ? 'Camera permission was denied. You can still type with the keyboard.'
-          : 'Could not start the camera. You can still type with the keyboard.';
-      return;
-    }
-    try {
-      const m = await import('../lib/engine/landmarker');
-      detect = m.detectHand;
-      landmarker = await m.loadHandLandmarker();
-    } catch {
-      stop();
-      status = 'error';
-      error = 'Hand tracking could not load in this browser.';
+      error = problemMessage(result, 'You can still type with the keyboard.');
       return;
     }
     status = 'running';
   }
 
   $effect(() => {
-    if (status === 'running' && video && stream) {
-      video.srcObject = stream;
-      video.play().catch(() => {});
-      raf = requestAnimationFrame(loop);
-      return () => cancelAnimationFrame(raf);
-    }
+    if (status === 'running' && video) return tracker.run(video);
   });
 
-  function loop() {
-    raf = requestAnimationFrame(loop);
-    if (!video || !landmarker || !detect || video.readyState < 2 || video.currentTime === lastVideoTime) return;
-    lastVideoTime = video.currentTime;
-    const now = performance.now();
-    let frame: HandFrame | undefined;
-    try {
-      frame = detect(landmarker, video, now, dominantHand);
-    } catch {
-      return;
-    }
+  function onFrame(frame: HandFrame | undefined, now: number) {
     if (!frame) {
       handSeen = false;
       prevPoints = undefined;
@@ -145,31 +109,11 @@
   }
 
   function draw(frame: HandFrame | undefined) {
-    if (!canvas || !video) return;
-    const w = video.videoWidth;
-    const h = video.videoHeight;
-    if (canvas.width !== w) canvas.width = w;
-    if (canvas.height !== h) canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, w, h);
-    if (!frame) return;
-    const color = progress > 0 ? '#a78bfa' : 'rgba(255,255,255,0.85)';
-    ctx.lineWidth = Math.max(2, w / 200);
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    for (const [a, b] of HAND_CONNECTIONS) {
-      ctx.beginPath();
-      ctx.moveTo(frame.image[a].x * w, frame.image[a].y * h);
-      ctx.lineTo(frame.image[b].x * w, frame.image[b].y * h);
-      ctx.stroke();
-    }
+    drawHand(canvas, video, frame, progress > 0 ? 'var(--spell-glow)' : 'rgba(255,255,255,0.85)', { joints: false });
   }
 
   function stop() {
-    cancelAnimationFrame(raf);
-    stream?.getTracks().forEach((t) => t.stop());
-    stream = undefined;
+    tracker.stop();
     status = 'off';
     handSeen = false;
     reader.reset();
@@ -258,9 +202,9 @@
   .reading svg { position: absolute; inset: 0; transform: rotate(-90deg); }
   .reading circle { fill: none; stroke-width: 5; }
   .reading .track { stroke: rgb(255 255 255 / 0.2); }
-  .reading .fill { stroke: #a78bfa; stroke-dasharray: 1; stroke-dashoffset: calc(1 - var(--p)); transition: stroke-dashoffset 80ms linear; }
+  .reading .fill { stroke: var(--spell-glow); stroke-dasharray: 1; stroke-dashoffset: calc(1 - var(--p)); transition: stroke-dashoffset 80ms linear; }
   .reading span { position: relative; font-size: 2rem; font-weight: 750; }
-  .reading.typed { background: #6d28d9; transform: scale(1.12); }
+  .reading.typed { background: var(--spell); transform: scale(1.12); }
   .msg {
     position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 2; margin: 0;
     padding: 6px 12px; border-radius: var(--radius-sm); text-align: center;
