@@ -16,6 +16,7 @@
   import WordList from '../components/WordList.svelte';
   import SignPicture from '../components/SignPicture.svelte';
   import Icon from '../components/Icon.svelte';
+  import SignFive from './SignFive.svelte';
   import { hasIllustration } from '../lib/illustrations';
 
   let { modeParam }: { modeParam?: string } = $props();
@@ -258,7 +259,9 @@
 
 <svelte:window onkeydown={onKey} />
 
-{#if !mode}
+{#if modeParam === 'game'}
+  <SignFive />
+{:else if !mode}
   <!-- Landing: pick a drill. -->
   <header class="hub-head">
     <h1>Fingerspelling</h1>
@@ -302,6 +305,17 @@
       <span class="go">Start spelling<Icon name="arrow-right" size={18} /></span>
     </a>
   </div>
+
+  <a class="game-card" href="#/fingerspell/game">
+    <span class="mini-board" aria-hidden="true">
+      <i class="h">S</i><i class="n">I</i><i>G</i><i class="h">N</i><i class="n">5</i>
+    </span>
+    <span class="game-text">
+      <b>Sign Five</b>
+      <span class="small muted">A word game: guess the five-letter word in six tries by fingerspelling it to the camera.</span>
+    </span>
+    <span class="game-go">Play<Icon name="arrow-right" size={16} /></span>
+  </a>
 
   <h2 class="section-title">Words to practise</h2>
   <WordList
@@ -613,6 +627,22 @@
     color: #fff;
     font-weight: 650;
   }
+  .game-card {
+    display: flex; align-items: center; gap: 16px; margin: -12px 0 28px; padding: 14px 18px;
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+    color: var(--ink); text-decoration: none; box-shadow: var(--shadow); transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .game-card:hover { border-color: #6d28d9; box-shadow: var(--shadow-lift); }
+  .mini-board { display: flex; gap: 3px; flex: none; }
+  .mini-board i {
+    display: grid; place-items: center; width: 26px; height: 26px; border-radius: 4px; font-style: normal;
+    font-weight: 750; font-size: 0.85rem; color: #fff; background: #667085;
+  }
+  .mini-board i.h { background: #067647; }
+  .mini-board i.n { background: #b88a00; }
+  .game-text { display: grid; flex: 1; min-width: 0; }
+  .game-go { display: inline-flex; align-items: center; gap: 4px; font-weight: 650; color: #6d28d9; }
+  @media (max-width: 560px) { .mini-board { display: none; } }
   .section-title { font-size: 1.05rem; margin: 0 0 10px; }
   .weak { margin-top: 16px; padding: 12px 16px; }
   .weak p { margin: 0; }
