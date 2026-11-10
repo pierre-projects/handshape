@@ -13,7 +13,7 @@
   import type { Settings, SpellingAttempt } from '../lib/types';
   import HandSign from '../components/HandSign.svelte';
   import HandCheck from '../components/HandCheck.svelte';
-  import WordList from '../components/WordList.svelte';
+  import ListPicker from '../components/ListPicker.svelte';
   import SignPicture from '../components/SignPicture.svelte';
   import Icon from '../components/Icon.svelte';
   import SignFive from './SignFive.svelte';
@@ -318,13 +318,11 @@
   </a>
 
   <h2 class="section-title">Words to practise</h2>
-  <WordList
+  <ListPicker
     words={customWords}
     {useCustom}
     builtInCount={builtIn.length}
-    playable={false}
-    onSave={saveWordSettings}
-    onPlay={() => {}}
+    onUse={(c) => saveWordSettings({ wordList: c ? 'custom' : 'builtin' })}
   />
 
   {#if weakLetters.length}
@@ -358,12 +356,12 @@
       </div>
     </header>
 
-    <WordList
+    <ListPicker
       words={customWords}
       {useCustom}
       builtInCount={builtIn.length}
       activeWord={phase !== 'idle' ? word : undefined}
-      onSave={saveWordSettings}
+      onUse={(c) => saveWordSettings({ wordList: c ? 'custom' : 'builtin' })}
       onPlay={playWord}
     />
 

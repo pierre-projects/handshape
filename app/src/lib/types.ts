@@ -101,11 +101,17 @@ export interface Settings {
   customWords: string[];
   /** Which words the fingerspelling drills draw from. */
   wordList: 'builtin' | 'custom';
+  /** The learner's own five-letter words for Sign Five practice games. */
+  fiveWords: string[];
+  /** Which words Sign Five practice games draw from. */
+  fiveList: 'builtin' | 'custom';
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   customWords: [],
   wordList: 'builtin',
+  fiveWords: [],
+  fiveList: 'builtin',
   newItemsPerDay: 6,
   receptiveSpeed: 1.5,
   showCameraByDefault: false,

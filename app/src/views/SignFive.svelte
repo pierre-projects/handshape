@@ -5,24 +5,32 @@
   // known word asks for a second Enter (a stray letter usually makes a non-word).
   import { onMount } from 'svelte';
   import { getStore } from '../lib/app';
+  import type { Store } from '../lib/db';
   import type { Settings } from '../lib/types';
   import {
-    dailyAnswer, dayKey, isKnownWord, letterMarks, MAX_GUESSES, randomAnswer, scoreGuess, WORD_LENGTH, type Mark,
+    ANSWERS, dailyAnswer, dayKey, isKnownWord, letterMarks, MAX_GUESSES, randomAnswer, scoreGuess, todaysAnswer,
+    WORD_LENGTH, type DailySource, type Mark,
   } from '../lib/guess';
   import LetterCam from '../components/LetterCam.svelte';
+  import ListPicker from '../components/ListPicker.svelte';
   import SignPicture from '../components/SignPicture.svelte';
   import Icon from '../components/Icon.svelte';
 
   type Game = 'daily' | 'practice';
   interface Stats { played: number; won: number; streak: number; best: number; dist: number[] }
-  interface Saved { daily?: { key: string; guesses: string[] }; stats: Stats }
+  interface Daily { key: string; guesses: string[]; answer?: string; source?: DailySource }
+  interface Saved { daily?: Daily; stats: Stats }
 
   const KEY = 'asl-sign-five';
   const ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
 
+  let store: Store;
   let settings = $state<Settings>();
   let game = $state<Game>('daily');
-  let answer = $state(dailyAnswer());
+  let answer = $state('');
+  let source = $state<DailySource>();
+  /** Today's word, once known, so switching back from practice doesn't refetch. */
+  let today = $state<{ word: string; source: DailySource }>();
   let guesses = $state<string[]>([]);
   let current = $state('');
   let confirmUnknown = $state(false);
@@ -32,7 +40,9 @@
   let saved = $state<Saved>({ stats: { played: 0, won: 0, streak: 0, best: 0, dist: [0, 0, 0, 0, 0, 0] } });
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const won = $derived(guesses.includes(answer));
+  const fiveWords = $derived(settings?.fiveWords ?? []);
+  const useMine = $derived(settings?.fiveList === 'custom' && fiveWords.length > 0);
+  const won = $derived(!!answer && guesses.includes(answer));
   const over = $derived(won || guesses.length >= MAX_GUESSES);
   const marks = $derived(letterMarks(guesses, answer));
   const rows = $derived(
@@ -54,15 +64,41 @@
   const winPct = $derived(saved.stats.played ? Math.round((saved.stats.won / saved.stats.played) * 100) : 0);
 
   onMount(async () => {
-    settings = await (await getStore()).settings();
+    store = await getStore();
+    settings = await store.settings();
     try {
       const raw = localStorage.getItem(KEY);
       if (raw) saved = { ...saved, ...JSON.parse(raw) };
     } catch {
       /* storage unavailable: play without saving */
     }
-    if (saved.daily?.key === dayKey()) guesses = saved.daily.guesses;
+    await loadDaily();
   });
+
+  /**
+   * Today's word: whatever today's saved game used (so a game in progress keeps
+   * its answer), else the official word, else this app's own daily pick.
+   */
+  async function loadDaily() {
+    const key = dayKey();
+    const d = saved.daily?.key === key ? saved.daily : undefined;
+    if (d?.answer) today = { word: d.answer, source: d.source ?? 'local' };
+    else if (d?.guesses.length) today = { word: dailyAnswer(key), source: 'local' };
+    else today ??= await todaysAnswer(key);
+    if (game !== 'daily') return;
+    answer = today.word;
+    source = today.source;
+    guesses = d?.guesses ?? [];
+  }
+
+  async function saveSettings(patch: Partial<Settings>) {
+    if (!settings) return;
+    settings = { ...settings, ...patch };
+    await store.saveSettings($state.snapshot(settings));
+  }
+
+  /** Words allowed as guesses: the dictionary, your list, and the answer itself. */
+  const allowed = (w: string) => isKnownWord(w) || w === answer || fiveWords.includes(w);
 
   function persist() {
     try {
@@ -84,7 +120,7 @@
   }
 
   function type(letter: string) {
-    if (over || current.length >= WORD_LENGTH) return;
+    if (!answer || over || current.length >= WORD_LENGTH) return;
     current += letter.toUpperCase();
     confirmUnknown = false;
   }
@@ -96,13 +132,13 @@
   }
 
   function enter() {
-    if (over) return;
+    if (!answer || over) return;
     if (current.length < WORD_LENGTH) {
       say(`${WORD_LENGTH - current.length} more ${WORD_LENGTH - current.length === 1 ? 'letter' : 'letters'} to go`);
       nudge();
       return;
     }
-    if (!isKnownWord(current) && !confirmUnknown) {
+    if (!allowed(current) && !confirmUnknown) {
       confirmUnknown = true;
       nudge();
       return;
@@ -110,7 +146,7 @@
     guesses = [...guesses, current];
     current = '';
     confirmUnknown = false;
-    if (game === 'daily') saved.daily = { key: dayKey(), guesses: [...guesses] };
+    if (game === 'daily') saved.daily = { key: dayKey(), guesses: [...guesses], answer, source };
     if (over) finish();
     persist();
   }
@@ -134,11 +170,20 @@
     current = '';
     confirmUnknown = false;
     if (g === 'daily') {
-      answer = dailyAnswer();
-      guesses = saved.daily?.key === dayKey() ? saved.daily.guesses : [];
+      answer = '';
+      loadDaily();
     } else {
-      answer = randomAnswer(answer);
+      answer = randomAnswer(answer, Math.random, useMine ? fiveWords : ANSWERS);
+      source = undefined;
       guesses = [];
+    }
+  }
+
+  function useList(custom: boolean) {
+    saveSettings({ fiveList: custom ? 'custom' : 'builtin' });
+    // Start a fresh practice word from the chosen list.
+    if (game === 'practice' && !guesses.length) {
+      answer = randomAnswer(answer, Math.random, custom && fiveWords.length ? fiveWords : ANSWERS);
     }
   }
 
@@ -171,7 +216,32 @@
         <button aria-pressed={game === 'practice'} onclick={() => newGame('practice')}>Practice</button>
       </div>
     </div>
+    <p class="source small">
+      {#if game === 'daily'}
+        {#if !answer}
+          <span class="dot loading"></span>Getting today's word…
+        {:else if source === 'official'}
+          <span class="dot ok"></span>Today's official Wordle word, from The New York Times
+        {:else}
+          <span class="dot"></span>Couldn't reach the official word, so this is the app's own word of the day
+        {/if}
+      {:else}
+        <span class="dot"></span>A random word from {useMine ? 'your list' : 'the built-in list'}. Play as many as you like.
+      {/if}
+    </p>
   </header>
+
+  {#if game === 'practice'}
+    <div class="picker">
+      <ListPicker
+        words={fiveWords}
+        useCustom={useMine}
+        builtInCount={ANSWERS.length}
+        onUse={useList}
+        editHref="#/progress/lists"
+      />
+    </div>
+  {/if}
 
   <div class="layout">
     <section class="board-wrap" aria-label="Guesses">
@@ -292,6 +362,12 @@
   .title-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
   .title-row h1 { margin: 0; }
   .title-row p { margin: 2px 0 0; }
+  .source { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; color: var(--ink-2); }
+  .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
+  .dot.ok { background: var(--hit); }
+  .dot.loading { background: var(--m); animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: 0.3; } }
+  .picker { margin: -4px 0 16px; }
   .five :global(button.primary), .five :global(.btn.primary) { background: var(--m); border-color: var(--m); }
 
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }

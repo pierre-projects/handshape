@@ -68,7 +68,7 @@ export interface WordSort {
   duplicates: string[];
   /** Typed pieces with no letters in them, as typed. */
   invalid: string[];
-  /** Longer than MAX_WORD_LETTERS. */
+  /** Longer than MAX_WORD_LETTERS, or not the exact length asked for. */
   tooLong: string[];
 }
 
@@ -77,14 +77,14 @@ export interface WordSort {
  * are separated by spaces, commas or semicolons; anything that isn't a letter
  * is dropped inside a word, so "O'Neil" becomes ONEIL.
  */
-export function sortWords(text: string, existing: string[] = []): WordSort {
+export function sortWords(text: string, existing: string[] = [], exact?: number): WordSort {
   const seen = new Set(existing);
   const out: WordSort = { added: [], duplicates: [], invalid: [], tooLong: [] };
   for (const raw of text.split(/[\s,;]+/)) {
     if (!raw) continue;
     const w = normaliseWord(raw);
     if (!w) out.invalid.push(raw);
-    else if (w.length > MAX_WORD_LETTERS) out.tooLong.push(w);
+    else if (exact ? w.length !== exact : w.length > MAX_WORD_LETTERS) out.tooLong.push(w);
     else if (seen.has(w)) out.duplicates.push(w);
     else {
       seen.add(w);

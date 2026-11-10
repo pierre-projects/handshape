@@ -32,7 +32,7 @@
     { name: 'learn', label: 'Signs', href: '#/learn', icon: 'signs' },
     { name: 'fingerspell', label: 'Spell', href: '#/fingerspell', icon: 'spell' },
     { name: 'practice', label: 'Camera', href: '#/practice', icon: 'camera' },
-    { name: 'progress', label: 'Progress', href: '#/progress', icon: 'progress' },
+    { name: 'progress', label: 'Dashboard', href: '#/progress', icon: 'progress' },
   ] as const;
 </script>
 
@@ -51,7 +51,7 @@
         </a>
       {/each}
     </nav>
-    <a class="progress-link" href="#/progress" aria-label="Progress" aria-current={route.name === 'progress' ? 'page' : undefined}>
+    <a class="progress-link" href="#/progress" aria-label="Dashboard" aria-current={route.name === 'progress' ? 'page' : undefined}>
       <Icon name="progress" />
     </a>
   </div>
@@ -69,7 +69,7 @@
       {:else if route.name === 'practice'}
         <Practice startId={route.param} />
       {:else if route.name === 'progress'}
-        <Progress />
+        <Progress section={route.param} />
       {:else}
         <Home />
       {/if}
