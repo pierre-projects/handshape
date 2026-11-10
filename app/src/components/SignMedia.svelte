@@ -31,7 +31,7 @@
 
 <figure class="media">
   {#if file}
-    <div class="frame" class:mirror>
+    <div class="frame" class:still={file.type !== 'video'} class:mirror>
       {#if file.type === 'video'}
         <video bind:this={video} src={file.url} autoplay loop muted playsinline aria-label="Sign for {item.gloss}"></video>
       {:else}
@@ -89,7 +89,25 @@
     max-height: 340px;
     margin: 0 auto;
   }
-  img, video { width: 100%; height: 100%; object-fit: contain; display: block; }
+  video { width: 100%; height: 100%; object-fit: contain; display: block; }
+  /* Still pictures: a fixed, bordered box; the drawing shrinks to fit inside it. */
+  .still {
+    aspect-ratio: auto;
+    width: 100%;
+    height: 300px;
+    padding: 24px;
+    border: 1px solid var(--line);
+  }
+  .still img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    object-fit: contain;
+  }
+  @media (max-width: 640px) {
+    .still { height: 220px; padding: 16px; }
+  }
   .embed { aspect-ratio: 16 / 9; }
   iframe { width: 100%; height: 100%; border: 0; }
   .drawn {
