@@ -100,6 +100,26 @@ export async function loadSignFive(
   return legacy;
 }
 
+export type DailyState = 'unplayed' | 'playing' | 'won' | 'lost';
+
+/** How today's daily game stands, for showing on other pages. */
+export function dailyStatus(save: SignFiveSave | undefined, key: string = dayKey()): { state: DailyState; guesses: number } {
+  const d = save?.daily?.key === key ? save.daily : undefined;
+  if (!d?.guesses.length) return { state: 'unplayed', guesses: 0 };
+  const won = !!d.answer && d.guesses.includes(d.answer);
+  return { state: won ? 'won' : d.guesses.length >= MAX_GUESSES ? 'lost' : 'playing', guesses: d.guesses.length };
+}
+
+/** A one-line description of today's game. */
+export function describeDaily({ state, guesses }: { state: DailyState; guesses: number }): string {
+  return {
+    unplayed: "Today's word is waiting",
+    playing: `Today's word: ${guesses} of ${MAX_GUESSES} guesses used`,
+    won: `Today's word solved in ${guesses}`,
+    lost: 'Out of guesses today. Try a practice word',
+  }[state];
+}
+
 /** Where today's word came from. */
 export type DailySource = 'official' | 'local';
 

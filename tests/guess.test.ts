@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ANSWERS, dailyAnswer, fetchOfficialAnswer, isKnownWord, letterMarks, randomAnswer, scoreGuess, todaysAnswer, WORDS,
+  ANSWERS, dailyAnswer, dailyStatus, describeDaily, fetchOfficialAnswer, isKnownWord, letterMarks, randomAnswer, scoreGuess, todaysAnswer, WORDS,
 } from '../app/src/lib/guess';
 import { sortWords } from '../app/src/lib/spelling';
 import { classifyLetter, handMotion, LetterReader, READABLE_LETTERS } from '../app/src/lib/engine/reader';
@@ -133,5 +133,21 @@ describe('five-letter lists', () => {
   it('practice picks from your list when given one', () => {
     expect(randomAnswer(undefined, () => 0.5, ['HOUSE', 'MUSIC'])).toBe('MUSIC');
     expect(randomAnswer('HOUSE', () => 0, ['HOUSE'])).toBe('HOUSE');
+  });
+});
+
+describe('daily status', () => {
+  const save = (guesses: string[], answer = 'TRUCE', key = '2026-11-10') => ({
+    daily: { key, guesses, answer }, stats: { played: 0, won: 0, streak: 0, best: 0, dist: [0, 0, 0, 0, 0, 0] },
+  });
+  it('reads today only', () => {
+    expect(dailyStatus(undefined, '2026-11-10').state).toBe('unplayed');
+    expect(dailyStatus(save(['CRANE'], 'TRUCE', '2026-11-09'), '2026-11-10').state).toBe('unplayed');
+  });
+  it('tells playing, won and lost apart', () => {
+    expect(dailyStatus(save(['CRANE']), '2026-11-10')).toEqual({ state: 'playing', guesses: 1 });
+    expect(dailyStatus(save(['CRANE', 'TRUCE']), '2026-11-10')).toEqual({ state: 'won', guesses: 2 });
+    expect(dailyStatus(save(Array(6).fill('CRANE')), '2026-11-10').state).toBe('lost');
+    expect(describeDaily({ state: 'won', guesses: 2 })).toBe("Today's word solved in 2");
   });
 });
