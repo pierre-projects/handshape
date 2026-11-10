@@ -1,4 +1,4 @@
-# ASL Learning App Architecture
+# Handshape Architecture
 
 Nov 10, 2026 · @pie · Describes the app as built on `main`. The original plan (Nov 9) and its
 review are in git history and in [architecture-review.md](architecture-review.md).

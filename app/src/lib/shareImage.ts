@@ -36,6 +36,16 @@ function signImage(id: string): Promise<HTMLImageElement | undefined> {
   });
 }
 
+/** The app's logo (app/public/icon.svg), loaded for drawing. */
+function appLogo(): Promise<HTMLImageElement | undefined> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(undefined);
+    img.src = `${import.meta.env.BASE_URL ?? '/'}icon.svg`;
+  });
+}
+
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -72,9 +82,10 @@ export function cardSubtitle(title: string): string {
 /** A 1080×1080 card, the usual size for sharing a picture. */
 export async function drawShareCard(card: ShareCard, size = 1080): Promise<HTMLCanvasElement> {
   const won = card.guesses.includes(card.answer);
-  const [scoreSign, logoSign] = await Promise.all([
+  const [scoreSign, logoSign, brand] = await Promise.all([
     signImage(won ? String(card.guesses.length) : 'x'),
     signImage('5'),
+    appLogo(),
   ]);
 
   const canvas = document.createElement('canvas');
@@ -193,10 +204,15 @@ export async function drawShareCard(card: ShareCard, size = 1080): Promise<HTMLC
   ctx.font = `600 ${26 * s}px ${font}`;
   ctx.fillText(bits.join('   ·   '), size / 2, gy + MAX_GUESSES * (tile + gap) + 44 * s);
 
-  // The app's name, top right
+  // The app's logo and name, top right
+  const nameX = size - 120 * s;
   ctx.textAlign = 'right';
   ctx.font = `600 ${22 * s}px ${font}`;
-  ctx.fillText('ASL Practice', size - 120 * s, ly + 30 * s);
+  ctx.fillText('Handshape', nameX, ly + 30 * s);
+  if (brand) {
+    const b = 34 * s;
+    ctx.drawImage(brand, nameX - ctx.measureText('Handshape').width - 10 * s - b, ly + 5 * s, b, b);
+  }
   return canvas;
 }
 

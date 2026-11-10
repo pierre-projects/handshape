@@ -78,7 +78,7 @@
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `asl-progress-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `handshape-progress-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
     message = 'Progress exported.';

@@ -1,6 +1,6 @@
-# ASL
+# Handshape
 
-An open-source web app for learning American Sign Language, built to help you learn fast.
+An open-source web app for learning American Sign Language (ASL), built to help you learn fast.
 It runs entirely in your browser: no accounts, and camera video never leaves your device.
 
 ## What it does today

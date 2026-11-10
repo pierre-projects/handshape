@@ -13,6 +13,7 @@
   import Progress from './views/Progress.svelte';
   import Practice from './views/Practice.svelte';
   import Icon from './components/Icon.svelte';
+  import Logo from './components/Logo.svelte';
 
   /** Reads the address; an address from an older version is swapped for its current name. */
   function read(): Route {
@@ -49,9 +50,9 @@
 
 <header>
   <div class="wrap bar">
-    <a class="brand" href={routes.home} aria-label="ASL Practice, home">
-      <span class="logo"><Icon name="signs" size={20} /></span>
-      <span>ASL <b>Practice</b></span>
+    <a class="brand" href={routes.home} aria-label="Handshape, home">
+      <Logo size={30} />
+      <span>Hand<b>shape</b></span>
     </a>
     <nav class="top" aria-label="Main">
       {#each links as link}
@@ -131,15 +132,6 @@
     white-space: nowrap;
   }
   .brand b { font-weight: 600; color: var(--ink-3); }
-  .logo {
-    display: grid;
-    place-items: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 7px;
-    background: var(--accent);
-    color: var(--accent-ink);
-  }
   .top { display: flex; gap: 2px; margin-left: auto; }
   .top a {
     display: flex;
