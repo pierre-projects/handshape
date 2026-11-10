@@ -9,7 +9,10 @@ Every file here is run by `tests/fixtures.test.ts`:
 
 ## Adding a sample
 
-1. Open **Camera practice** (Signs, then "Practice on camera") and pick the sign, or open a
+The **Save sample** button only exists on the local dev server (`npm run dev`); the live app
+leaves it out.
+
+1. Run `npm run dev` and open **Camera practice** (Signs, then "Practice on camera") and pick the sign, or open a
    "Sign it" card in Review. Turn on the camera.
 2. Make the sign correctly. For J and Z, hold the handshape still for a moment, then draw the
    letter. The camera should not need to accept it for the sample to be useful.

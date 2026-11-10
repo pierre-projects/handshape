@@ -2,8 +2,8 @@
   // Live camera check of one sign: its handshape and, for J and Z, the letter
   // drawn in the air. The finger a hint is about is picked out on the tracked
   // hand, and an optional guide hand shows the target shape over your own.
-  // Video is processed on this device and never stored, except a sample you
-  // choose to save yourself.
+  // Video is processed on this device and never stored. On the local dev
+  // server only, Details can save a sample of hand points for tuning.
   import { onDestroy } from 'svelte';
   import { computeFeatures, type Features } from '../lib/engine/features';
   import { judge, looksLike, SPECS, type Evaluation } from '../lib/engine/handshapes';
@@ -90,6 +90,8 @@
   /** The message on screen: it changes only once a new one has held for a moment, so it doesn't flicker as the hand wobbles. */
   const steady = new Steady<Message>(400, (a, b) => a.text === b.text && a.tone === b.tone);
   let shown = $state<Message>();
+  /** Sample saving is for tuning on the local dev server; the live app leaves it out. */
+  const RECORDING = import.meta.env.DEV;
   const recent: { frame: HandFrame; t: number }[] = [];
   const supported = cameraSupported;
   const tracker = new HandTracker(onFrame, () => dominantHand);
@@ -153,9 +155,11 @@
       return;
     }
     handSeen = true;
-    recent.push({ frame, t: now });
-    // About a second for a still sign; long enough to hold a whole drawn letter otherwise.
-    if (recent.length > (move ? 100 : 30)) recent.shift();
+    if (RECORDING) {
+      recent.push({ frame, t: now });
+      // About a second for a still sign; long enough to hold a whole drawn letter otherwise.
+      if (recent.length > (move ? 100 : 30)) recent.shift();
+    }
     const smooth = smoother.push(frame);
     features = computeFeatures(smooth);
     const j = judge(target, features, candidates);
@@ -383,11 +387,13 @@
           {Math.round(features.mcpBend.middle - features.mcpBend.index)}° / {r2(features.tipHeight.index - features.tipHeight.middle)}
         </p>
       {/if}
-      <div class="row">
-        <button class="small" onclick={saveSample}>Save sample</button>
-        <span class="muted">Help tune the checks: {move ? `draw a correct ${gloss(target)}, then save.` : `hold a correct ${gloss(target)}, then save.`} It doesn't have to pass.</span>
-      </div>
-      {#if saved}<p role="status">{saved}</p>{/if}
+      {#if RECORDING}
+        <div class="row">
+          <button class="small" onclick={saveSample}>Save sample</button>
+          <span class="muted">Help tune the checks: {move ? `draw a correct ${gloss(target)}, then save.` : `hold a correct ${gloss(target)}, then save.`} It doesn't have to pass.</span>
+        </div>
+        {#if saved}<p role="status">{saved}</p>{/if}
+      {/if}
     </div>
   {/if}
 {/snippet}

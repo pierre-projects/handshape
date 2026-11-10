@@ -10,7 +10,8 @@ backend: camera processing, sign checking and progress tracking all run in the l
 
 - **Goal:** learn ASL fast, starting with fingerspelling and numbers, with live camera feedback.
 - **Video never leaves the device.** The camera image is turned into 21 hand points per frame,
-  locally, and nothing is recorded unless the learner asks.
+  locally, and nothing is recorded (hand-point samples for tuning can be saved only on the
+  local dev server).
 - **No accounts.** Progress lives in the browser's IndexedDB, with JSON export and import.
 - **One small network call.** Sign Five asks this app's own relay for the day's official Wordle
   word (a date goes out, a word comes back). Everything else works offline once loaded.
@@ -236,8 +237,8 @@ Done:
 Next:
 
 1. **Real recorded samples** in `fixtures/handshapes/` to tune the rules against real hands,
-   P, K, 1, 2, 4 and 5 first, then T, X, J and Z (the folder and the Save sample button are set
-   up; no samples yet).
+   P, K, 1, 2, 4 and 5 first, then T, X, J and Z (the folder and the Save sample button, shown
+   only on the local dev server, are set up; no samples yet).
 2. **Movement check for 10** (thumb shake), and J/Z words as Sign Five answers once tuned.
    **Numbers above 10** (and so years and prices) for reading practice.
 3. **First vocabulary unit** (greetings, introductions) with location checks, which need face
