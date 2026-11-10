@@ -94,11 +94,6 @@ export function sortWords(text: string, existing: string[] = [], exact?: number)
   return out;
 }
 
-/** The new words from typed text; see sortWords. */
-export function parseWords(text: string, existing: string[] = []): string[] {
-  return sortWords(text, existing).added;
-}
-
 export function checkWord(expected: string, typed: string): boolean {
   return normaliseWord(expected) === normaliseWord(typed);
 }
@@ -177,4 +172,41 @@ export function readingSpeed(attempts: SpellingAttempt[], window = 20): number |
   if (speeds.length === 0) return undefined;
   const mid = Math.floor(speeds.length / 2);
   return speeds.length % 2 ? speeds[mid] : (speeds[mid - 1] + speeds[mid]) / 2;
+}
+
+/** Share of the most recent attempts that were right, as a whole percentage. */
+function recentPercent(xs: SpellingAttempt[], window = 20): number | undefined {
+  if (!xs.length) return undefined;
+  const recent = xs.slice(-window);
+  return Math.round((recent.filter((a) => a.correct).length / recent.length) * 100);
+}
+
+export interface SpellingSummary {
+  /** Every fingerspelling attempt, read or spelled. */
+  total: number;
+  read: { count: number; wpm?: number; accuracy?: number };
+  spell: { count: number; lettersPerSecond?: number; clean?: number };
+  /** Letters most often misread (seen at least 3 times), worst first. */
+  weakLetters: [string, LetterStat][];
+}
+
+/** Everything the app shows about fingerspelling progress, worked out in one place. */
+export function spellingSummary(attempts: SpellingAttempt[]): SpellingSummary {
+  const read = attempts.filter((a) => a.mode === 'receptive');
+  const spell = attempts.filter((a) => a.mode === 'expressive');
+  const clean = spell.filter((a) => a.correct).slice(-10).map((a) => a.lettersPerSecond);
+  const reading = readingSpeed(attempts);
+  return {
+    total: attempts.length,
+    read: { count: read.length, wpm: reading ? lettersPerSecondToWpm(reading) : undefined, accuracy: recentPercent(read) },
+    spell: {
+      count: spell.length,
+      lettersPerSecond: clean.length ? clean.reduce((a, b) => a + b, 0) / clean.length : undefined,
+      clean: recentPercent(spell),
+    },
+    weakLetters: [...letterStats(attempts).entries()]
+      .filter(([, s]) => s.seen >= 3 && s.missed > 0)
+      .sort((a, b) => b[1].rate - a[1].rate)
+      .slice(0, 5),
+  };
 }

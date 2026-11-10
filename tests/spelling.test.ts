@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildSequence, checkWord, letterStats, lettersPerSecondToWpm, MAX_SPEED, MIN_SPEED, nextSpeed, pickWord,
-  parseWords, readingSpeed, sequenceDuration, sortWords, spellableWords,
+  readingSpeed, sequenceDuration, sortWords, spellableWords, spellingSummary,
 } from '../app/src/lib/spelling';
 import type { SpellingAttempt } from '../app/src/lib/types';
 
@@ -88,22 +88,22 @@ describe('readingSpeed', () => {
   });
 });
 
-describe('parseWords', () => {
+describe('sortWords: added words', () => {
   it('splits on anything that is not a letter and uppercases', () => {
-    expect(parseWords('cat, dog\nMom  pie;tea')).toEqual(['CAT', 'DOG', 'MOM', 'PIE', 'TEA']);
+    expect(sortWords('cat, dog\nMom  pie;tea').added).toEqual(['CAT', 'DOG', 'MOM', 'PIE', 'TEA']);
   });
   it('drops duplicates, existing words and over-long words', () => {
-    expect(parseWords('cat Cat dog', ['DOG'])).toEqual(['CAT']);
-    expect(parseWords('a'.repeat(21) + ' ok')).toEqual(['OK']);
+    expect(sortWords('cat Cat dog', ['DOG']).added).toEqual(['CAT']);
+    expect(sortWords('a'.repeat(21) + ' ok').added).toEqual(['OK']);
   });
   it('returns nothing for blank or symbol-only input', () => {
-    expect(parseWords('  , 123 !! ')).toEqual([]);
+    expect(sortWords('  , 123 !! ').added).toEqual([]);
   });
 });
 
 describe('sortWords', () => {
   it('keeps apostrophes and hyphens inside one word', () => {
-    expect(parseWords("O'Neil, x-ray")).toEqual(['ONEIL', 'XRAY']);
+    expect(sortWords("O'Neil, x-ray").added).toEqual(['ONEIL', 'XRAY']);
   });
   it('says why typed pieces were skipped', () => {
     const s = sortWords('cat cat dog 42 ' + 'b'.repeat(25), ['DOG']);
@@ -111,5 +111,37 @@ describe('sortWords', () => {
     expect(s.duplicates).toEqual(['CAT', 'DOG']);
     expect(s.invalid).toEqual(['42']);
     expect(s.tooLong).toEqual(['B'.repeat(25)]);
+  });
+});
+
+describe('spellingSummary', () => {
+  const spelled = (correct: boolean, lps: number): SpellingAttempt => ({
+    word: 'CAT', mode: 'expressive', correct, lettersPerSecond: lps, replays: 0, at: new Date(),
+  });
+
+  it('is empty with no attempts', () => {
+    const s = spellingSummary([]);
+    expect(s).toMatchObject({ total: 0, read: { count: 0 }, spell: { count: 0 }, weakLetters: [] });
+    expect(s.read.wpm).toBeUndefined();
+    expect(s.spell.clean).toBeUndefined();
+  });
+
+  it('splits reading from spelling', () => {
+    const s = spellingSummary([
+      attempt('CAT', true, 'CAT', 2),
+      attempt('DOG', false, 'DIG', 2),
+      spelled(true, 3),
+      spelled(true, 1),
+      spelled(false, 9),
+    ]);
+    expect(s.total).toBe(5);
+    expect(s.read).toMatchObject({ count: 2, accuracy: 50, wpm: 24 });
+    // Only clean spellings count towards signing speed.
+    expect(s.spell).toMatchObject({ count: 3, clean: 67, lettersPerSecond: 2 });
+  });
+
+  it('names the letters misread most', () => {
+    const misses = Array.from({ length: 3 }, () => attempt('BOX', false, 'BOS'));
+    expect(spellingSummary(misses).weakLetters.map(([l]) => l)).toEqual(['X']);
   });
 });

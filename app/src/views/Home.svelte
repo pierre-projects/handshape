@@ -5,7 +5,7 @@
   import { buildQueue } from '../lib/srs';
   import { loadSettings } from '../lib/settings.svelte';
   import { activityDates, streak } from '../lib/stats';
-  import { lettersPerSecondToWpm, readingSpeed } from '../lib/spelling';
+  import { spellingSummary } from '../lib/spelling';
   import HandSign from '../components/HandSign.svelte';
   import Icon from '../components/Icon.svelte';
 
@@ -14,7 +14,7 @@
   let fresh = $state(0);
   let newRemaining = $state(0);
   let days = $state(0);
-  let speed = $state<number>();
+  let wpm = $state<number>();
   let started = $state(false);
   let learned = $state(0);
 
@@ -34,7 +34,7 @@
     fresh = new Set(q.fresh.map((c) => c.itemId)).size;
     newRemaining = q.newRemaining;
     days = streak(activityDates(reviews, attempts), new Date());
-    speed = readingSpeed(attempts);
+    wpm = spellingSummary(attempts).read.wpm;
     started = cards.size > 0;
     learned = new Set([...cards.values()].map((c) => c.itemId)).size;
     loaded = true;
@@ -93,8 +93,8 @@
       <div class="progress" aria-hidden="true"><span style="width:{(learned / total) * 100}%"></span></div>
     </div>
     <div class="stat"><div class="value">{due}</div><div class="label">reviews due</div></div>
-    {#if speed}
-      <div class="stat"><div class="value">{lettersPerSecondToWpm(speed)}</div><div class="label">reading wpm</div></div>
+    {#if wpm}
+      <div class="stat"><div class="value">{wpm}</div><div class="label">reading wpm</div></div>
     {/if}
   </div>
 {/if}

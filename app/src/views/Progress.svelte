@@ -8,7 +8,7 @@
   import type { Store } from '../lib/db';
   import { content } from '../lib/content';
   import { activityDates, cardCounts, dailyActivity, MATURE_DAYS, retention, streak, weakestItems } from '../lib/stats';
-  import { lettersPerSecondToWpm, readingSpeed } from '../lib/spelling';
+  import { spellingSummary } from '../lib/spelling';
   import type { ReviewEntry, Settings, SignFiveSave, SpellingAttempt, StoredCard } from '../lib/types';
   import { prefs, reloadSettings, updateSettings } from '../lib/settings.svelte';
   import ActivityChart from '../components/ActivityChart.svelte';
@@ -39,7 +39,7 @@
   const days = $derived(streak(activityDates(reviews, attempts), now));
   const activity = $derived(dailyActivity(activityDates(reviews, attempts), now, 14));
   const weak = $derived(weakestItems(reviews).slice(0, 6));
-  const reading = $derived(readingSpeed(attempts));
+  const spelling = $derived(spellingSummary(attempts));
   const learnedItems = $derived(new Set(cards.map((c) => c.itemId)).size);
 
   onMount(load);
@@ -137,8 +137,8 @@
     </div>
     <a class="tile" href="#/fingerspell/read">
       <span class="t-label">Fingerspelling read</span>
-      <span class="t-value">{reading ? lettersPerSecondToWpm(reading) : '–'}<small> wpm</small></span>
-      <span class="t-foot">{attempts.length} words practised<Icon name="arrow-right" size={14} /></span>
+      <span class="t-value">{spelling.read.wpm ?? '–'}<small> wpm</small></span>
+      <span class="t-foot">{spelling.total} words practised<Icon name="arrow-right" size={14} /></span>
     </a>
     <a class="tile" href="#/fingerspell/game">
       <span class="t-label">Sign Five</span>
