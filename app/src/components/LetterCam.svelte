@@ -1,9 +1,11 @@
 <script lang="ts">
   // Camera keyboard: reads whichever letter the hand makes and types it once it's
-  // held steady, and types J and Z when they're drawn in the air. Fast movement,
+  // held steady, and types J and Z when they're drawn in the air. A thumbs up
+  // held the same way is Enter, and a thumbs down is Delete. Fast movement,
   // unclear shapes and long holds don't type.
   import { onDestroy } from 'svelte';
   import { computeFeatures } from '../lib/engine/features';
+  import { isCommand, type Command } from '../lib/engine/gestures';
   import type { HandFrame, Handedness } from '../lib/engine/hand';
   import { cameraSupported, drawHand, drawTrail, HandTracker, problemMessage } from '../lib/engine/camera';
   import type { MoveId, Pt } from '../lib/engine/movement';
@@ -14,15 +16,21 @@
     enabled = true,
     autostart = false,
     dominantHand = 'Right',
+    letters = true,
     onLetter,
+    onCommand,
     compact = false,
   }: {
-    /** When false, nothing types (row full, game over). */
+    /** When false, nothing is read at all (game over). */
     enabled?: boolean;
     autostart?: boolean;
     dominantHand?: Handedness;
+    /** When false, letters don't type but the Enter and Delete gestures still work (the row is full). */
+    letters?: boolean;
     /** `replaces`: the still letter typed just before from the same handshape (I before J); swap it. */
     onLetter: (letter: string, opts?: { replaces?: string }) => void;
+    /** Thumbs up (enter) or thumbs down (delete) was held. */
+    onCommand?: (command: Command) => void;
     /** Phone layout: a slim strip with a small video, the status beside it. */
     compact?: boolean;
   } = $props();
@@ -94,7 +102,7 @@
     moving = handMotion(prevPoints, frame.image) > MOTION_LIMIT;
     prevPoints = frame.image;
     const smooth = smoother.push(frame);
-    if (enabled) apply(typer.update(smooth, computeFeatures(smooth), moving, now));
+    if (enabled) apply(typer.update(smooth, computeFeatures(smooth), moving, now, { letters }));
     draw(smooth);
   }
 
@@ -104,13 +112,18 @@
     waiting = s.waitingForRelease;
     drawing = s.drawing;
     trail = s.trail;
-    if (s.typed) {
-      onLetter(s.typed.toUpperCase(), s.replaces ? { replaces: s.replaces.toUpperCase() } : undefined);
-      flash = s.typed;
+    if (s.command) onCommand?.(s.command);
+    else if (s.typed) onLetter(s.typed.toUpperCase(), s.replaces ? { replaces: s.replaces.toUpperCase() } : undefined);
+    if (s.command || s.typed) {
+      flash = s.command ?? s.typed;
       clearTimeout(flashTimer);
       flashTimer = setTimeout(() => (flash = undefined), 500);
     }
   }
+
+  /** What to show in the ring: the letter, or a key symbol for Enter and Delete. */
+  const KEY: Record<Command, string> = { enter: '↵', delete: '⌫' };
+  const label = (x: string | undefined) => (isCommand(x) ? KEY[x] : (x ?? '').toUpperCase());
 
   function draw(frame: HandFrame | undefined) {
     drawHand(canvas, video, frame, progress > 0 ? 'var(--spell-glow)' : 'rgba(255,255,255,0.85)', { joints: false });
@@ -138,14 +151,20 @@
       : !handSeen
         ? 'Hold your hand up to the camera'
         : waiting
-          ? 'Got it. Change shape or drop your hand for the next letter.'
+          ? 'Got it. Change shape or drop your hand to go on.'
           : drawing
             ? `Drawing ${drawing.toUpperCase()}…`
             : moving
               ? 'Hold still…'
-              : reading
-                ? `Hold ${reading.toUpperCase()}…`
-                : 'Make a letter',
+              : reading === 'enter'
+                ? 'Thumbs up: hold to enter…'
+                : reading === 'delete'
+                  ? 'Thumbs down: hold to delete…'
+                  : reading
+                    ? `Hold ${reading.toUpperCase()}…`
+                    : letters
+                      ? 'Make a letter'
+                      : 'Thumbs up to enter, thumbs down to delete',
   );
 </script>
 
@@ -154,7 +173,7 @@
 {:else if status === 'off' || status === 'error'}
   <div class="off" class:compact>
     <button class="primary" onclick={start}>Spell with camera</button>
-    {#if !compact}<span class="small muted">Hold each letter for about a second to type it. Video stays on this device.</span>{/if}
+    {#if !compact}<span class="small muted">Hold each letter for about a second to type it. Thumbs up enters, thumbs down deletes. Video stays on this device.</span>{/if}
     {#if error}<p class="small err" role="alert">{error}</p>{/if}
   </div>
 {:else}
@@ -172,7 +191,7 @@
           <circle cx="32" cy="32" r="28" class="track" />
           <circle cx="32" cy="32" r="28" class="fill" pathLength="1" />
         </svg>
-        <span>{(flash ?? (waiting ? '' : reading) ?? '').toUpperCase()}</span>
+        <span>{label(flash ?? (waiting ? '' : reading))}</span>
       </div>
       {#if !compact}<p class="msg" aria-live="polite">{message}</p>{/if}
     </div>

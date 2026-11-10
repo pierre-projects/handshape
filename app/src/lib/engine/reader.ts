@@ -2,6 +2,7 @@
 // (not just "is it the target?") and types it only when the learner clearly
 // means it. Passing shapes, wobbles and one long hold must not type letters.
 import type { Features } from './features';
+import { classifyCommand, isCommand, type Command } from './gestures';
 import type { HandFrame } from './hand';
 import { evaluate, judge, SPECS } from './handshapes';
 import { imagePalm, imagePoint, MOVES, StrokeTracker, thumbSide, type MoveId, type Pt } from './movement';
@@ -131,6 +132,11 @@ const STARTS_FROM: Record<MoveId, string[]> = { j: ['i'], z: ['d', 'l'] };
 const REPLACE_WINDOW_MS = 3000;
 
 export interface TyperState extends ReaderState {
+  /**
+   * Set on the one frame a command gesture has been held long enough: thumbs up
+   * (enter) or thumbs down (delete). While one is being held, `letter` names it.
+   */
+  command?: Command;
   /** The letter being drawn in the air right now, if any. */
   drawing?: MoveId;
   /** The fingertip's trail while drawing, for showing on screen. */
@@ -143,9 +149,11 @@ export interface TyperState extends ReaderState {
 }
 
 /**
- * Everything the camera can type: still letters held steady (LetterReader) and
- * J and Z drawn in the air (StrokeTracker). While a letter is being drawn, still
- * letters don't type, and a drawn letter isn't followed by its own handshape.
+ * Everything the camera can type: still letters held steady (LetterReader), J
+ * and Z drawn in the air (StrokeTracker), and the two command gestures, thumbs
+ * up for enter and thumbs down for delete (gestures.ts), which are held like a
+ * letter. While a letter is being drawn, still letters don't type, and a drawn
+ * letter isn't followed by its own handshape.
  */
 export class CameraTyper {
   private reader: LetterReader;
@@ -164,12 +172,30 @@ export class CameraTyper {
 
   /**
    * One camera frame. `frame` and `features` are undefined when no hand is in
-   * view. `moving` is true while the whole hand is travelling fast.
+   * view. `moving` is true while the whole hand is travelling fast. With
+   * `letters` false only the command gestures are read, for when there is no
+   * room for another letter but the word still has to be entered or fixed.
    */
-  update(frame: HandFrame | undefined, features: Features | undefined, moving: boolean, now: number): TyperState {
+  update(
+    frame: HandFrame | undefined,
+    features: Features | undefined,
+    moving: boolean,
+    now: number,
+    { letters = true }: { letters?: boolean } = {},
+  ): TyperState {
     if (!frame || !features) {
       this.strokes.forEach((s) => s.update(undefined, 1, false, 0, now));
       return { ...this.reader.update(undefined, now), trail: [] };
+    }
+
+    // A command gesture is held like a letter, and nothing else is read while it shows.
+    const command = moving ? undefined : classifyCommand(frame, features);
+    if (command || !letters) {
+      this.strokes.forEach((s) => s.reset());
+      const state = this.reader.update(command, now);
+      if (!isCommand(state.typed)) return { ...state, trail: [] };
+      this.lastStill = undefined;
+      return { ...state, typed: undefined, command: state.typed, trail: [] };
     }
 
     let drawing: MoveId | undefined;

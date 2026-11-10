@@ -379,18 +379,20 @@
       {:else if !phone}
         <section class="card cam-card">
           <LetterCam
-            enabled={current.length < WORD_LENGTH && !confirmUnknown}
+            letters={current.length < WORD_LENGTH && !confirmUnknown}
             autostart={settings?.showCameraByDefault ?? false}
             dominantHand={settings?.dominantHand}
             onLetter={(l, o) => type(l, true, o?.replaces)}
+            onCommand={(c) => (c === 'enter' ? enter() : erase())}
           />
           <div class="cam-actions">
-            <button onclick={erase} disabled={!current}><Icon name="arrow-left" size={16} />Delete letter</button>
-            <button class="primary" onclick={enter} disabled={current.length < WORD_LENGTH}>Enter guess</button>
+            <button onclick={erase} disabled={!current}><span class="gesture" aria-hidden="true">👎</span>Delete letter</button>
+            <button class="primary" onclick={enter} disabled={current.length < WORD_LENGTH}><span class="gesture" aria-hidden="true">👍</span>Enter guess</button>
           </div>
           <p class="small muted tip">
-            To repeat a letter (like the PP in APPLE), drop or change your hand between them. For J and Z, hold the
-            handshape, then draw the letter in the air. Typed a wrong letter? Delete it before you enter.
+            Hold a <b>thumbs up</b> to enter your guess and a <b>thumbs down</b> to delete a letter. To repeat a letter
+            (like the PP in APPLE), drop or change your hand between them. For J and Z, hold the handshape, then draw
+            the letter in the air.
           </p>
         </section>
       {/if}
@@ -416,10 +418,11 @@
       <div class="cam-strip">
         <LetterCam
           compact
-          enabled={current.length < WORD_LENGTH && !confirmUnknown}
+          letters={current.length < WORD_LENGTH && !confirmUnknown}
           autostart={settings?.showCameraByDefault ?? false}
           dominantHand={settings?.dominantHand}
           onLetter={(l, o) => type(l, true, o?.replaces)}
+          onCommand={(c) => (c === 'enter' ? enter() : erase())}
         />
       </div>
     {/if}
@@ -427,14 +430,14 @@
   <section class="keyboard" aria-label="Keyboard">
     {#each ROWS as krow, k}
       <div class="krow">
-        {#if k === 2}<button class="key wide" onclick={enter} aria-label="Enter guess">Enter</button>{/if}
+        {#if k === 2}<button class="key wide" onclick={enter} aria-label="Enter guess, or hold a thumbs up to the camera">Enter</button>{/if}
         {#each krow as c}
           <button class="key {marks.get(c) ?? ''}" onclick={() => type(c)} aria-label={c}>
             {#if showShapes}<span class="kshape"><SignPicture id={c.toLowerCase()} size="100%" {mirror} /></span>{/if}
             <span>{c}</span>
           </button>
         {/each}
-        {#if k === 2}<button class="key wide" onclick={erase} aria-label="Delete letter"><Icon name="arrow-left" size={18} /></button>{/if}
+        {#if k === 2}<button class="key wide" onclick={erase} aria-label="Delete letter, or hold a thumbs down to the camera"><Icon name="arrow-left" size={18} /></button>{/if}
       </div>
     {/each}
   </section>
@@ -447,6 +450,7 @@
       <li>Green: right letter, right place. Gold: in the word, wrong place. Grey: not in the word.</li>
       <li>To repeat a letter (like the PP in APPLE), drop or change your hand between them.</li>
       <li>For J and Z, hold the handshape, then draw the letter in the air (or tap the key).</li>
+      <li>👍 Hold a thumbs up to enter your guess. 👎 Hold a thumbs down to delete the last letter. Or tap Enter and the back arrow.</li>
       <li>Typed a wrong letter? Delete it before you enter.</li>
     </ul>
     <label class="shapes-toggle small">
@@ -554,6 +558,7 @@
   .bar.this { background: var(--hit); color: #fff; }
   .result-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
   .signed-note { margin: 0; }
+  .gesture { font-size: 1.05rem; line-height: 1; }
 
   .keyboard { margin-top: 18px; display: grid; gap: 6px; justify-items: center; }
   .krow { display: flex; gap: 5px; width: min(100%, 620px); justify-content: center; }

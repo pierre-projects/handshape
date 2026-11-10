@@ -102,7 +102,8 @@ app/src/
 | `lib/engine/guide.ts` | The guide hand: a sign's pose sized to the learner's hand and pinned to their wrist |
 | `lib/engine/handAnimation.ts` | The moving hand in reading practice: where the model hand is at any moment while it spells a word |
 | `lib/engine/movement.ts` | Letters drawn in the air (J, Z): follows a fingertip, finds the stroke, matches its shape |
-| `lib/engine/reader.ts` | Reads *which* letter is being made (for Sign Five): still letters and drawn J/Z, with safeguards against stray letters |
+| `lib/engine/reader.ts` | Reads *which* letter is being made (for Sign Five): still letters, drawn J/Z and the two command gestures, with safeguards against stray letters |
+| `lib/engine/gestures.ts` | The command gestures for typing by camera: thumbs up (enter) and thumbs down (delete) |
 
 Rules that keep this tidy: pages don't import other pages; `lib/` doesn't import components;
 `lib/engine/` doesn't import Svelte; colours come from tokens in `app.css`.
@@ -139,8 +140,11 @@ Every camera feature uses the same pipeline:
    needs its three strokes) so a plain line or a dropping hand can't pass. A correct shape drawn
    mirrored counts, with a tip. In Sign Five (`CameraTyper`) a drawn J or Z types that letter
    and replaces an I or D typed just before from the same handshape.
+8. **Commands** (`gestures.ts`), in Sign Five: a fist with the thumb held straight and standing
+   clear of the rest of the hand is Enter when it points up and Delete when it points down. They
+   are held like a letter, take priority over letters, and still work when the row is full.
 
-8. **Showing the fix** (`guide.ts`, `camera.ts`): the finger a hint is about is drawn in the
+9. **Showing the fix** (`guide.ts`, `camera.ts`): the finger a hint is about is drawn in the
    "fix" colour on the tracked hand. With the Guide on, the sign's model pose is drawn under it
    as a pale hand, scaled by fitting the tracker's 3D points to the picture (so a hand tipped
    toward the camera keeps its size) and pinned to the wrist, with the same finger in the "match" colour. A hand shown from

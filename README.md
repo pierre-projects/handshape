@@ -86,7 +86,9 @@ is in K and P, is told to lift, not to "straighten".
 
 J and Z are drawn in the air. Hold the handshape still for a moment, then draw: the app follows
 your pinky (J) or index fingertip (Z), shows the trail, and matches the shape you drew. Drawing it
-mirrored still counts, with a tip. In Sign Five, drawing a J or Z types it. 10's thumb shake isn't
+mirrored still counts, with a tip. In Sign Five, drawing a J or Z types it, a thumbs up held for
+about a second enters the guess and a thumbs down deletes a letter. (The "OK" ring of thumb and
+index finger couldn't be Enter: it is the letter F.) 10's thumb shake isn't
 checked yet; only its starting handshape is.
 
 The rules are tested against a model hand (the same one the guide is drawn from), and real recorded samples in
