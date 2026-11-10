@@ -3,3 +3,6 @@ dist/
 dev-dist/
 *.log
 .DS_Store
+
+# Local Claude Code / desktop app settings (preview config etc.)
+.claude/
