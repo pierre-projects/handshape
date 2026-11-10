@@ -14,11 +14,14 @@
     autostart = false,
     dominantHand = 'Right',
     onMatch,
+    fill = false,
   }: {
     target: string;
     autostart?: boolean;
     dominantHand?: Handedness;
     onMatch?: () => void;
+    /** Fill the parent's height, for full-screen practice. */
+    fill?: boolean;
   } = $props();
 
   type Status = 'off' | 'loading' | 'running' | 'error';
@@ -227,35 +230,63 @@
 {#if !supported}
   <p class="small muted">Camera checking needs a secure (https) page and a browser with camera access.</p>
 {:else if status === 'off' || status === 'error'}
-  <div class="row">
-    <button onclick={start}>Check with camera</button>
-    <span class="small muted">The camera checks your handshape. Video stays on this device.</span>
-  </div>
-  {#if error}<p class="small" role="alert">{error}</p>{/if}
+  {#if fill}
+    <div class="placeholder">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
+      </svg>
+      <p><strong>Turn on your camera</strong> and it will tell you when your handshape is right.</p>
+      <button class="primary lg" onclick={start}>Turn on camera</button>
+      <p class="small muted">Video stays on this device.</p>
+      {#if error}<p class="small err" role="alert">{error}</p>{/if}
+    </div>
+  {:else}
+    <div class="row">
+      <button onclick={start}>Check with camera</button>
+      <span class="small muted">The camera checks your handshape. Video stays on this device.</span>
+    </div>
+    {#if error}<p class="small" role="alert">{error}</p>{/if}
+  {/if}
 {:else}
-  <div class="check">
-    <div class="view">
+  <div class="check" class:fill>
+    <div class="view" class:matched>
       <!-- svelte-ignore a11y_media_has_caption -->
       <video bind:this={video} playsinline muted class="mirror"></video>
       <canvas bind:this={canvas} class="mirror" aria-hidden="true"></canvas>
       {#if status === 'loading'}
         <div class="overlay">Loading hand tracking… The first time downloads about 22 MB, then it works offline.</div>
       {/if}
+      <div class="cam-tools">
+        <button class="small" onclick={() => (showDetails = !showDetails)} aria-expanded={showDetails}>Details</button>
+        <button class="small" onclick={stop}>Camera off</button>
+      </div>
       <div class="meter" style="--p: {progress}" class:done={matched} aria-hidden="true"></div>
+      <p class="msg {message.tone}" aria-live="polite">{message.text}</p>
+
+      {#if showDetails && evaluation && fill}
+        <div class="details small floating">
+          <ul>
+            {#each evaluation.results as r}
+              <li class:pass={r.pass} class:fail={!r.pass && r.reliable} class:unsure={!r.pass && !r.reliable}>
+                <span class="mark">{r.pass ? '✓' : r.reliable ? '✗' : '?'}</span>
+                {r.pass ? r.id.replaceAll('-', ' ') : r.hint}
+              </li>
+            {/each}
+          </ul>
+          <p class="muted">? marks thumb positions the camera often can't see. They never block a match.</p>
+        </div>
+      {/if}
     </div>
 
-    <p class="msg {message.tone}" aria-live="polite">{message.text}</p>
-    {#if evaluation?.movement}
+    {#if evaluation?.movement && !fill}
       <p class="small muted">Movement isn't checked yet. {evaluation.movement}</p>
     {/if}
 
-    <div class="row">
-      {#if matched}<button class="small" onclick={again}>Try again</button>{/if}
-      <button class="small" onclick={() => (showDetails = !showDetails)} aria-expanded={showDetails}>Details</button>
-      <button class="small" onclick={stop}>Camera off</button>
-    </div>
+    {#if matched && !fill}
+      <div class="row"><button class="small" onclick={again}>Try again</button></div>
+    {/if}
 
-    {#if showDetails && evaluation}
+    {#if showDetails && evaluation && !fill}
       <div class="details small">
         <ul>
           {#each evaluation.results as r}
@@ -285,7 +316,29 @@
 
 <style>
   .check > * + * { margin-top: 10px; }
-  .view { position: relative; border-radius: 10px; overflow: hidden; background: #000; aspect-ratio: 4 / 3; max-height: 360px; margin: 0 auto; }
+  .check.fill { height: 100%; }
+  .view {
+    position: relative; border-radius: var(--radius); overflow: hidden; background: #000;
+    aspect-ratio: 4 / 3; max-height: 380px; margin: 0 auto;
+    outline: 4px solid transparent; outline-offset: -4px; transition: outline-color 0.2s;
+  }
+  .fill .view { aspect-ratio: auto; height: 100%; max-height: none; }
+  .view.matched { outline-color: #2fbf71; }
+  .cam-tools { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; z-index: 2; }
+  .cam-tools button { background: rgb(0 0 0 / 0.55); color: #fff; border-color: rgb(255 255 255 / 0.25); backdrop-filter: blur(6px); }
+  .cam-tools button:hover { background: rgb(0 0 0 / 0.75); }
+  .placeholder {
+    height: 100%; min-height: 260px; border-radius: var(--radius); border: 1px dashed var(--line-strong);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    padding: 24px; text-align: center; color: var(--ink-2); background: var(--surface);
+  }
+  .placeholder p { margin: 0; max-width: 34ch; }
+  .placeholder svg { color: var(--accent); }
+  .err { color: var(--bad); }
+  .floating {
+    position: absolute; top: 52px; right: 10px; left: 10px; max-height: calc(100% - 120px);
+    overflow: auto; z-index: 2; box-shadow: var(--shadow-lift);
+  }
   video, canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .overlay {
     position: absolute; inset: 0; display: grid; place-items: center; padding: 16px;
@@ -298,10 +351,15 @@
     transition: width 80ms linear;
   }
   .meter.done { height: 8px; }
-  .msg { margin: 0; padding: 10px 14px; border-radius: 10px; font-weight: 600; min-height: 1.5em; }
-  .msg.info { background: var(--surface-2); color: var(--ink-2); }
-  .msg.good { background: var(--good-soft); color: var(--good); }
-  .msg.bad { background: var(--bad-soft); color: var(--bad); }
+  .msg {
+    position: absolute; left: 10px; right: 10px; bottom: 16px; z-index: 2;
+    margin: 0; padding: 8px 14px; border-radius: var(--radius-sm); font-weight: 600; font-size: 0.925rem; text-align: center;
+    backdrop-filter: blur(6px);
+  }
+  .msg:empty { display: none; }
+  .msg.info { background: rgb(0 0 0 / 0.6); color: #fff; }
+  .msg.good { background: rgb(35 130 77 / 0.92); color: #fff; }
+  .msg.bad { background: rgb(160 50 36 / 0.9); color: #fff; }
   .details { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; }
   .details ul { list-style: none; margin: 0 0 8px; padding: 0; }
   .details li { display: flex; gap: 8px; }
