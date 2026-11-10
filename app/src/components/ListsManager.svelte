@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clearReturn, peekReturn, routes } from '../lib/routes';
   // Word lists on the dashboard.
   //   #/progress/lists        all lists, and "New list"
   //   #/progress/lists/<id>   one list: rename, add and remove words, choose where it's used, delete
@@ -15,6 +16,8 @@
   }: { settings: Settings; listId?: string; onSave: (patch: Partial<Settings>) => Promise<void> } = $props();
 
   const list = $derived(findList(settings.lists, listId));
+  /** Came here from a drill's "Edit list": offer the way back. */
+  const back = peekReturn();
   const fives = $derived(list ? fiveLetterWords(list.words) : []);
   const inSpell = $derived(!!list && settings.spellListId === list.id);
   const inFive = $derived(!!list && settings.fiveListId === list.id);
@@ -54,7 +57,7 @@
     if (settings.lists.length >= MAX_LISTS) return;
     const l: WordListDef = { id: newListId(), name: uniqueName('New list', settings.lists), words: [] };
     await onSave({ lists: [...settings.lists, l] });
-    location.hash = `#/progress/lists/${l.id}`;
+    location.hash = routes.list(l.id);
     await tick();
   }
 
@@ -115,9 +118,16 @@
       spellListId: settings.spellListId === id ? '' : settings.spellListId,
       fiveListId: settings.fiveListId === id ? '' : settings.fiveListId,
     });
-    location.hash = '#/progress/lists';
+    location.hash = routes.lists;
   }
 </script>
+
+{#if back}
+  <div class="return">
+    <span class="small">Editing word lists from the {back.label}.</span>
+    <a class="btn small primary" href={back.href} onclick={clearReturn}><Icon name="arrow-left" size={16} />Back to {back.label}</a>
+  </div>
+{/if}
 
 {#if !listId}
   <div class="index-head">
@@ -138,7 +148,7 @@
     <div class="grid">
       {#each settings.lists as l (l.id)}
         {@const f = fiveLetterWords(l.words).length}
-        <a class="list-card" href="#/progress/lists/{l.id}">
+        <a class="list-card" href={routes.list(l.id)}>
           <span class="lc-top">
             <b class="lc-name">{l.name}</b>
             <Icon name="arrow-right" size={16} />
@@ -175,10 +185,10 @@
   <section class="card empty">
     <h3>List not found</h3>
     <p class="muted">It may have been deleted.</p>
-    <a class="btn" href="#/progress/lists">All lists</a>
+    <a class="btn" href={routes.lists}>All lists</a>
   </section>
 {:else}
-  <a class="back-link small" href="#/progress/lists"><Icon name="arrow-left" size={16} />All lists</a>
+  <a class="back-link small" href={routes.lists}><Icon name="arrow-left" size={16} />All lists</a>
 
   <section class="card detail">
     <div class="name-row">
@@ -296,6 +306,11 @@
   .empty-ico { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); }
 
   .back-link { margin-bottom: 10px; }
+  .return {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap;
+    margin-bottom: 14px; padding: 10px 14px; border-radius: var(--radius-sm);
+    background: var(--accent-soft); color: var(--ink-2);
+  }
   .detail { display: grid; gap: 16px; }
   .name-row { display: flex; align-items: center; gap: 12px; }
   .name {

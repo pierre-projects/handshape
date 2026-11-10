@@ -40,20 +40,29 @@ service worker keeps them for offline use.
 
 ## Pages
 
-Routing is by URL hash (`#/review`, `#/fingerspell/read`, …), so any static host works without
+Routing is by URL hash (`#/review`, `#/fingerspelling/read`, …), so any static host works without
 redirect rules. Each page is one file in `app/src/views/`, and only `App.svelte` routes to pages.
+Every address is defined once in `lib/routes.ts`; pages link with `routes.*`, never a hand-written
+`#/…`. Addresses from older versions (`#/learn`, `#/practice`, `#/fingerspell`, `#/progress`) are
+redirected there, so old bookmarks keep working.
+
+The main navigation is the same five places on every screen size: Today, Review, Signs, Spelling,
+Dashboard. Camera practice belongs with Signs (and is linked from Today and every sign).
 
 | Page | Route | What the learner does |
 | --- | --- | --- |
-| Today | `#/` | Sees what's due, their streak and reading speed, and where to start |
-| Review | `#/review` | Works through the spaced-repetition queue: new signs, "Read it" (type what a sign means) and "Sign it" (make the sign, camera optional), then grades Again / Hard / Good / Easy |
-| Signs | `#/learn/<id>` | Browses every sign: picture, handshape, palm, movement, tips, look-alikes |
-| Camera | `#/practice/<id>` | Signs each letter or number to the camera; a sign list shows progress, and the next sign comes on Next (or automatically, if turned on) |
-| Fingerspelling | `#/fingerspell` | Chooses between the two drills and the word game |
-| Read drill | `#/fingerspell/read` | Watches a word spelled letter by letter and types it; speed adapts |
-| Spell drill | `#/fingerspell/spell` | Fingerspells a word; the camera checks each letter and scores the word |
-| Sign Five | `#/fingerspell/game` | Guesses a five-letter word in six tries by fingerspelling it (daily word or practice) |
-| Dashboard | `#/progress` | Overview of progress, word lists (`/lists`, `/lists/<id>`), settings and data (`/settings`) |
+| Today | `#/` | Gets one clear next step, sees streak and signs started, and picks any activity from the Practise hub |
+| Review | `#/review`, `#/review/more` | Works through the spaced-repetition queue: new signs, "Read it" (type what a sign means) and "Sign it" (make the sign, camera optional), then grades Again / Hard / Good / Easy. `/more` starts with five extra new signs |
+| Signs | `#/signs`, `#/signs/<id>` | Browses every sign: picture, handshape, palm, movement, tips, look-alikes |
+| Camera practice | `#/camera`, `#/camera/<id>` | Signs each letter or number to the camera; a sign list shows progress, and the next sign comes on Next (or automatically, if turned on) |
+| Fingerspelling | `#/fingerspelling` | Chooses between the two drills and the word game |
+| Read drill | `#/fingerspelling/read` | Watches a word spelled letter by letter and types it; speed adapts |
+| Spell drill | `#/fingerspelling/spell` | Fingerspells a word; the camera checks each letter and scores the word |
+| Sign Five | `#/fingerspelling/sign-five` | Guesses a five-letter word in six tries by fingerspelling it (daily word or practice) |
+| Dashboard | `#/dashboard` | Signs and fingerspelling progress, activity, word lists (`/lists`, `/lists/<id>`), settings and data (`/settings`) |
+
+"Edit list" in a drill remembers the drill for the browser tab, and the lists page offers "Back
+to …" until you leave the dashboard.
 
 ## Code layout
 
@@ -69,6 +78,7 @@ app/src/
 
 | Module | Responsibility |
 | --- | --- |
+| `lib/routes.ts` | Every address, redirects from older ones, page names, and the "Back to …" memory |
 | `lib/types.ts` | Shared types and defaults (settings, cards, attempts, word lists, Sign Five save) |
 | `lib/db.ts` | IndexedDB store: cards, reviews, attempts, settings; export, import, delete all |
 | `lib/settings.svelte.ts` | The one shared copy of settings; `updateSettings(patch)` merges into the latest saved settings and saves in order |

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { routes } from '../lib/routes';
   // Fingerspelling landing (#/fingerspell): pick a drill or the word game.
   // The drills are their own pages: ReadDrill (#/fingerspell/read),
   // SpellDrill (#/fingerspell/spell) and SignFive (#/fingerspell/game).
@@ -8,10 +9,12 @@
   import { builtInWords, canRead, drillWords } from '../lib/fingerspell';
   import { loadSettings, prefs, updateSettings } from '../lib/settings.svelte';
   import type { SpellingAttempt } from '../lib/types';
+  import { dailyStatus, describeDaily } from '../lib/guess';
   import ListPicker from '../components/ListPicker.svelte';
   import Icon from '../components/Icon.svelte';
 
   let attempts = $state<SpellingAttempt[]>([]);
+  let fiveToday = $state('');
   const summary = $derived(spellingSummary(attempts));
   const chosen = $derived(drillWords(prefs.value).list);
 
@@ -19,6 +22,7 @@
     const store = await getStore();
     await loadSettings();
     attempts = await store.attempts();
+    fiveToday = describeDaily(dailyStatus(await store.signFive()));
   });
 </script>
 
@@ -28,7 +32,7 @@
 </header>
 
 <div class="modes">
-  <a class="mode-card read" href="#/fingerspell/read" class:locked={!canRead} aria-disabled={!canRead}>
+  <a class="mode-card read" href={routes.read} class:locked={!canRead} aria-disabled={!canRead}>
     <div class="art" aria-hidden="true">
       <span class="flash">C</span><span class="flash on">A</span><span class="flash">T</span>
       <span class="art-icon"><Icon name="eye" size={22} /></span>
@@ -46,7 +50,7 @@
     <span class="go">{canRead ? 'Start reading' : 'Needs letter images'}<Icon name="arrow-right" size={18} /></span>
   </a>
 
-  <a class="mode-card spell" href="#/fingerspell/spell">
+  <a class="mode-card spell" href={routes.spell}>
     <div class="art" aria-hidden="true">
       <span class="tile ok">C</span><span class="tile now">A</span><span class="tile">T</span>
       <span class="art-icon"><Icon name="camera" size={22} /></span>
@@ -65,13 +69,13 @@
   </a>
 </div>
 
-<a class="game-card" href="#/fingerspell/game">
+<a class="game-card" href={routes.signFive}>
   <span class="mini-board" aria-hidden="true">
     <i class="h">S</i><i class="n">I</i><i>G</i><i class="h">N</i><i class="n">5</i>
   </span>
   <span class="game-text">
     <b>Sign Five</b>
-    <span class="small muted">A word game: guess the five-letter word in six tries by fingerspelling it to the camera.</span>
+    <span class="small muted">Guess the five-letter word in six tries by fingerspelling it.{fiveToday ? ` ${fiveToday}.` : ""}</span>
   </span>
   <span class="game-go">Play<Icon name="arrow-right" size={16} /></span>
 </a>
@@ -88,7 +92,7 @@
   <section class="card weak">
     <p class="small">
       <b>Letters you misread most:</b>
-      {#each summary.weakLetters as [l, s], i}<a href="#/learn/{l.toLowerCase()}">{l}</a> ({Math.round(s.rate * 100)}%){i < summary.weakLetters.length - 1 ? ', ' : ''}{/each}.
+      {#each summary.weakLetters as [l, s], i}<a href={routes.sign(l.toLowerCase())}>{l}</a> ({Math.round(s.rate * 100)}%){i < summary.weakLetters.length - 1 ? ', ' : ''}{/each}.
       Read mode shows words with these letters more often.
     </p>
   </section>

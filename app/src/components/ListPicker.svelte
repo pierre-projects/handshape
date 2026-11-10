@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { rememberReturn, routes } from '../lib/routes';
   // Choose which word list a drill or game uses: the built-in words or one of
   // your lists. Lists are made and edited on the dashboard.
   import type { WordListDef } from '../lib/types';
@@ -44,7 +45,7 @@
         {/each}
       </select>
     </div>
-    <a class="btn ghost small manage" href={selected ? `#/progress/lists/${selected.id}` : '#/progress/lists'}>
+    <a class="btn ghost small manage" href={selected ? routes.list(selected.id) : routes.lists} onclick={() => rememberReturn()}>
       <Icon name={lists.length ? 'edit' : 'plus'} size={16} />{selected ? 'Edit list' : lists.length ? 'Manage lists' : 'Make a list'}
     </a>
   </div>
