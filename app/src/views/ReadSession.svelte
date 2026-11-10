@@ -264,7 +264,7 @@
 
         <div class="button-row">
           {#if score.missed.length}
-            <button onclick={() => start(score.missed)}>Practise the {score.missed.length === 1 ? 'one' : score.missed.length} you missed</button>
+            <button onclick={() => start(score.missed)}>Practice the {score.missed.length === 1 ? 'one' : score.missed.length} you missed</button>
           {/if}
           <button onclick={() => start()}>Play again</button>
           {#if score.passed && nextUp && !rerun}

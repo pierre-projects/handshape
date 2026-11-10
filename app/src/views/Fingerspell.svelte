@@ -58,7 +58,7 @@
 
 <header class="hub-head">
   <h1>Fingerspelling</h1>
-  <p class="muted">Play today's word, then practise the two skills behind it: reading and spelling.</p>
+  <p class="muted">Play today's word, then practice the two skills behind it: reading and spelling.</p>
 </header>
 
 <a class="feature" href={routes.signFive}>
@@ -86,7 +86,7 @@
   </span>
 </a>
 
-<h2 class="section-title">Practise</h2>
+<h2 class="section-title">Practice</h2>
 <div class="modes">
   <a class="mode-card read" href={routes.read} class:locked={!canRead} aria-disabled={!canRead}>
     <div class="art" aria-hidden="true">
@@ -126,7 +126,7 @@
   </a>
 </div>
 
-<h2 class="section-title">Words to practise</h2>
+<h2 class="section-title">Words to practice</h2>
 <ListPicker
   lists={prefs.value?.lists ?? []}
   selectedId={chosen?.id ?? ''}

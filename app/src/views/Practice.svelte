@@ -175,7 +175,7 @@
 
 <div class="practice">
   <div class="toolbar">
-    <div class="segmented" role="tablist" aria-label="What to practise">
+    <div class="segmented" role="tablist" aria-label="What to practice">
       <button role="tab" aria-selected={set === 'letter'} onclick={() => begin('letter')}>Letters</button>
       <button role="tab" aria-selected={set === 'number'} onclick={() => begin('number')}>Numbers</button>
     </div>
@@ -203,7 +203,7 @@
             class:skipped={skipped.includes(it.id) && !done.has(it.id)}
             disabled={!ok}
             aria-current={it.id === current.id ? 'true' : undefined}
-            title={ok ? `Practise ${it.gloss}` : `${it.gloss} has a movement the camera can't check yet`}
+            title={ok ? `Practice ${it.gloss}` : `${it.gloss} has a movement the camera can't check yet`}
             onclick={() => choose(it.id)}
           >{it.gloss}</button>
         {/each}

@@ -25,7 +25,7 @@ It runs entirely in your browser: no accounts, and camera video never leaves you
   and you get a score for the word.
 - **Sign Five.** A word game: guess the five-letter word in six tries by fingerspelling each guess
   to the camera (or typing it). Play the day's official Wordle word, or unlimited practice words.
-- **Word lists.** Make named lists of the words you want to practise and pick one in any drill or game.
+- **Word lists.** Make named lists of the words you want to practice and pick one in any drill or game.
 - **Dashboard.** What's due, streak, retention, reading speed, Sign Five stats, the signs you misread
   most, your word lists, settings, and export/import of all your data as a JSON file.
 - **Works offline** once loaded (except fetching the daily Sign Five word), and installs to your

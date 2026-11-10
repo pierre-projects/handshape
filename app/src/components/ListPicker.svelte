@@ -50,10 +50,10 @@
     </a>
   </div>
   {#if selected && onPlay && words.length}
-    <ul class="chips" aria-label="{selected.name}. Tap a word to practise it.">
+    <ul class="chips" aria-label="{selected.name}. Tap a word to practice it.">
       {#each words as w (w)}
         <li>
-          <button class="pill chip" class:active={w === activeWord} onclick={() => onPlay?.(w)} title="Practise {w}">
+          <button class="pill chip" class:active={w === activeWord} onclick={() => onPlay?.(w)} title="Practice {w}">
             <span class="tri"><Icon name="play" size={11} /></span>{w}
           </button>
         </li>

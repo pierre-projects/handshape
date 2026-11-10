@@ -1,7 +1,7 @@
 <script lang="ts">
   // Today: a hero with the one next step and where you stand, then today's
   // plan (review, read, the daily word) ticked off as you go, then the other
-  // ways to practise.
+  // ways to practice.
   import { onMount } from 'svelte';
   import { getStore } from '../lib/app';
   import { content } from '../lib/content';
@@ -153,7 +153,7 @@
       <h1>That's today done.</h1>
       <p class="lead">Review, reading and today's word are all ticked off. Come back tomorrow, or keep going.</p>
       <div class="ctas">
-        <a class="cta" href={routes.camera}><Icon name="camera" size={18} />Practise on camera</a>
+        <a class="cta" href={routes.camera}><Icon name="camera" size={18} />Practice on camera</a>
         {#if newRemaining > 0}
           <a class="cta ghost" href={routes.reviewMore}><Icon name="plus" size={18} />Learn 5 new signs</a>
         {/if}

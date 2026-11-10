@@ -51,7 +51,7 @@ Dashboard. Camera practice belongs with Signs (and is linked from Today and ever
 
 | Page | Route | What the learner does |
 | --- | --- | --- |
-| Today | `#/` | Gets one clear next step, sees streak and signs started, and picks any activity from the Practise hub |
+| Today | `#/` | Gets one clear next step, sees streak and signs started, and picks any activity from the Practice hub |
 | Review | `#/review`, `#/review/more` | Works through the spaced-repetition queue: new signs, "Read it" (type what a sign means) and "Sign it" (make the sign, camera optional), then grades Again / Hard / Good / Easy. `/more` starts with five extra new signs |
 | Signs | `#/signs`, `#/signs/<id>` | Browses every sign: picture, handshape, palm, movement, tips, look-alikes |
 | Camera practice | `#/camera`, `#/camera/<id>` | Signs each letter or number to the camera; a sign list shows progress, and the next sign comes on Next (or automatically, if turned on) |

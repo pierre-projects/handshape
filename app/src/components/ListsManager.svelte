@@ -134,7 +134,7 @@
     <div>
       <h2>Word lists</h2>
       <p class="muted small">
-        Lists of words you want to practise: names, places, words from a class. Pick a list in any drill or game.
+        Lists of words you want to practice: names, places, words from a class. Pick a list in any drill or game.
       </p>
     </div>
     {#if settings.lists.length}
@@ -177,7 +177,7 @@
     <section class="card empty">
       <span class="empty-ico"><Icon name="spell" size={28} /></span>
       <h3>No lists yet</h3>
-      <p class="muted">Make a list of words you want to practise, then choose it in Fingerspelling or Sign Five.</p>
+      <p class="muted">Make a list of words you want to practice, then choose it in Fingerspelling or Sign Five.</p>
       <button class="primary" onclick={create}><Icon name="plus" size={16} />Make your first list</button>
     </section>
   {/if}

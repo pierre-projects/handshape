@@ -50,11 +50,11 @@
     <SignDetail item={selected} bind:mirror />
   </section>
   {#if cameraReady}
-    <a class="btn primary lg practise" href={routes.cameraSign(selected.id)}>
-      <Icon name="camera" size={18} />Practise {selected.gloss} on camera
+    <a class="btn primary lg practice" href={routes.cameraSign(selected.id)}>
+      <Icon name="camera" size={18} />Practice {selected.gloss} on camera
     </a>
   {:else}
-    <p class="small muted practise">The camera can't check {selected.gloss} yet. Copy the picture and description.</p>
+    <p class="small muted practice">The camera can't check {selected.gloss} yet. Copy the picture and description.</p>
   {/if}
 {:else}
   {#if itemId}<p class="notice">No sign called “{itemId}”.</p>{/if}
@@ -63,7 +63,7 @@
       <h1>Signs</h1>
       <p class="muted">Tap any sign to see how it's made, then try it on camera.</p>
     </div>
-    <a class="btn primary" href={routes.camera}><Icon name="camera" size={18} />Practise on camera</a>
+    <a class="btn primary" href={routes.camera}><Icon name="camera" size={18} />Practice on camera</a>
   </div>
   {#each content.units as unit}
     <section class="card stack">
@@ -97,8 +97,8 @@
 
 <style>
   .crumbs { margin-bottom: 12px; }
-  .practise { display: flex; width: fit-content; margin: 0 auto; }
-  p.practise { text-align: center; }
+  .practice { display: flex; width: fit-content; margin: 0 auto; }
+  p.practice { text-align: center; }
   .intro { margin: 4px 0 16px; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .unit-actions { display: flex; align-items: center; gap: 8px; }
   .desc { margin: 4px 0 0; max-width: 60ch; }

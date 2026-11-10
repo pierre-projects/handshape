@@ -323,7 +323,7 @@ export function scoreSession(answers: Answer[], total = SESSION_SIZE): SessionSc
     correct,
     total,
     clean: answers.filter((a) => a.correct && a.replays === 0).length,
-    // A shorter run (practising the ones missed) passes on the same share.
+    // A shorter run (practicing the ones missed) passes on the same share.
     passed: correct >= Math.ceil((PASS / SESSION_SIZE) * total),
     missed: answers.filter((a) => !a.correct).map((a) => a.item),
     missedChars: [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([c]) => c),

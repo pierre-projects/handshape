@@ -165,7 +165,7 @@
   <section class="card panel spellpanel">
     <header class="panel-head">
       <h2><span class="p-ico"><Icon name="spell" size={18} /></span>Fingerspelling</h2>
-      <a class="btn small" href={routes.fingerspelling}>Practise<Icon name="arrow-right" size={16} /></a>
+      <a class="btn small" href={routes.fingerspelling}>Practice<Icon name="arrow-right" size={16} /></a>
     </header>
     <div class="metrics">
       <a class="metric link" href={routes.read}>
