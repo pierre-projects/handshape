@@ -34,8 +34,10 @@
   let advanceTimer: ReturnType<typeof setTimeout> | undefined;
 
   const current = $derived(queue[0]);
+  const movement = $derived(current ? SPECS.get(current.id)?.movement : undefined);
   const upNext = $derived(queue[1]);
-  const pool = (s: Set) => content.items.filter((i) => i.kind === s && SPECS.has(i.id) && !SPECS.get(i.id)!.movement);
+  // Signs with movement (J, Z, 10) are in too: the camera checks their starting handshape.
+  const pool = (s: Set) => content.items.filter((i) => i.kind === s && SPECS.has(i.id));
   const average = $derived(times.length ? times.reduce((a, t) => a + t.seconds, 0) / times.length : undefined);
 
   function read(key: string, fallback: boolean): boolean {
@@ -222,6 +224,9 @@
 
         <div class="tip">
           <p class="how">{current.handshape}</p>
+          {#if movement}
+            <p class="move"><b>Then move:</b> {movement} The camera checks the starting handshape only.</p>
+          {/if}
           {#if current.tips?.length}<p class="extra"><b>Tip:</b> {current.tips[0]}</p>{/if}
         </div>
 
@@ -317,7 +322,9 @@
   .rail button:disabled { opacity: 0.35; border-style: dashed; }
   .tip { border-left: 2px solid var(--line-strong); padding: 2px 0 2px 12px; font-size: 0.875rem; color: var(--ink-2); }
   .tip p { margin: 0; }
-  .tip .extra { margin-top: 6px; }
+  .tip .extra, .tip .move { margin-top: 6px; }
+  .tip .move { color: var(--accent); }
+  .tip .move b { color: var(--accent); }
   .tip b { color: var(--ink); }
   .camera { min-height: 0; }
 

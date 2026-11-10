@@ -18,8 +18,8 @@
     mirror = settings.dominantHand === 'Left';
   });
 
-  // Same rule as the Camera page's drill: still handshapes only.
-  const cameraReady = $derived(!!selected && SPECS.has(selected.id) && !SPECS.get(selected.id)!.movement);
+  // Same rule as the Camera page's drill: any sign with a handshape check.
+  const cameraReady = $derived(!!selected && SPECS.has(selected.id));
 
   // Previous / next within the same unit.
   const siblings = $derived(selected ? content.items.filter((i) => i.unitId === selected.unitId) : []);
@@ -56,7 +56,7 @@
       <Icon name="camera" size={18} />Practise {selected.gloss} on camera
     </a>
   {:else}
-    <p class="small muted practise">{selected.gloss} has a movement, so the camera can't check it yet. Copy the picture and description.</p>
+    <p class="small muted practise">The camera can't check {selected.gloss} yet. Copy the picture and description.</p>
   {/if}
 {:else}
   {#if itemId}<p class="notice">No sign called “{itemId}”.</p>{/if}
