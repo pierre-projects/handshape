@@ -90,6 +90,13 @@ export interface SpellingAttempt {
   at: Date;
 }
 
+export interface WordListDef {
+  id: string;
+  name: string;
+  /** Upper case A–Z words. */
+  words: string[];
+}
+
 export interface Settings {
   newItemsPerDay: number;
   receptiveSpeed: number;
@@ -97,21 +104,18 @@ export interface Settings {
   mirrorMedia: boolean;
   /** Which hand to check when both are in view. */
   dominantHand: 'Right' | 'Left';
-  /** The learner's own fingerspelling words, normalised to A–Z. */
-  customWords: string[];
-  /** Which words the fingerspelling drills draw from. */
-  wordList: 'builtin' | 'custom';
-  /** The learner's own five-letter words for Sign Five practice games. */
-  fiveWords: string[];
-  /** Which words Sign Five practice games draw from. */
-  fiveList: 'builtin' | 'custom';
+  /** The learner's word lists. */
+  lists: WordListDef[];
+  /** List the fingerspelling drills use; empty means the built-in words. */
+  spellListId: string;
+  /** List Sign Five practice games use (its five-letter words); empty means built-in. */
+  fiveListId: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  customWords: [],
-  wordList: 'builtin',
-  fiveWords: [],
-  fiveList: 'builtin',
+  lists: [],
+  spellListId: '',
+  fiveListId: '',
   newItemsPerDay: 6,
   receptiveSpeed: 1.5,
   showCameraByDefault: false,

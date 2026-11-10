@@ -13,6 +13,7 @@
   } from '../lib/guess';
   import LetterCam from '../components/LetterCam.svelte';
   import ListPicker from '../components/ListPicker.svelte';
+  import { fiveLetterWords } from '../lib/lists';
   import SignPicture from '../components/SignPicture.svelte';
   import Icon from '../components/Icon.svelte';
 
@@ -40,8 +41,10 @@
   let saved = $state<Saved>({ stats: { played: 0, won: 0, streak: 0, best: 0, dist: [0, 0, 0, 0, 0, 0] } });
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const fiveWords = $derived(settings?.fiveWords ?? []);
-  const useMine = $derived(settings?.fiveList === 'custom' && fiveWords.length > 0);
+  const lists = $derived(settings?.lists ?? []);
+  const chosen = $derived(lists.find((l) => l.id === settings?.fiveListId && fiveLetterWords(l.words).length));
+  const fiveWords = $derived(chosen ? fiveLetterWords(chosen.words) : []);
+  const useMine = $derived(fiveWords.length > 0);
   const won = $derived(!!answer && guesses.includes(answer));
   const over = $derived(won || guesses.length >= MAX_GUESSES);
   const marks = $derived(letterMarks(guesses, answer));
@@ -179,11 +182,11 @@
     }
   }
 
-  function useList(custom: boolean) {
-    saveSettings({ fiveList: custom ? 'custom' : 'builtin' });
+  async function useList(id: string) {
+    await saveSettings({ fiveListId: id });
     // Start a fresh practice word from the chosen list.
     if (game === 'practice' && !guesses.length) {
-      answer = randomAnswer(answer, Math.random, custom && fiveWords.length ? fiveWords : ANSWERS);
+      answer = randomAnswer(answer, Math.random, fiveWords.length ? fiveWords : ANSWERS);
     }
   }
 
@@ -226,7 +229,7 @@
           <span class="dot"></span>Couldn't reach the official word, so this is the app's own word of the day
         {/if}
       {:else}
-        <span class="dot"></span>A random word from {useMine ? 'your list' : 'the built-in list'}. Play as many as you like.
+        <span class="dot"></span>A random word from {chosen ? `“${chosen.name}”` : 'the built-in words'}. Play as many as you like.
       {/if}
     </p>
   </header>
@@ -234,11 +237,12 @@
   {#if game === 'practice'}
     <div class="picker">
       <ListPicker
-        words={fiveWords}
-        useCustom={useMine}
+        {lists}
+        selectedId={chosen?.id ?? ''}
         builtInCount={ANSWERS.length}
-        onUse={useList}
-        editHref="#/progress/lists"
+        usable={fiveLetterWords}
+        unit="five-letter words"
+        onSelect={useList}
       />
     </div>
   {/if}

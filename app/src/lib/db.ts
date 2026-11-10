@@ -1,5 +1,6 @@
 // All learner data lives in IndexedDB on this device. Export/import is a plain JSON file.
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { migrateSettings } from './lists';
 import { DEFAULT_SETTINGS, type ReviewEntry, type Settings, type SpellingAttempt, type StoredCard } from './types';
 
 interface AslDB extends DBSchema {
@@ -67,7 +68,7 @@ export class Store {
 
   async settings(): Promise<Settings> {
     const row = await this.db.get('settings', 'settings');
-    return { ...DEFAULT_SETTINGS, ...(row?.value ?? {}) };
+    return migrateSettings((row?.value ?? {}) as Record<string, unknown>);
   }
 
   async saveSettings(settings: Settings): Promise<void> {

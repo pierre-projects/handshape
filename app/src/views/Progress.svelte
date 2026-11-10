@@ -9,13 +9,12 @@
   import { content } from '../lib/content';
   import { activityDates, cardCounts, dailyActivity, MATURE_DAYS, retention, streak, weakestItems } from '../lib/stats';
   import { lettersPerSecondToWpm, readingSpeed } from '../lib/spelling';
-  import { ANSWERS } from '../lib/guess';
   import type { ReviewEntry, Settings, SpellingAttempt, StoredCard } from '../lib/types';
   import ActivityChart from '../components/ActivityChart.svelte';
-  import WordList from '../components/WordList.svelte';
+  import ListsManager from '../components/ListsManager.svelte';
   import Icon from '../components/Icon.svelte';
 
-  let { section }: { section?: string } = $props();
+  let { section, listId }: { section?: string; listId?: string } = $props();
   const tab = $derived(section === 'lists' || section === 'settings' ? section : 'overview');
   const TABS = [
     { id: 'overview', label: 'Overview', href: '#/progress', icon: 'progress' },
@@ -168,54 +167,13 @@
     <span class="ll-text">
       <b>Your word lists</b>
       <span class="small muted">
-        {settings?.customWords.length ?? 0} fingerspelling {settings?.customWords.length === 1 ? 'word' : 'words'} ·
-        {settings?.fiveWords.length ?? 0} Sign Five {settings?.fiveWords.length === 1 ? 'word' : 'words'}
+        {settings?.lists.length ?? 0} {settings?.lists.length === 1 ? 'list' : 'lists'}{settings?.lists.length ? ': ' + settings.lists.slice(0, 3).map((l) => l.name).join(', ') + (settings.lists.length > 3 ? '…' : '') : '. Make one to practise your own words.'}
       </span>
     </span>
     <Icon name="arrow-right" size={18} />
   </a>
 {:else if tab === 'lists' && settings}
-  <p class="muted intro">
-    Make lists of the words you want to practise, like names, places and words you use every day. Drills and games use
-    the built-in words until you switch them to your list.
-  </p>
-  <div class="lists">
-    <div class="tint-read">
-      <WordList
-        id="spelling-list"
-        title="Fingerspelling words"
-        description="For the Read and Spell drills. Any length."
-        icon="spell"
-        words={settings.customWords}
-        useCustom={settings.wordList === 'custom' && settings.customWords.length > 0}
-        builtInCount={content.practiceWords.length}
-        examples={['MOM', 'DAD', 'HOME', 'PIZZA', 'COFFEE']}
-        playHref="#/fingerspell"
-        onSave={(p) => patch({
-          ...(p.words ? { customWords: p.words } : {}),
-          ...(p.useCustom !== undefined ? { wordList: p.useCustom ? 'custom' : 'builtin' } : {}),
-        })}
-      />
-    </div>
-    <div class="tint-five">
-      <WordList
-        id="five-list"
-        title="Sign Five words"
-        description="For Sign Five practice games. Exactly five letters. The daily word is always the official one."
-        icon="camera"
-        words={settings.fiveWords}
-        useCustom={settings.fiveList === 'custom' && settings.fiveWords.length > 0}
-        builtInCount={ANSWERS.length}
-        exact={5}
-        examples={['HOUSE', 'WATER', 'HAPPY', 'MUSIC', 'PARTY']}
-        playHref="#/fingerspell/game"
-        onSave={(p) => patch({
-          ...(p.words ? { fiveWords: p.words } : {}),
-          ...(p.useCustom !== undefined ? { fiveList: p.useCustom ? 'custom' : 'builtin' } : {}),
-        })}
-      />
-    </div>
-  </div>
+  <ListsManager {settings} {listId} onSave={patch} />
 {:else if tab === 'settings' && settings}
   <section class="card stack">
     <h2>Settings</h2>
@@ -283,10 +241,6 @@
   .ll-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
   .ll-text { flex: 1; display: grid; }
 
-  .intro { margin: 0 0 16px; max-width: 70ch; }
-  .lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
-  .tint-read { --m: var(--accent); --m-soft: var(--accent-soft); }
-  .tint-five { --m: #6d28d9; --m-soft: #f4f0ff; }
 
   .field { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .field input { width: 90px; }
@@ -295,7 +249,6 @@
 
   @media (max-width: 820px) {
     .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .lists { grid-template-columns: 1fr; }
   }
   @media (max-width: 480px) {
     .tabs { width: 100%; }

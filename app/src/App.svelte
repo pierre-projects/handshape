@@ -8,11 +8,12 @@
   import Practice from './views/Practice.svelte';
   import Icon from './components/Icon.svelte';
 
-  type Route = { name: string; param?: string };
+  type Route = { name: string; param?: string; sub?: string };
 
   function parse(hash: string): Route {
-    const [name, param] = hash.replace(/^#\/?/, '').split('/');
-    return { name: name || 'home', param: param ? decodeURIComponent(param) : undefined };
+    const [name, param, sub] = hash.replace(/^#\/?/, '').split('/');
+    const dec = (s?: string) => (s ? decodeURIComponent(s) : undefined);
+    return { name: name || 'home', param: dec(param), sub: dec(sub) };
   }
 
   let route = $state<Route>(parse(location.hash));
@@ -58,7 +59,7 @@
 </header>
 
 <main id="main" class="wrap">
-  {#key route.name + (route.param ?? '')}
+  {#key route.name + (route.param ?? '') + (route.sub ?? '')}
     <div class="page">
       {#if route.name === 'review'}
         <Review />
@@ -69,7 +70,7 @@
       {:else if route.name === 'practice'}
         <Practice startId={route.param} />
       {:else if route.name === 'progress'}
-        <Progress section={route.param} />
+        <Progress section={route.param} listId={route.sub} />
       {:else}
         <Home />
       {/if}

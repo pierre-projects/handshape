@@ -60,10 +60,10 @@
   const builtIn = content.practiceWords;
   const canRead = spellableWords(builtIn, available).length > 0;
 
-  // Word lists: the built-in words or the learner's own.
-  const customWords = $derived(settings?.customWords ?? []);
-  const useCustom = $derived(settings?.wordList === 'custom' && customWords.length > 0);
-  const allWords = $derived(useCustom ? customWords : builtIn);
+  // Word lists: the built-in words or one of the learner's lists.
+  const lists = $derived(settings?.lists ?? []);
+  const chosen = $derived(lists.find((l) => l.id === settings?.spellListId && l.words.length));
+  const allWords = $derived(chosen ? chosen.words : builtIn);
   const receptiveWords = $derived(spellableWords(allWords, available));
 
   const stats = $derived(letterStats(attempts));
@@ -319,10 +319,10 @@
 
   <h2 class="section-title">Words to practise</h2>
   <ListPicker
-    words={customWords}
-    {useCustom}
+    {lists}
+    selectedId={chosen?.id ?? ''}
     builtInCount={builtIn.length}
-    onUse={(c) => saveWordSettings({ wordList: c ? 'custom' : 'builtin' })}
+    onSelect={(id) => saveWordSettings({ spellListId: id })}
   />
 
   {#if weakLetters.length}
@@ -357,11 +357,11 @@
     </header>
 
     <ListPicker
-      words={customWords}
-      {useCustom}
+      {lists}
+      selectedId={chosen?.id ?? ''}
       builtInCount={builtIn.length}
       activeWord={phase !== 'idle' ? word : undefined}
-      onUse={(c) => saveWordSettings({ wordList: c ? 'custom' : 'builtin' })}
+      onSelect={(id) => saveWordSettings({ spellListId: id })}
       onPlay={playWord}
     />
 
