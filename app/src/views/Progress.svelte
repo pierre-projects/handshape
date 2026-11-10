@@ -9,7 +9,8 @@
   import { content } from '../lib/content';
   import { activityDates, cardCounts, dailyActivity, MATURE_DAYS, retention, streak, weakestItems } from '../lib/stats';
   import { lettersPerSecondToWpm, readingSpeed } from '../lib/spelling';
-  import type { ReviewEntry, Settings, SpellingAttempt, StoredCard } from '../lib/types';
+  import type { ReviewEntry, Settings, SignFiveSave, SpellingAttempt, StoredCard } from '../lib/types';
+  import { prefs, reloadSettings, updateSettings } from '../lib/settings.svelte';
   import ActivityChart from '../components/ActivityChart.svelte';
   import ListsManager from '../components/ListsManager.svelte';
   import Icon from '../components/Icon.svelte';
@@ -26,10 +27,10 @@
   let cards = $state<StoredCard[]>([]);
   let reviews = $state<ReviewEntry[]>([]);
   let attempts = $state<SpellingAttempt[]>([]);
-  let settings = $state<Settings>();
+  const settings = $derived(prefs.value);
   let message = $state('');
   let loaded = $state(false);
-  let five = $state<{ played: number; won: number; streak: number }>();
+  let five = $state<SignFiveSave['stats']>();
 
   const now = new Date();
   const monthAgo = new Date(now.getTime() - 30 * 86400000);
@@ -45,31 +46,26 @@
 
   async function load() {
     store = await getStore();
-    const [c, r, a, s] = await Promise.all([store.cards(), store.reviews(), store.attempts(), store.settings()]);
+    const [c, r, a, f] = await Promise.all([
+      store.cards(), store.reviews(), store.attempts(), store.signFive(), reloadSettings(),
+    ]);
     cards = [...c.values()];
     reviews = r;
     attempts = a;
-    settings = s;
-    try {
-      five = JSON.parse(localStorage.getItem('asl-sign-five') ?? 'null')?.stats;
-    } catch {
-      five = undefined;
-    }
+    five = f?.stats;
     loaded = true;
   }
 
-  async function patch(p: Partial<Settings>) {
-    if (!settings) return;
-    settings = { ...settings, ...p };
-    await store.saveSettings($state.snapshot(settings));
+  function patch(p: Partial<Settings>) {
+    return updateSettings(p);
   }
 
-  async function save() {
-    if (!settings) return;
-    settings.newItemsPerDay = Math.max(0, Math.min(50, Math.round(Number(settings.newItemsPerDay) || 0)));
-    await store.saveSettings($state.snapshot(settings));
+  async function save(p: Partial<Settings>) {
+    await updateSettings(p);
     message = 'Settings saved.';
   }
+
+  const perDay = (v: string) => Math.max(0, Math.min(50, Math.round(Number(v) || 0)));
 
   async function exportData() {
     const data = await store.exportAll();
@@ -179,21 +175,37 @@
     <h2>Settings</h2>
     <label class="field">
       <span>New signs per day</span>
-      <input type="number" min="0" max="50" bind:value={settings.newItemsPerDay} onchange={save} />
+      <input
+        type="number" min="0" max="50" value={settings.newItemsPerDay}
+        onchange={(e) => {
+          const n = perDay(e.currentTarget.value);
+          e.currentTarget.value = String(n);
+          save({ newItemsPerDay: n });
+        }}
+      />
     </label>
     <label class="field">
       <span>Signing hand</span>
-      <select bind:value={settings.dominantHand} onchange={save}>
+      <select
+        value={settings.dominantHand}
+        onchange={(e) => save({ dominantHand: e.currentTarget.value as Settings['dominantHand'] })}
+      >
         <option value="Right">Right</option>
         <option value="Left">Left</option>
       </select>
     </label>
     <label class="check">
-      <input type="checkbox" bind:checked={settings.showCameraByDefault} onchange={save} />
+      <input
+        type="checkbox" checked={settings.showCameraByDefault}
+        onchange={(e) => save({ showCameraByDefault: e.currentTarget.checked })}
+      />
       Turn the camera on automatically in drills
     </label>
     <label class="check">
-      <input type="checkbox" bind:checked={settings.mirrorMedia} onchange={save} />
+      <input
+        type="checkbox" checked={settings.mirrorMedia}
+        onchange={(e) => save({ mirrorMedia: e.currentTarget.checked })}
+      />
       Mirror sign images and videos by default (useful if you sign left-handed)
     </label>
   </section>

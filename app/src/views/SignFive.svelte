@@ -6,9 +6,10 @@
   import { onMount } from 'svelte';
   import { getStore } from '../lib/app';
   import type { Store } from '../lib/db';
-  import type { Settings } from '../lib/types';
+  import { DEFAULT_SIGN_FIVE, type SignFiveSave } from '../lib/types';
+  import { loadSettings, mirrored, prefs, updateSettings } from '../lib/settings.svelte';
   import {
-    ANSWERS, dailyAnswer, dayKey, isKnownWord, letterMarks, MAX_GUESSES, randomAnswer, scoreGuess, todaysAnswer,
+    ANSWERS, dailyAnswer, dayKey, isKnownWord, letterMarks, loadSignFive, MAX_GUESSES, randomAnswer, scoreGuess, todaysAnswer,
     WORD_LENGTH, type DailySource, type Mark,
   } from '../lib/guess';
   import LetterCam from '../components/LetterCam.svelte';
@@ -18,15 +19,10 @@
   import Icon from '../components/Icon.svelte';
 
   type Game = 'daily' | 'practice';
-  interface Stats { played: number; won: number; streak: number; best: number; dist: number[] }
-  interface Daily { key: string; guesses: string[]; answer?: string; source?: DailySource }
-  interface Saved { daily?: Daily; stats: Stats }
-
-  const KEY = 'asl-sign-five';
   const ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
 
   let store: Store;
-  let settings = $state<Settings>();
+  const settings = $derived(prefs.value);
   let game = $state<Game>('daily');
   let answer = $state('');
   let source = $state<DailySource>();
@@ -38,7 +34,7 @@
   let toast = $state('');
   let shake = $state(false);
   let showShapes = $state(true);
-  let saved = $state<Saved>({ stats: { played: 0, won: 0, streak: 0, best: 0, dist: [0, 0, 0, 0, 0, 0] } });
+  let saved = $state<SignFiveSave>(structuredClone(DEFAULT_SIGN_FIVE));
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
   const lists = $derived(settings?.lists ?? []);
@@ -63,18 +59,13 @@
       };
     }),
   );
-  const mirror = $derived(settings?.dominantHand === 'Left');
+  const mirror = $derived(mirrored(settings));
   const winPct = $derived(saved.stats.played ? Math.round((saved.stats.won / saved.stats.played) * 100) : 0);
 
   onMount(async () => {
     store = await getStore();
-    settings = await store.settings();
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) saved = { ...saved, ...JSON.parse(raw) };
-    } catch {
-      /* storage unavailable: play without saving */
-    }
+    await loadSettings();
+    saved = await loadSignFive(store);
     await loadDaily();
   });
 
@@ -94,21 +85,11 @@
     guesses = d?.guesses ?? [];
   }
 
-  async function saveSettings(patch: Partial<Settings>) {
-    if (!settings) return;
-    settings = { ...settings, ...patch };
-    await store.saveSettings($state.snapshot(settings));
-  }
-
   /** Words allowed as guesses: the dictionary, your list, and the answer itself. */
   const allowed = (w: string) => isKnownWord(w) || w === answer || fiveWords.includes(w);
 
   function persist() {
-    try {
-      localStorage.setItem(KEY, JSON.stringify($state.snapshot(saved)));
-    } catch {
-      /* ignore */
-    }
+    store?.saveSignFive($state.snapshot(saved));
   }
 
   function say(text: string, ms = 2400) {
@@ -183,7 +164,7 @@
   }
 
   async function useList(id: string) {
-    await saveSettings({ fiveListId: id });
+    await updateSettings({ fiveListId: id });
     // Start a fresh practice word from the chosen list.
     if (game === 'practice' && !guesses.length) {
       answer = randomAnswer(answer, Math.random, fiveWords.length ? fiveWords : ANSWERS);
@@ -359,7 +340,7 @@
 </div>
 
 <style>
-  .five { --m: #6d28d9; --m-soft: #f4f0ff; --hit: #067647; --near: #b88a00; --miss: #667085; }
+  .five { --m: var(--spell); --m-soft: var(--spell-soft); }
   .top { margin-bottom: 16px; }
   .back { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-3); text-decoration: none; font-weight: 600; }
   .back:hover { color: var(--ink); }

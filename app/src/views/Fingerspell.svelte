@@ -11,6 +11,7 @@
     pickWord, readingSpeed, sequenceDuration, spellableWords, type Frame,
   } from '../lib/spelling';
   import type { Settings, SpellingAttempt } from '../lib/types';
+  import { loadSettings, mirrored, prefs, updateSettings } from '../lib/settings.svelte';
   import HandSign from '../components/HandSign.svelte';
   import HandCheck from '../components/HandCheck.svelte';
   import ListPicker from '../components/ListPicker.svelte';
@@ -25,7 +26,7 @@
   const mode = $derived<Mode | undefined>(modeParam === 'read' ? 'receptive' : modeParam === 'spell' ? 'expressive' : undefined);
 
   let store: Store;
-  let settings = $state<Settings>();
+  const settings = $derived(prefs.value);
   let attempts = $state<SpellingAttempt[]>([]);
   let phase = $state<'idle' | 'playing' | 'answer' | 'feedback' | 'signing'>('idle');
   let word = $state('');
@@ -87,8 +88,10 @@
   );
 
   onMount(async () => {
+    // Sign Five loads what it needs itself.
+    if (modeParam === 'game') return;
     store = await getStore();
-    settings = await store.settings();
+    await loadSettings();
     attempts = await store.attempts();
   });
 
@@ -175,9 +178,7 @@
   }
 
   async function saveSpeed(v: number) {
-    if (!settings) return;
-    settings = { ...settings, receptiveSpeed: v };
-    await store.saveSettings($state.snapshot(settings));
+    await updateSettings({ receptiveSpeed: v });
   }
 
   async function submit(e: Event) {
@@ -220,10 +221,8 @@
     next();
   }
 
-  async function saveWordSettings(patch: Partial<Settings>) {
-    if (!settings) return;
-    settings = { ...settings, ...patch };
-    await store.saveSettings($state.snapshot(settings));
+  function saveWordSettings(patch: Partial<Settings>) {
+    return updateSettings(patch);
   }
 
   /** Plays one chosen word straight away in the current mode. */
@@ -397,7 +396,7 @@
                   {:else if m}
                     <img src={m.url} alt="" />
                   {:else if id}
-                    <HandSign {id} size={200} label="" animate={false} mirror={settings?.dominantHand === 'Left'} />
+                    <HandSign {id} size={200} label="" animate={false} mirror={mirrored(settings)} />
                   {/if}
                 </div>
               {:else}
@@ -489,7 +488,7 @@
                 </p>
                 {#if hints && currentId}
                   <div class="hint-now">
-                    <SignPicture id={currentId} size={120} mirror={settings?.dominantHand === 'Left'} label="How to sign {chars[pos]}" />
+                    <SignPicture id={currentId} size={120} mirror={mirrored(settings)} label="How to sign {chars[pos]}" />
                   </div>
                 {/if}
                 <div class="actions">
@@ -540,7 +539,7 @@
 <style>
   /* Each drill has its own colour so the two never look alike. */
   .read { --m: var(--accent); --m-soft: var(--accent-soft); }
-  .spell { --m: #6d28d9; --m-soft: #f4f0ff; }
+  .spell { --m: var(--spell); --m-soft: var(--spell-soft); }
 
   /* Landing */
   .hub-head { margin: 4px 0 18px; }
@@ -630,16 +629,16 @@
     border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
     color: var(--ink); text-decoration: none; box-shadow: var(--shadow); transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .game-card:hover { border-color: #6d28d9; box-shadow: var(--shadow-lift); }
+  .game-card:hover { border-color: var(--spell); box-shadow: var(--shadow-lift); }
   .mini-board { display: flex; gap: 3px; flex: none; }
   .mini-board i {
     display: grid; place-items: center; width: 26px; height: 26px; border-radius: 4px; font-style: normal;
-    font-weight: 750; font-size: 0.85rem; color: #fff; background: #667085;
+    font-weight: 750; font-size: 0.85rem; color: #fff; background: var(--miss);
   }
-  .mini-board i.h { background: #067647; }
-  .mini-board i.n { background: #b88a00; }
+  .mini-board i.h { background: var(--hit); }
+  .mini-board i.n { background: var(--near); }
   .game-text { display: grid; flex: 1; min-width: 0; }
-  .game-go { display: inline-flex; align-items: center; gap: 4px; font-weight: 650; color: #6d28d9; }
+  .game-go { display: inline-flex; align-items: center; gap: 4px; font-weight: 650; color: var(--spell); }
   @media (max-width: 560px) { .mini-board { display: none; } }
   .section-title { font-size: 1.05rem; margin: 0 0 10px; }
   .weak { margin-top: 16px; padding: 12px 16px; }

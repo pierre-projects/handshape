@@ -8,7 +8,8 @@
   } from '../lib/srs';
   import { isCheckable } from '../lib/engine/handshapes';
   import HandCheck from '../components/HandCheck.svelte';
-  import type { Settings, StoredCard } from '../lib/types';
+  import type { StoredCard } from '../lib/types';
+  import { loadSettings, prefs } from '../lib/settings.svelte';
   import SignDetail from '../components/SignDetail.svelte';
   import SignMedia from '../components/SignMedia.svelte';
   import CameraMirror from '../components/CameraMirror.svelte';
@@ -16,7 +17,7 @@
   import Icon from '../components/Icon.svelte';
 
   let store: Store;
-  let settings = $state<Settings>();
+  const settings = $derived(prefs.value);
   let session = $state<ReviewSession>();
   let card = $state<StoredCard>();
   let phase = $state<'prompt' | 'answer'>('prompt');
@@ -52,10 +53,10 @@
 
   onMount(async () => {
     store = await getStore();
-    settings = await store.settings();
-    mirror = settings.mirrorMedia;
-    showCamera = settings.showCameraByDefault;
-    await start(settings.newItemsPerDay);
+    const s = await loadSettings();
+    mirror = s.mirrorMedia;
+    showCamera = s.showCameraByDefault;
+    await start(s.newItemsPerDay);
   });
 
   async function start(newItemsPerDay: number, extra = 0) {

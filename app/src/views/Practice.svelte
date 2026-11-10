@@ -3,10 +3,10 @@
   // It waits for you to press Next unless you turn on auto-advance, so the
   // sign never changes without you seeing it. Slow or skipped signs come back.
   import { onDestroy, onMount } from 'svelte';
-  import { getStore } from '../lib/app';
+  import { loadSettings, mirrored, prefs } from '../lib/settings.svelte';
   import { content } from '../lib/content';
   import { SPECS } from '../lib/engine/handshapes';
-  import type { ResolvedItem, Settings } from '../lib/types';
+  import type { ResolvedItem } from '../lib/types';
   import HandCheck from '../components/HandCheck.svelte';
   import SignPicture from '../components/SignPicture.svelte';
   import Icon from '../components/Icon.svelte';
@@ -20,7 +20,7 @@
   const AUTO_KEY = 'asl.practice.autoAdvance';
   const PIC_KEY = 'asl.practice.showPicture';
 
-  let settings = $state<Settings>();
+  const settings = $derived(prefs.value);
   let set = $state<Set>('letter');
   let queue = $state<ResolvedItem[]>([]);
   let shownAt = 0;
@@ -57,7 +57,7 @@
   }
 
   onMount(async () => {
-    settings = await (await getStore()).settings();
+    await loadSettings();
     const start = startId ? content.byId.get(startId) : undefined;
     begin(start?.kind === 'number' ? 'number' : 'letter', start?.id);
   });
@@ -165,7 +165,7 @@
     }
   }
 
-  const mirror = $derived(settings?.dominantHand === 'Left');
+  const mirror = $derived(mirrored(settings));
 </script>
 
 <svelte:window onkeydown={onKey} />

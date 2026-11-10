@@ -5,17 +5,14 @@
   import Icon from '../components/Icon.svelte';
   import { SPECS } from '../lib/engine/handshapes';
   import { hasIllustration } from '../lib/illustrations';
-  import { getStore } from '../lib/app';
   import { onMount } from 'svelte';
-  import type { Settings } from '../lib/types';
+  import { loadSettings, mirrored, prefs } from '../lib/settings.svelte';
 
   let { itemId }: { itemId?: string } = $props();
   const selected = $derived(itemId ? content.byId.get(itemId) : undefined);
   let mirror = $state(false);
-  let settings = $state<Settings>();
   onMount(async () => {
-    settings = await (await getStore()).settings();
-    mirror = settings.dominantHand === 'Left';
+    mirror = mirrored(await loadSettings());
   });
 
   // Same rule as the Camera page's drill: any sign with a handshape check.
@@ -78,7 +75,7 @@
           <li>
             <a href="#/learn/{it.id}" class="tile">
               {#if hasIllustration(it.id)}
-                <SignPicture id={it.id} size={76} mirror={settings?.dominantHand === 'Left'} />
+                <SignPicture id={it.id} size={76} mirror={mirrored(prefs.value)} />
               {/if}
               <span class="gloss">{it.gloss}</span>
             </a>
@@ -112,13 +109,13 @@
     border: 1px solid var(--line);
     border-radius: var(--radius);
     text-decoration: none;
-    color: #18181b;
+    color: var(--ink);
     background: var(--paper);
     transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
   }
   .tile :global(svg) { width: 100%; max-width: 72px; }
   .tile:hover { border-color: var(--line-strong); box-shadow: var(--shadow-lift); }
-  .gloss { font-weight: 600; font-size: 1rem; line-height: 1; color: #3f3f46; }
+  .gloss { font-weight: 600; font-size: 1rem; line-height: 1; color: var(--ink-2); }
   @media (max-width: 480px) {
     .grid { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
   }

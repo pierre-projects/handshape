@@ -3,6 +3,7 @@
   import { getStore } from '../lib/app';
   import { content } from '../lib/content';
   import { buildQueue } from '../lib/srs';
+  import { loadSettings } from '../lib/settings.svelte';
   import { activityDates, streak } from '../lib/stats';
   import { lettersPerSecondToWpm, readingSpeed } from '../lib/spelling';
   import HandSign from '../components/HandSign.svelte';
@@ -24,7 +25,7 @@
     const store = await getStore();
     const [cards, settings, reviews, attempts] = await Promise.all([
       store.cards(),
-      store.settings(),
+      loadSettings(),
       store.reviews(),
       store.attempts(),
     ]);
