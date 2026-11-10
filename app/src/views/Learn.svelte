@@ -1,11 +1,9 @@
 <script lang="ts">
   import { content } from '../lib/content';
   import SignDetail from '../components/SignDetail.svelte';
-  import CameraMirror from '../components/CameraMirror.svelte';
-  import HandCheck from '../components/HandCheck.svelte';
   import SignPicture from '../components/SignPicture.svelte';
   import Icon from '../components/Icon.svelte';
-  import { isCheckable } from '../lib/engine/handshapes';
+  import { SPECS } from '../lib/engine/handshapes';
   import { hasIllustration } from '../lib/illustrations';
   import { getStore } from '../lib/app';
   import { onMount } from 'svelte';
@@ -19,6 +17,9 @@
     settings = await (await getStore()).settings();
     mirror = settings.dominantHand === 'Left';
   });
+
+  // Same rule as the Camera page's drill: still handshapes only.
+  const cameraReady = $derived(!!selected && SPECS.has(selected.id) && !SPECS.get(selected.id)!.movement);
 
   // Previous / next within the same unit.
   const siblings = $derived(selected ? content.items.filter((i) => i.unitId === selected.unitId) : []);
@@ -50,17 +51,13 @@
   <section class="card">
     <SignDetail item={selected} bind:mirror />
   </section>
-  <section class="card stack">
-    <div>
-      <p class="eyebrow">Practise</p>
-      <h2>Try it with your camera</h2>
-    </div>
-    {#if isCheckable(selected.id)}
-      <HandCheck target={selected.id} dominantHand={settings?.dominantHand} />
-    {:else}
-      <CameraMirror />
-    {/if}
-  </section>
+  {#if cameraReady}
+    <a class="btn primary lg practise" href="#/practice/{selected.id}">
+      <Icon name="camera" size={18} />Practise {selected.gloss} on camera
+    </a>
+  {:else}
+    <p class="small muted practise">{selected.gloss} has a movement, so the camera can't check it yet. Copy the picture and description.</p>
+  {/if}
 {:else}
   {#if itemId}<p class="notice">No sign called “{itemId}”.</p>{/if}
   <div class="intro">
@@ -94,6 +91,8 @@
 
 <style>
   .crumbs { margin-bottom: 12px; }
+  .practise { display: flex; width: fit-content; margin: 0 auto; }
+  p.practise { text-align: center; }
   .intro { margin: 4px 0 16px; }
   .desc { margin: 4px 0 0; max-width: 60ch; }
   .grid {

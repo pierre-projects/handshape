@@ -67,7 +67,7 @@
       {:else if route.name === 'fingerspell'}
         <Fingerspell />
       {:else if route.name === 'practice'}
-        <Practice />
+        <Practice startId={route.param} />
       {:else if route.name === 'progress'}
         <Progress />
       {:else}

@@ -13,6 +13,9 @@
 
   type Set = 'letter' | 'number';
 
+  /** Opened from a sign's page (#/practice/<id>): that sign comes first. */
+  let { startId }: { startId?: string } = $props();
+
   const AUTO_MS = 2000;
   const AUTO_KEY = 'asl.practice.autoAdvance';
   const PIC_KEY = 'asl.practice.showPicture';
@@ -53,7 +56,8 @@
 
   onMount(async () => {
     settings = await (await getStore()).settings();
-    begin('letter');
+    const start = startId ? content.byId.get(startId) : undefined;
+    begin(start?.kind === 'number' ? 'number' : 'letter', start?.id);
   });
   onDestroy(() => clearTimeout(advanceTimer));
 
@@ -66,10 +70,13 @@
     return a;
   }
 
-  function begin(s: Set) {
+  function begin(s: Set, firstId?: string) {
     cancelAuto();
     set = s;
-    queue = shuffle(pool(s));
+    const items = shuffle(pool(s));
+    const i = firstId ? items.findIndex((x) => x.id === firstId) : -1;
+    if (i > 0) items.unshift(...items.splice(i, 1));
+    queue = items;
     times = [];
     skipped = [];
     reset();
@@ -104,6 +111,28 @@
     clearTimeout(advanceTimer);
     counting = false;
   }
+
+  /** Every sign in the set, in order, for the picker list. */
+  const all = $derived(content.items.filter((i) => i.kind === set));
+  const checkable = $derived(new Set(pool(set).map((i) => i.id)));
+  const done = $derived(new Set(times.map((t) => t.id)));
+  let rail = $state<HTMLElement>();
+
+  /** Jumps straight to a sign picked from the list. */
+  function choose(id: string) {
+    if (id === current?.id) return;
+    const item = pool(set).find((i) => i.id === id);
+    if (!item) return;
+    cancelAuto();
+    queue = [item, ...queue.filter((i) => i.id !== id)];
+    reset();
+  }
+
+  // Keep the highlighted sign visible in the list.
+  $effect(() => {
+    const id = current?.id;
+    rail?.querySelector(`[data-id="${id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
 
   function skip() {
     if (!current) return;
@@ -159,6 +188,22 @@
 
   {#if current}
     <div class="stage">
+      <nav class="rail" bind:this={rail} aria-label="Choose a sign">
+        {#each all as it (it.id)}
+          {@const ok = checkable.has(it.id)}
+          <button
+            data-id={it.id}
+            class:current={it.id === current.id}
+            class:done={done.has(it.id)}
+            class:skipped={skipped.includes(it.id) && !done.has(it.id)}
+            disabled={!ok}
+            aria-current={it.id === current.id ? 'true' : undefined}
+            title={ok ? `Practise ${it.gloss}` : `${it.gloss} has a movement the camera can't check yet`}
+            onclick={() => choose(it.id)}
+          >{it.gloss}</button>
+        {/each}
+      </nav>
+
       <section class="prompt" class:matched aria-live="polite">
         <div class="prompt-main">
           <div class="target">
@@ -212,7 +257,6 @@
     </div>
   {/if}
 
-  <p class="footnote small muted">J, Z and 10 are left out: their movement isn't checked yet.</p>
 </div>
 
 <style>
@@ -239,7 +283,38 @@
   .switch input:checked + .track::after { transform: translateX(16px); }
   .switch input:focus-visible + .track { outline: 3px solid var(--accent); outline-offset: 2px; }
 
-  .stage { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(230px, 290px) 1fr; gap: 16px; }
+  .stage { flex: 1; min-height: 0; display: grid; grid-template-columns: auto minmax(230px, 290px) 1fr; gap: 16px; }
+
+  /* Sign picker: every sign in the set, current one highlighted. */
+  .rail {
+    display: grid;
+    grid-template-columns: repeat(2, 40px);
+    grid-auto-rows: 36px;
+    align-content: start;
+    gap: 6px;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 2px;
+  }
+  .rail button {
+    min-height: 0;
+    padding: 0;
+    font-weight: 650;
+    font-size: 0.95rem;
+    color: var(--ink-2);
+    box-shadow: none;
+    position: relative;
+  }
+  .rail button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--surface); }
+  .rail button.done { background: var(--good-soft); border-color: color-mix(in srgb, var(--good) 35%, transparent); color: var(--good); }
+  .rail button.skipped::after {
+    content: ''; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--warm);
+  }
+  .rail button.current, .rail button.current:hover {
+    background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .rail button:disabled { opacity: 0.35; border-style: dashed; }
   .tip { border-left: 2px solid var(--line-strong); padding: 2px 0 2px 12px; font-size: 0.875rem; color: var(--ink-2); }
   .tip p { margin: 0; }
   .tip .extra { margin-top: 6px; }
@@ -286,7 +361,6 @@
   .next.counting .fill { animation: count var(--ms) linear forwards; }
   @keyframes count { to { transform: scaleX(1); } }
   .upnext { margin: 0; }
-  .footnote { margin: 0; text-align: center; }
 
   @media (max-width: 820px) {
     .practice {
@@ -297,7 +371,16 @@
     .toolbar { gap: 8px 12px; flex-wrap: wrap; }
     .toolbar .segmented button { padding: 6px 12px; min-height: 34px; }
     .session { order: 3; width: 100%; justify-content: space-between; }
-    .stage { grid-template-columns: 1fr; grid-template-rows: auto 1fr; gap: 10px; }
+    .stage { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; gap: 10px; }
+    .rail {
+      grid-template-columns: none;
+      grid-auto-flow: column;
+      grid-auto-columns: 38px;
+      grid-auto-rows: 34px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+    }
     .prompt { padding: 12px 14px; gap: 8px; flex-direction: row; flex-wrap: wrap; align-items: center; }
     .prompt-main { flex-direction: row; align-items: center; flex: 1 1 auto; }
     .gloss { font-size: 3rem; }
@@ -305,7 +388,7 @@
     .ref { flex: none; width: 70px; height: 80px; padding: 4px 4px 0; }
     .ref :global(svg) { max-height: 76px; }
     .actions { flex: 0 0 auto; }
-    .upnext, .footnote { display: none; }
+    .upnext { display: none; }
     .tip { order: 5; width: 100%; font-size: 0.85rem; padding-left: 10px; }
     .tip .extra { display: none; }
     .next { flex: none; }
