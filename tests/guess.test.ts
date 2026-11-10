@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ANSWERS, dailyAnswer, dailyStatus, describeDaily, fetchOfficialAnswer, isKnownWord, letterMarks, randomAnswer, scoreGuess, todaysAnswer, WORDS,
+  ANSWERS, dailyAnswer, dailyStatus, describeDaily, fetchOfficialAnswer, isKnownWord, letterMarks, randomAnswer, scoreGuess, shareText, shareTitle, todaysAnswer, WORDS,
 } from '../app/src/lib/guess';
 import { sortWords } from '../app/src/lib/spelling';
 import { classifyLetter, handMotion, LetterReader, READABLE_LETTERS } from '../app/src/lib/engine/reader';
@@ -149,5 +149,34 @@ describe('daily status', () => {
     expect(dailyStatus(save(['CRANE', 'TRUCE']), '2026-11-10')).toEqual({ state: 'won', guesses: 2 });
     expect(dailyStatus(save(Array(6).fill('CRANE')), '2026-11-10').state).toBe('lost');
     expect(describeDaily({ state: 'won', guesses: 2 })).toBe("Today's word solved in 2");
+  });
+});
+
+describe('sharing results', () => {
+  it('titles daily and practice games', () => {
+    expect(shareTitle(true, '2026-11-10')).toBe('Sign Five Nov 10');
+    expect(shareTitle(false)).toBe('Sign Five practice');
+  });
+
+  it('shows coloured squares and no letters', () => {
+    const text = shareText({ title: 'Sign Five Nov 10', guesses: ['CRANE', 'TRUCE'], answer: 'TRUCE', signed: 7, url: 'https://x.test/#/fingerspelling/sign-five' });
+    expect(text).toBe(
+      ['Sign Five Nov 10 2/6', '', '🟨🟩⬜⬜🟩', '🟩🟩🟩🟩🟩', '', '🤟 7 of 10 letters fingerspelled', 'https://x.test/#/fingerspelling/sign-five'].join('\n'),
+    );
+    expect(text).not.toMatch(/CRANE|TRUCE/);
+  });
+
+  it('scores a miss as X and leaves out the camera line when nothing was signed', () => {
+    const text = shareText({ title: 'Sign Five practice', guesses: Array(6).fill('CRANE'), answer: 'TRUCE' });
+    expect(text.split('\n')[0]).toBe('Sign Five practice X/6');
+    expect(text).not.toContain('🤟');
+  });
+});
+
+describe('share card', () => {
+  it('names the game under the title', async () => {
+    const { cardSubtitle } = await import('../app/src/lib/shareImage');
+    expect(cardSubtitle('Sign Five Nov 10')).toBe('Daily word · Nov 10');
+    expect(cardSubtitle('Sign Five practice')).toBe('Practice word');
   });
 });

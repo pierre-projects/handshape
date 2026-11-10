@@ -13,12 +13,15 @@
     autostart = false,
     dominantHand = 'Right',
     onLetter,
+    compact = false,
   }: {
     /** When false, nothing types (row full, game over). */
     enabled?: boolean;
     autostart?: boolean;
     dominantHand?: Handedness;
     onLetter: (letter: string) => void;
+    /** Phone layout: a slim strip with a small video, the status beside it. */
+    compact?: boolean;
   } = $props();
 
   /** Above this, the hand is moving between letters. */
@@ -142,37 +145,45 @@
 </script>
 
 {#if !supported}
-  <p class="small muted">Camera typing needs a secure (https) page. Use the keyboard below instead.</p>
+  <p class="small muted">Camera typing needs a secure (https) page. Use the keyboard instead.</p>
 {:else if status === 'off' || status === 'error'}
-  <div class="off">
+  <div class="off" class:compact>
     <button class="primary" onclick={start}>Spell with camera</button>
-    <span class="small muted">Hold each letter for about a second to type it. Video stays on this device.</span>
+    {#if !compact}<span class="small muted">Hold each letter for about a second to type it. Video stays on this device.</span>{/if}
     {#if error}<p class="small err" role="alert">{error}</p>{/if}
   </div>
 {:else}
-  <div class="cam">
-    <!-- svelte-ignore a11y_media_has_caption -->
-    <video bind:this={video} playsinline muted class="mirror"></video>
-    <canvas bind:this={canvas} class="mirror" aria-hidden="true"></canvas>
-    {#if status === 'loading'}
-      <div class="overlay">Loading hand tracking… The first time downloads about 22 MB.</div>
-    {/if}
-    <button class="small off-btn" onclick={stop}>Camera off</button>
-
-    <div class="reading" class:typed={!!flash} class:active={progress > 0} style="--p: {progress}" aria-hidden="true">
-      <svg viewBox="0 0 64 64">
-        <circle cx="32" cy="32" r="28" class="track" />
-        <circle cx="32" cy="32" r="28" class="fill" pathLength="1" />
-      </svg>
-      <span>{(flash ?? (waiting ? '' : reading) ?? '').toUpperCase()}</span>
+  <div class="wrap-cam" class:compact>
+    <div class="cam">
+      <!-- svelte-ignore a11y_media_has_caption -->
+      <video bind:this={video} playsinline muted class="mirror"></video>
+      <canvas bind:this={canvas} class="mirror" aria-hidden="true"></canvas>
+      {#if status === 'loading'}
+        <div class="overlay">{compact ? 'Loading…' : 'Loading hand tracking… The first time downloads about 22 MB.'}</div>
+      {/if}
+      {#if !compact}<button class="small off-btn" onclick={stop}>Camera off</button>{/if}
+      <div class="reading" class:typed={!!flash} class:active={progress > 0} style="--p: {progress}" aria-hidden="true">
+        <svg viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="28" class="track" />
+          <circle cx="32" cy="32" r="28" class="fill" pathLength="1" />
+        </svg>
+        <span>{(flash ?? (waiting ? '' : reading) ?? '').toUpperCase()}</span>
+      </div>
+      {#if !compact}<p class="msg" aria-live="polite">{message}</p>{/if}
     </div>
-    <p class="msg" aria-live="polite">{message}</p>
+    {#if compact}
+      <div class="side-text">
+        <p class="msg-line" aria-live="polite">{status === 'loading' ? 'Loading hand tracking…' : message}</p>
+        <button class="ghost small" onclick={stop}>Camera off</button>
+      </div>
+    {/if}
   </div>
 {/if}
 
 <style>
   .off { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
   .off p { width: 100%; margin: 0; }
+  .off.compact button { width: 100%; justify-content: center; }
   .err { color: var(--bad); }
   .cam {
     position: relative;
@@ -205,6 +216,14 @@
   .reading .fill { stroke: var(--spell-glow); stroke-dasharray: 1; stroke-dashoffset: calc(1 - var(--p)); transition: stroke-dashoffset 80ms linear; }
   .reading span { position: relative; font-size: 2rem; font-weight: 750; }
   .reading.typed { background: var(--spell); transform: scale(1.12); }
+  /* Phone strip: small video on the left, what it's reading on the right. */
+  .wrap-cam.compact { display: flex; align-items: center; gap: 12px; }
+  .compact .cam { width: 112px; flex: none; max-height: none; border-radius: var(--radius-sm); }
+  .compact .reading { top: auto; left: auto; right: 6px; bottom: 6px; width: 40px; height: 40px; }
+  .compact .reading span { font-size: 1.15rem; }
+  .compact .reading circle { stroke-width: 6; }
+  .side-text { display: grid; gap: 4px; justify-items: start; min-width: 0; }
+  .msg-line { margin: 0; font-weight: 600; font-size: 0.9rem; color: var(--ink); }
   .msg {
     position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 2; margin: 0;
     padding: 6px 12px; border-radius: var(--radius-sm); text-align: center;

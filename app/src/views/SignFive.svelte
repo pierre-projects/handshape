@@ -10,10 +10,11 @@
   import { DEFAULT_SIGN_FIVE, type SignFiveSave } from '../lib/types';
   import { loadSettings, mirrored, prefs, updateSettings } from '../lib/settings.svelte';
   import {
-    ANSWERS, dailyAnswer, dayKey, isKnownWord, letterMarks, loadSignFive, MAX_GUESSES, randomAnswer, scoreGuess, todaysAnswer,
+    ANSWERS, dailyAnswer, dayKey, isKnownWord, letterMarks, loadSignFive, MAX_GUESSES, randomAnswer, scoreGuess, shareText, shareTitle, todaysAnswer,
     WORD_LENGTH, type DailySource, type Mark,
   } from '../lib/guess';
   import LetterCam from '../components/LetterCam.svelte';
+  import ShareDialog from '../components/ShareDialog.svelte';
   import ListPicker from '../components/ListPicker.svelte';
   import { fiveLetterWords, selectedList } from '../lib/lists';
   import SignPicture from '../components/SignPicture.svelte';
@@ -37,6 +38,20 @@
   let showShapes = $state(true);
   let saved = $state<SignFiveSave>(structuredClone(DEFAULT_SIGN_FIVE));
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Which letters of the current row came from the camera (for sharing). */
+  let currentSigned: boolean[] = [];
+  /** Letters fingerspelled to the camera in this game's entered guesses. */
+  let signed = $state(0);
+  /** The share pop-up. It opens by itself when a game ends, and from "Share results". */
+  let shareOpen = $state(false);
+  let shareTimer: ReturnType<typeof setTimeout> | undefined;
+
+  // Phones get a one-screen layout: the board sized to fit, with the keyboard
+  // and a slim camera strip pinned above the tab bar.
+  let phone = $state(false);
+  let boardEl = $state<HTMLElement>();
+  let dock = $state<HTMLElement>();
+  let boardWidth = $state<number>();
 
   const lists = $derived(settings?.lists ?? []);
   const chosen = $derived(selectedList(lists, settings?.fiveListId, fiveLetterWords));
@@ -63,6 +78,40 @@
   const mirror = $derived(mirrored(settings));
   const winPct = $derived(saved.stats.played ? Math.round((saved.stats.won / saved.stats.played) * 100) : 0);
 
+  onMount(() => {
+    const mq = matchMedia('(max-width: 640px)');
+    const update = () => (phone = mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  });
+
+  /** On a phone, size the board so it and the pinned keyboard fit on one screen. */
+  $effect(() => {
+    if (!phone || !boardEl || !dock) {
+      boardWidth = undefined;
+      return;
+    }
+    const board = boardEl;
+    const pinned = dock;
+    const fit = () => {
+      const nav = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h')) || 60;
+      const top = board.getBoundingClientRect().top + window.scrollY;
+      const room = window.innerHeight - top - pinned.offsetHeight - nav - 12;
+      const gap = 5;
+      const tile = (room - gap * 5) / 6;
+      boardWidth = Math.round(Math.max(170, Math.min(340, tile * 5 + gap * 4)));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(pinned);
+    window.addEventListener('resize', fit);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', fit);
+    };
+  });
+
   onMount(async () => {
     store = await getStore();
     await loadSettings();
@@ -84,6 +133,7 @@
     answer = today.word;
     source = today.source;
     guesses = d?.guesses ?? [];
+    signed = d?.signed ?? 0;
   }
 
   /** Words allowed as guesses: the dictionary, your list, and the answer itself. */
@@ -104,15 +154,17 @@
     requestAnimationFrame(() => (shake = true));
   }
 
-  function type(letter: string) {
+  function type(letter: string, fromCamera = false) {
     if (!answer || over || current.length >= WORD_LENGTH) return;
     current += letter.toUpperCase();
+    currentSigned = [...currentSigned, fromCamera];
     confirmUnknown = false;
   }
 
   function erase() {
     if (over || !current) return;
     current = current.slice(0, -1);
+    currentSigned = currentSigned.slice(0, -1);
     confirmUnknown = false;
   }
 
@@ -131,12 +183,35 @@
     guesses = [...guesses, current];
     current = '';
     confirmUnknown = false;
-    if (game === 'daily') saved.daily = { key: dayKey(), guesses: [...guesses], answer, source };
+    signed += currentSigned.filter(Boolean).length;
+    currentSigned = [];
+    if (game === 'daily') saved.daily = { key: dayKey(), guesses: [...guesses], answer, source, signed };
     if (over) finish();
     persist();
   }
 
+  const shareData = $derived({
+    card: {
+      title: shareTitle(game === 'daily'),
+      guesses,
+      answer,
+      signed,
+      stats: game === 'daily' ? saved.stats : undefined,
+      mirror,
+    },
+    text: shareText({
+      title: shareTitle(game === 'daily'),
+      guesses,
+      answer,
+      signed,
+      url: typeof location === 'undefined' ? undefined : `${location.origin}${location.pathname}${routes.signFive}`,
+    }),
+    fileName: game === 'daily' ? `sign-five-${dayKey()}.png` : 'sign-five-practice.png',
+  });
+
   function finish() {
+    clearTimeout(shareTimer);
+    shareTimer = setTimeout(() => (shareOpen = true), 1500);
     const s = saved.stats;
     s.played++;
     if (won) {
@@ -153,12 +228,16 @@
   function newGame(g: Game) {
     game = g;
     current = '';
+    currentSigned = [];
+    clearTimeout(shareTimer);
+    shareOpen = false;
     confirmUnknown = false;
     if (g === 'daily') {
       answer = '';
       loadDaily();
     } else {
       answer = randomAnswer(answer, Math.random, useMine ? fiveWords : ANSWERS);
+      signed = 0;
       source = undefined;
       guesses = [];
     }
@@ -188,13 +267,13 @@
 
 <svelte:window onkeydown={onKey} />
 
-<div class="five">
+<div class="five" class:phone>
   <header class="top">
     <a class="back-link small" href={routes.fingerspelling}><Icon name="arrow-left" size={16} />Fingerspelling</a>
     <div class="title-row">
       <div>
         <h1>Sign Five</h1>
-        <p class="small muted">Guess the five-letter word in six tries. Fingerspell each guess to the camera, or type it.</p>
+        <p class="small muted desc">Guess the five-letter word in six tries. Fingerspell each guess to the camera, or type it.</p>
       </div>
       <div class="segmented" role="group" aria-label="Which game">
         <button aria-pressed={game === 'daily'} onclick={() => newGame('daily')}>Daily word</button>
@@ -206,12 +285,12 @@
         {#if !answer}
           <span class="dot loading"></span>Getting today's word…
         {:else if source === 'official'}
-          <span class="dot ok"></span>Today's official Wordle word, from The New York Times
+          <span class="dot ok"></span><span class="src-text">Today's official Wordle word<span class="long">, from The New York Times</span></span>
         {:else}
-          <span class="dot"></span>Couldn't reach the official word, so this is the app's own word of the day
+          <span class="dot"></span><span class="src-text">The app's own word of the day<span class="long"> (couldn't reach the official one)</span></span>
         {/if}
       {:else}
-        <span class="dot"></span>A random word from {chosen ? `“${chosen.name}”` : 'the built-in words'}. Play as many as you like.
+        <span class="dot"></span><span class="src-text">A random word from {chosen ? `“${chosen.name}”` : 'the built-in words'}<span class="long">. Play as many as you like.</span></span>
       {/if}
     </p>
   </header>
@@ -231,7 +310,7 @@
 
   <div class="layout">
     <section class="board-wrap" aria-label="Guesses">
-      <div class="board" class:shake onanimationend={() => (shake = false)}>
+      <div class="board" class:shake bind:this={boardEl} style:width={boardWidth ? `${boardWidth}px` : undefined} onanimationend={() => (shake = false)}>
         {#each rows as row, r}
           <div class="row {row.kind}" aria-label={row.kind === 'done' ? `Guess ${r + 1}: ${guesses[r]}` : undefined}>
             {#each row.cells as cell, i}
@@ -253,19 +332,6 @@
         {/each}
       </div>
 
-      <div class="status" aria-live="polite">
-        {#if confirmUnknown}
-          <div class="notice warn">
-            <b>{current}</b> isn't in the word list. A letter may have slipped in.
-            <span class="notice-actions">
-              <button class="small" onclick={erase}>Fix it</button>
-              <button class="small primary" onclick={enter}>Use it anyway</button>
-            </span>
-          </div>
-        {:else if toast}
-          <div class="notice">{toast}</div>
-        {/if}
-      </div>
     </section>
 
     <aside class="side">
@@ -296,17 +362,20 @@
             {/each}
           </div>
           <div class="result-actions">
-            <button class="primary" onclick={() => newGame('practice')}><Icon name="play" size={14} />New practice word</button>
-            <a class="btn" href={routes.spell}>Spelling drills</a>
+            <button class="primary" onclick={() => (shareOpen = true)}><Icon name="arrow-right" size={14} />Share results</button>
+            <button onclick={() => newGame('practice')}><Icon name="play" size={14} />New practice word</button>
+            <a class="btn ghost" href={routes.spell}>Spelling drills</a>
           </div>
+          {#if signed}<p class="small muted signed-note">🤟 You fingerspelled {signed} of {guesses.length * WORD_LENGTH} letters to the camera.</p>{/if}
+
         </section>
-      {:else}
+      {:else if !phone}
         <section class="card cam-card">
           <LetterCam
             enabled={current.length < WORD_LENGTH && !confirmUnknown}
             autostart={settings?.showCameraByDefault ?? false}
             dominantHand={settings?.dominantHand}
-            onLetter={type}
+            onLetter={(l) => type(l, true)}
           />
           <div class="cam-actions">
             <button onclick={erase} disabled={!current}><Icon name="arrow-left" size={16} />Delete letter</button>
@@ -321,6 +390,33 @@
     </aside>
   </div>
 
+  <div class="dock" class:pinned={phone && !over} bind:this={dock}>
+    <div class="status" aria-live="polite">
+      {#if confirmUnknown}
+        <div class="notice warn">
+          <span><b>{current}</b> isn't in the word list. A letter may have slipped in.</span>
+          <span class="notice-actions">
+            <button class="small" onclick={erase}>Fix it</button>
+            <button class="small primary" onclick={enter}>Use it anyway</button>
+          </span>
+        </div>
+      {:else if toast}
+        <div class="notice">{toast}</div>
+      {/if}
+    </div>
+
+    {#if phone && !over}
+      <div class="cam-strip">
+        <LetterCam
+          compact
+          enabled={current.length < WORD_LENGTH && !confirmUnknown}
+          autostart={settings?.showCameraByDefault ?? false}
+          dominantHand={settings?.dominantHand}
+          onLetter={(l) => type(l, true)}
+        />
+      </div>
+    {/if}
+
   <section class="keyboard" aria-label="Keyboard">
     {#each ROWS as krow, k}
       <div class="krow">
@@ -334,10 +430,25 @@
         {#if k === 2}<button class="key wide" onclick={erase} aria-label="Delete letter"><Icon name="arrow-left" size={18} /></button>{/if}
       </div>
     {/each}
-    <label class="shapes-toggle small muted">
+  </section>
+  </div>
+
+  <details class="howto">
+    <summary>How to play</summary>
+    <ul class="small">
+      <li>Fingerspell each letter to the camera and hold it for about a second, or tap the keys.</li>
+      <li>Green: right letter, right place. Gold: in the word, wrong place. Grey: not in the word.</li>
+      <li>To repeat a letter (like the PP in APPLE), drop or change your hand between them.</li>
+      <li>J and Z move, so tap those on the keyboard. Typed a wrong letter? Delete it before you enter.</li>
+    </ul>
+    <label class="shapes-toggle small">
       <input type="checkbox" bind:checked={showShapes} /> Show handshapes on tiles and keys
     </label>
-  </section>
+  </details>
+
+  {#if over}
+    <ShareDialog bind:open={shareOpen} {...shareData} />
+  {/if}
 </div>
 
 <style>
@@ -393,6 +504,7 @@
   @keyframes flip { 0% { transform: rotateX(90deg); } 100% { transform: rotateX(0); } }
 
   .status { min-height: 52px; margin-top: 12px; display: grid; justify-items: center; }
+  .dock { margin-top: 6px; }
   .notice {
     padding: 8px 14px;
     border-radius: var(--radius-sm);
@@ -404,6 +516,8 @@
   }
   .notice.warn { background: var(--warn-soft); color: var(--warn-ink); border: 1px solid color-mix(in srgb, var(--warn-ink) 25%, transparent); font-weight: 400; }
   .notice-actions { display: inline-flex; gap: 6px; margin-left: 8px; }
+  .notice.warn { display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 6px; }
+  .notice.warn .notice-actions { margin-left: 0; }
 
   .cam-card { display: grid; gap: 12px; }
   .cam-actions { display: flex; gap: 8px; }
@@ -431,6 +545,7 @@
   .bar { background: var(--surface-3); color: var(--ink-2); padding: 1px 6px; border-radius: 3px; text-align: right; }
   .bar.this { background: var(--hit); color: #fff; }
   .result-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .signed-note { margin: 0; }
 
   .keyboard { margin-top: 18px; display: grid; gap: 6px; justify-items: center; }
   .krow { display: flex; gap: 5px; width: min(100%, 620px); justify-content: center; }
@@ -456,14 +571,56 @@
   .key.hit { background: var(--hit); }
   .key.near { background: var(--near); }
   .key.miss { background: var(--miss); }
-  .shapes-toggle { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; }
+  .shapes-toggle { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; color: var(--ink-2); }
+  .howto { margin-top: 18px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+  .howto summary { cursor: pointer; font-weight: 600; color: var(--ink-2); }
+  .howto ul { margin: 8px 0 4px; padding-left: 18px; color: var(--ink-2); display: grid; gap: 4px; }
 
   @media (max-width: 820px) {
     .layout { grid-template-columns: 1fr; }
   }
   @media (max-width: 480px) {
-    .krow { gap: 3px; }
-    .key { height: 50px; font-size: 0.85rem; }
-    .kshape { width: 20px; height: 20px; }
+    .krow { gap: 4px; }
+    .key { height: 50px; font-size: 1rem; }
+    /* Too small to read on a phone; the tiles show each typed letter's handshape instead. */
+    .kshape { display: none; }
+  }
+
+  /* Phone: one screen. Compact header, board sized in script, dock pinned above the tab bar. */
+  .phone .top { margin-bottom: 8px; }
+  /* The Spelling tab already leads back to Fingerspelling. */
+  .phone .top .back-link { display: none; }
+  .phone .title-row { margin-top: 4px; align-items: center; }
+  .phone .title-row h1 { font-size: 1.35rem; }
+  .phone .desc, .phone .long { display: none; }
+  .phone .source { margin-top: 6px; font-size: 0.8rem; }
+  .phone .src-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .phone .segmented button { padding: 6px 12px; font-size: 0.85rem; }
+  .phone .picker { margin: 0 0 8px; }
+  .phone .board { gap: 5px; }
+  .phone .row { gap: 5px; }
+  .phone .layout { gap: 12px; }
+  .dock.pinned {
+    position: sticky;
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+    z-index: 6;
+    margin: 8px -16px 0;
+    padding: 8px 16px 10px;
+    background: color-mix(in srgb, var(--bg) 94%, transparent);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--line);
+  }
+  /* Messages float just above the dock so the board doesn't jump. */
+  .phone .status { position: absolute; left: 16px; right: 16px; bottom: 100%; margin: 0 0 8px; min-height: 0; pointer-events: none; }
+  .phone .status .notice { pointer-events: auto; box-shadow: var(--shadow-lift); }
+  .phone .dock:not(.pinned) .status { position: static; margin-top: 8px; }
+  .phone .keyboard { margin-top: 0; gap: 6px; }
+  .cam-strip { margin-bottom: 8px; }
+  .phone .howto { margin-top: 12px; }
+  /* Short phones: shorter keys and camera button so the board keeps its room. */
+  @media (max-height: 700px) {
+    .phone .key { height: 42px; }
+    .phone .cam-strip :global(button.primary) { min-height: 36px; padding-top: 6px; padding-bottom: 6px; }
+    .phone .source { margin-top: 2px; }
   }
 </style>

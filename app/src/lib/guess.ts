@@ -100,6 +100,31 @@ export async function loadSignFive(
   return legacy;
 }
 
+const SQUARES: Record<Mark, string> = { hit: '🟩', near: '🟨', miss: '⬜' };
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "Sign Five Nov 10" for a daily game, "Sign Five practice" otherwise. */
+export function shareTitle(daily: boolean, key: string = dayKey()): string {
+  if (!daily) return 'Sign Five practice';
+  const [, m, d] = key.split('-').map(Number);
+  return `Sign Five ${MONTHS[m - 1]} ${d}`;
+}
+
+/**
+ * Results to share, like the classic game: a score and a grid of coloured
+ * squares with no letters, so nothing is spoiled. `signed` counts the letters
+ * fingerspelled to the camera rather than typed.
+ */
+export function shareText(o: { title: string; guesses: string[]; answer: string; signed?: number; url?: string }): string {
+  const won = o.guesses.includes(o.answer);
+  const grid = o.guesses.map((g) => scoreGuess(g, o.answer).map((m) => SQUARES[m]).join(''));
+  const lines = [`${o.title} ${won ? o.guesses.length : 'X'}/${MAX_GUESSES}`, '', ...grid];
+  const letters = o.guesses.length * WORD_LENGTH;
+  if (o.signed) lines.push('', `🤟 ${o.signed} of ${letters} letters fingerspelled`);
+  if (o.url) lines.push(o.url);
+  return lines.join('\n');
+}
+
 export type DailyState = 'unplayed' | 'playing' | 'won' | 'lost';
 
 /** How today's daily game stands, for showing on other pages. */

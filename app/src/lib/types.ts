@@ -99,7 +99,14 @@ export interface WordListDef {
 
 /** Sign Five: today's game in progress and the running stats. */
 export interface SignFiveSave {
-  daily?: { key: string; guesses: string[]; answer?: string; source?: 'official' | 'local' };
+  daily?: {
+    key: string;
+    guesses: string[];
+    answer?: string;
+    source?: 'official' | 'local';
+    /** Letters in entered guesses that were fingerspelled to the camera, not typed. */
+    signed?: number;
+  };
   stats: { played: number; won: number; streak: number; best: number; dist: number[] };
 }
 
