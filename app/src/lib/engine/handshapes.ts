@@ -60,14 +60,17 @@ export const T = {
   spreadMin: 12,
   tightCurlMin: 170,
   closedMcpMin: 55,
-  thumbStraightMax: 50,
-  thumbOutMin: 50,
+  /** Most bend in a thumb that counts as held out. Generous: many thumbs bend backward, which also reads as bend. */
+  thumbStraightMax: 70,
+  /** Least angle between a stuck-out thumb and the hand's long axis. A relaxed Y thumb is only about 40° out. */
+  thumbOutMin: 35,
   /**
    * A thumb stuck out has its tip outside the index knuckle: below this on the
-   * knuckle line (0 index knuckle, 1 pinky knuckle). A thumb laid across the
-   * palm is just as far from the hand's long axis, but on the other side.
+   * knuckle line (0 index knuckle, 1 pinky knuckle). A thumb folded over the
+   * fingers or laid across the palm can be just as far from the hand's long
+   * axis, but its tip is on the other side of that knuckle (above 0).
    */
-  thumbAsideMax: -0.25,
+  thumbAsideMax: -0.1,
   /** Least total spread across the four fingers (degrees) for an open, fanned hand. */
   fanMin: 20,
   thumbParallelMax: 40,
@@ -525,7 +528,8 @@ const S: SignSpec[] = [
   {
     id: 'j',
     movement: 'Draw a J with your pinky.',
-    checks: [extended('pinky'), ...curledAll('index', 'middle', 'ring')],
+    // J starts from the I hand, thumb tucked. With the thumb out it is a Y, which must not start a J.
+    checks: [extended('pinky'), ...curledAll('index', 'middle', 'ring'), thumbIn],
   },
   {
     id: 'k',
@@ -662,7 +666,8 @@ const S: SignSpec[] = [
   {
     id: 'z',
     movement: 'Draw a Z with your index finger.',
-    checks: [extended('index'), ...curledAll('middle', 'ring', 'pinky')],
+    // Z starts from the pointing hand, thumb tucked. With the thumb out it is an L, which must not start a Z.
+    checks: [extended('index'), ...curledAll('middle', 'ring', 'pinky'), thumbIn],
   },
   {
     id: '0',

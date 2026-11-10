@@ -139,7 +139,10 @@ Every camera feature uses the same pipeline:
    with the letter's shape, plus simple structural rules (a J needs a turn into its hook, a Z
    needs its three strokes) so a plain line or a dropping hand can't pass. A correct shape drawn
    mirrored counts, with a tip. In Sign Five (`CameraTyper`) a drawn J or Z types that letter
-   and replaces an I or D typed just before from the same handshape.
+   and replaces an I or D typed just before from the same handshape. J and Z start from the
+   thumb-tucked hand, so a Y or an L (thumb out) can't start one, and a stroke takes over from
+   still letters only once the fingertip's trail is about half a palm length across, so a
+   swaying hand still types its letter.
 8. **Commands** (`gestures.ts`), in Sign Five: a fist with the thumb held straight and standing
    clear of the rest of the hand is Enter when it points up and Delete when it points down. They
    are held like a letter, take priority over letters, and still work when the row is full.

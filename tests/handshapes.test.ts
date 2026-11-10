@@ -307,3 +307,60 @@ describe('T and X are told apart', () => {
     }
   });
 });
+
+describe('thumb out or tucked: Y and L against I, J and Z', () => {
+  const TUCK = 'Fold your thumb over your fingers instead of sticking it out.';
+  /** The thumb test before it was loosened: bend up to 50°, at least 50° from the hand, tip 0.25 outside the index knuckle. */
+  const oldSticksOut = (f: ReturnType<typeof feats>) => f.thumbBend <= 50 && f.thumbOut >= 50 && f.thumbAcross <= -0.25;
+  const pinkyUp = POSES.y.fingers;
+
+  it('reads a relaxed Y, thumb only about 40° out, as Y and not I', () => {
+    const f = feats({ fingers: pinkyUp, thumb: { line: [1, -1, 0] } });
+    expect(f.thumbOut).toBeGreaterThan(35);
+    expect(f.thumbOut).toBeLessThan(50);
+    // Why it used to be typed as I: the old test called this thumb tucked.
+    expect(oldSticksOut(f)).toBe(false);
+    expect(thumbSticksOut(f)).toBe(true);
+    expect(classifyLetter(f)).toBe('y');
+    expect(judge('i', f).pass).toBe(false);
+  });
+
+  it('reads a Y or L whose thumb bends backward as Y or L', () => {
+    for (const id of ['y', 'l']) {
+      const f = { ...feats(POSES[id]), thumbBend: 62 };
+      expect(oldSticksOut(f), id).toBe(false);
+      expect(thumbSticksOut(f), id).toBe(true);
+      expect(classifyLetter(f), id).toBe(id);
+    }
+  });
+
+  it('still reads I with the thumb over the fingers, or up the side of the fist', () => {
+    expect(classifyLetter(feats(POSES.i))).toBe('i');
+    const beside = feats({ fingers: POSES.i.fingers, thumb: { line: [0.15, -1, 0] } });
+    expect(thumbSticksOut(beside)).toBe(false);
+    expect(classifyLetter(beside)).toBe('i');
+    // And the thumb-tucked numbers and V are unchanged.
+    for (const id of ['1', '2', '4', 'v']) expect(thumbSticksOut(feats(POSES[id])), id).toBe(false);
+    for (const name of ['one', 'two', 'four']) expect(thumbSticksOut(feats(REAL[name])), name).toBe(false);
+  });
+
+  it('never lets one hand be both an I and a Y, or both an L and a Z start', () => {
+    for (let deg = -80; deg <= 90; deg += 5) {
+      const a = (deg * Math.PI) / 180;
+      const thumb = { line: [Math.sin(a), -Math.cos(a), deg < 0 ? -0.4 : 0] as [number, number, number] };
+      const y = feats({ fingers: pinkyUp, thumb });
+      expect(evaluate('i', y).pass && evaluate('y', y).pass, `I and Y at ${deg}`).toBe(false);
+      expect(evaluate('j', y).pass && evaluate('y', y).pass, `J and Y at ${deg}`).toBe(false);
+      const l = feats({ fingers: POSES.l.fingers, thumb });
+      expect(evaluate('z', l).pass && evaluate('l', l).pass, `Z and L at ${deg}`).toBe(false);
+    }
+  });
+
+  it('starts J and Z only from the thumb-tucked hand', () => {
+    expect(evaluate('z', feats(POSES.z)).pass).toBe(true);
+    expect(evaluate('z', feats(POSES.d)).pass).toBe(true);
+    expect(evaluate('j', feats(POSES.i)).pass).toBe(true);
+    expect(evaluate('z', feats(POSES.l)).hint).toBe(TUCK);
+    expect(evaluate('j', feats(POSES.y)).hint).toBe(TUCK);
+  });
+});

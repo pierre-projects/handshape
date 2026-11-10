@@ -84,7 +84,8 @@ with the place to move that finger to picked out. If a sign keeps failing, the c
 ("Show me"). A finger that is straight but leaning forward at the knuckle, as the middle finger
 is in K and P, is told to lift, not to "straighten".
 
-J and Z are drawn in the air. Hold the handshape still for a moment, then draw: the app follows
+J and Z are drawn in the air, starting with the thumb tucked (thumb out makes it a Y or an L).
+Hold the handshape still for a moment, then draw: the app follows
 your pinky (J) or index fingertip (Z), shows the trail, and matches the shape you drew. Drawing it
 mirrored still counts, with a tip. In Sign Five, drawing a J or Z types it, a thumbs up held for
 about a second enters the guess and a thumbs down deletes a letter. (The "OK" ring of thumb and

@@ -126,8 +126,24 @@ export class LetterReader {
   }
 }
 
-/** The still letters a drawn letter starts from. */
-const STARTS_FROM: Record<MoveId, string[]> = { j: ['i'], z: ['d', 'l'] };
+/** The still letters a drawn letter starts from. (L and Y have the thumb out, so they start neither.) */
+const STARTS_FROM: Record<MoveId, string[]> = { j: ['i'], z: ['d'] };
+/**
+ * How big a fingertip's trail must be, in palm lengths, before its stroke
+ * counts as a letter being drawn. Until then still letters keep being read, so
+ * a hand that sways while holding I or D still types it instead of being
+ * stuck on "Drawing…". Size is the longer side of the box the trail fits in:
+ * a sway out and back travels a long way but covers little.
+ */
+export const DRAWING_MIN = 0.45;
+
+/** The longer side of the box a trail fits in. */
+function extent(trail: Pt[]): number {
+  if (!trail.length) return 0;
+  const xs = trail.map((p) => p.x);
+  const ys = trail.map((p) => p.y);
+  return Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+}
 /** A drawn letter replaces its starting letter if that was typed this recently. */
 const REPLACE_WINDOW_MS = 3000;
 
@@ -200,9 +216,10 @@ export class CameraTyper {
 
     let drawing: MoveId | undefined;
     let trail: Pt[] = [];
+    const palm = imagePalm(frame);
     for (const stroke of this.strokes) {
       const id = stroke.move.id;
-      const st = stroke.update(imagePoint(frame, stroke.move.tip), imagePalm(frame), evaluate(id, features).pass, thumbSide(frame), now);
+      const st = stroke.update(imagePoint(frame, stroke.move.tip), palm, evaluate(id, features).pass, thumbSide(frame), now);
       if (st.matched) {
         const before = this.lastStill;
         const replaces =
@@ -212,7 +229,7 @@ export class CameraTyper {
         this.lastStill = undefined;
         return { letter: id, progress: 1, waitingForRelease: true, typed: id, replaces, trail: st.trail };
       }
-      if (st.phase === 'drawing') {
+      if (st.phase === 'drawing' && extent(st.trail) >= DRAWING_MIN * palm) {
         drawing = id;
         trail = st.trail;
       }
