@@ -11,7 +11,7 @@
   import { cameraSupported, clearOverlay, drawGuide, drawHand, drawTrail, HandTracker, problemMessage } from '../lib/engine/camera';
   import { guideHand, hasGuide } from '../lib/engine/guide';
   import { imagePalm, imagePoint, isMoveId, MOVES, StrokeTracker, thumbSide, type Pt } from '../lib/engine/movement';
-  import { HoldTimer, Smoother } from '../lib/engine/tracker';
+  import { HoldTimer, Smoother, Steady } from '../lib/engine/tracker';
   import { content } from '../lib/content';
 
   let {
@@ -86,6 +86,10 @@
 
   const smoother = new Smoother(0.5);
   const hold = new HoldTimer(600);
+  type Message = { tone: string; text: string };
+  /** The message on screen: it changes only once a new one has held for a moment, so it doesn't flicker as the hand wobbles. */
+  const steady = new Steady<Message>(400, (a, b) => a.text === b.text && a.tone === b.tone);
+  let shown = $state<Message>();
   const recent: { frame: HandFrame; t: number }[] = [];
   const supported = cameraSupported;
   const tracker = new HandTracker(onFrame, () => dominantHand);
@@ -105,6 +109,8 @@
     failingSince = undefined;
     offerGuide = false;
     focus = [];
+    steady.reset();
+    shown = undefined;
     resetStroke();
   });
 
@@ -143,6 +149,7 @@
       progress = hold.update(false, now);
       if (stroke && !matched) followStroke(undefined, false, now);
       draw(undefined, false);
+      settle(now);
       return;
     }
     handSeen = true;
@@ -171,6 +178,12 @@
       }
     }
     draw(smooth, evaluation.pass);
+    settle(now);
+  }
+
+  /** Updates the message on screen. A match shows at once; anything else waits until it's steady. */
+  function settle(now: number) {
+    shown = steady.push(message, now, matched);
   }
 
   /** Feeds the drawing fingertip to the stroke tracker and matches when the letter is drawn. */
@@ -212,6 +225,8 @@
     offerGuide = false;
     smoother.reset();
     hold.reset();
+    steady.reset();
+    shown = undefined;
   }
 
   function again() {
@@ -247,7 +262,7 @@
 
   onDestroy(stop);
 
-  const message = $derived.by(() => {
+  const message = $derived.by((): Message => {
     if (!handSeen) return { tone: 'info', text: 'Hold your hand up in view of the camera.' };
     if (matched) {
       return { tone: 'good', text: `That's ${gloss(target)}.${mirroredNote ? ' Next time, draw it the other way round.' : ''}` };
@@ -268,6 +283,9 @@
   });
 
   const r2 = (n: number) => Math.round(n * 100) / 100;
+  const display = $derived(shown ?? message);
+  /** Signs with a movement the camera doesn't follow yet (10). Known from the sign itself, so the note doesn't pop in when a hand appears. */
+  const unchecked = $derived(move ? undefined : SPECS.get(target)?.movement);
 </script>
 
 {#if !supported}
@@ -316,9 +334,9 @@
         <p class="legend small"><i class="key fix"></i>move this <i class="key goal"></i>to here</p>
       {/if}
       <div class="meter" style="--p: {progress}" class:done={matched} aria-hidden="true"></div>
-      <div class="msg {message.tone}">
-        <span aria-live="polite">{message.text}</span>
-        {#if offerGuide && message.tone === 'bad'}
+      <div class="msg {display.tone}">
+        <span aria-live="polite">{display.text}</span>
+        {#if offerGuide && display.tone === 'bad'}
           <button class="small show-me" onclick={() => setGuide(true)}>Show me</button>
         {/if}
       </div>
@@ -328,8 +346,8 @@
       {/if}
     </div>
 
-    {#if evaluation?.movement && !move && !fill}
-      <p class="small muted">Movement isn't checked yet. {evaluation.movement}</p>
+    {#if unchecked && !fill}
+      <p class="small muted">Movement isn't checked yet. {unchecked}</p>
     {/if}
 
     {#if matched && !fill}
@@ -431,6 +449,10 @@
   }
   .msg:has(> span:empty:only-child) { display: none; }
   .show-me { background: #fff; color: #111; border-color: #fff; font-weight: 700; flex: none; }
+  /* Phones: room for two lines always, so the box doesn't grow and shrink as the hint changes. */
+  @media (max-width: 640px) {
+    .msg { min-height: calc(2 * 1.35em + 16px); line-height: 1.35; font-size: 0.875rem; }
+  }
   .msg.info { background: rgb(0 0 0 / 0.6); color: #fff; }
   .msg.good { background: rgb(35 130 77 / 0.92); color: #fff; }
   .msg.bad { background: rgb(160 50 36 / 0.9); color: #fff; }

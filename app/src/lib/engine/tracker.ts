@@ -31,6 +31,42 @@ export class Smoother {
 }
 
 /**
+ * Keeps what's on screen steady while readings change from frame to frame. A
+ * new value replaces the shown one only once it has been asked for without a
+ * break for `settleMs`, so a message doesn't flicker between "Hold still" and
+ * "Hold A" as the hand wobbles. An urgent value (a match, a typed letter)
+ * shows at once.
+ */
+export class Steady<T> {
+  private shown?: { value: T };
+  private next?: { value: T; since: number };
+
+  constructor(
+    private settleMs = 400,
+    private same: (a: T, b: T) => boolean = Object.is,
+  ) {}
+
+  reset(): void {
+    this.shown = undefined;
+    this.next = undefined;
+  }
+
+  push(value: T, now: number, urgent = false): T {
+    if (!this.shown || urgent || this.same(value, this.shown.value)) {
+      this.shown = { value };
+      this.next = undefined;
+      return value;
+    }
+    if (!this.next || !this.same(value, this.next.value)) this.next = { value, since: now };
+    else if (now - this.next.since >= this.settleMs) {
+      this.shown = { value };
+      this.next = undefined;
+    }
+    return this.shown.value;
+  }
+}
+
+/**
  * Tracks how long a condition has held. A single bad frame is forgiven, so a
  * flicker in tracking doesn't restart the count.
  */

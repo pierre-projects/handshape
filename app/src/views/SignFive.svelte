@@ -94,10 +94,21 @@
     }
     const board = boardEl;
     const pinned = dock;
+    // A phone browser's address bar slides away as you scroll, which changes the
+    // window height. Following it would resize the board mid-game, so the board
+    // only ever shrinks to fit, and starts afresh when the width changes (turning the phone).
+    let width = window.innerWidth;
+    let height = window.innerHeight;
     const fit = () => {
+      if (window.innerWidth !== width) {
+        width = window.innerWidth;
+        height = window.innerHeight;
+      } else {
+        height = Math.min(height, window.innerHeight);
+      }
       const nav = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h')) || 60;
       const top = board.getBoundingClientRect().top + window.scrollY;
-      const room = window.innerHeight - top - pinned.offsetHeight - nav - 12;
+      const room = height - top - pinned.offsetHeight - nav - 12;
       const gap = 5;
       const tile = (room - gap * 5) / 6;
       boardWidth = Math.round(Math.max(170, Math.min(340, tile * 5 + gap * 4)));

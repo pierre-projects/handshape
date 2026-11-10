@@ -9,7 +9,7 @@
   import type { HandFrame, Handedness } from '../lib/engine/hand';
   import { cameraSupported, drawHand, drawTrail, HandTracker, problemMessage } from '../lib/engine/camera';
   import type { MoveId, Pt } from '../lib/engine/movement';
-  import { Smoother } from '../lib/engine/tracker';
+  import { Smoother, Steady } from '../lib/engine/tracker';
   import { CameraTyper, handMotion, type TyperState } from '../lib/engine/reader';
 
   let {
@@ -56,6 +56,10 @@
 
   const smoother = new Smoother(0.5);
   const typer = new CameraTyper();
+  /** The message on screen: it changes only once a new one has held for a moment, so it doesn't flicker. */
+  const steady = new Steady<string>(400);
+  let shown = $state<string>();
+  let typedNow = false;
   const supported = cameraSupported;
   const tracker = new HandTracker(onFrame, () => dominantHand);
 
@@ -96,6 +100,7 @@
       smoother.reset();
       if (enabled) apply(typer.update(undefined, undefined, false, now));
       draw(undefined);
+      settle(now);
       return;
     }
     handSeen = true;
@@ -104,6 +109,13 @@
     const smooth = smoother.push(frame);
     if (enabled) apply(typer.update(smooth, computeFeatures(smooth), moving, now, { letters }));
     draw(smooth);
+    settle(now);
+  }
+
+  /** Updates the message on screen. "Got it" after a typed letter shows at once; anything else waits until it's steady. */
+  function settle(now: number) {
+    shown = steady.push(message, now, typedNow);
+    typedNow = false;
   }
 
   function apply(s: TyperState) {
@@ -115,6 +127,7 @@
     if (s.command) onCommand?.(s.command);
     else if (s.typed) onLetter(s.typed.toUpperCase(), s.replaces ? { replaces: s.replaces.toUpperCase() } : undefined);
     if (s.command || s.typed) {
+      typedNow = true;
       flash = s.command ?? s.typed;
       clearTimeout(flashTimer);
       flashTimer = setTimeout(() => (flash = undefined), 500);
@@ -136,6 +149,8 @@
     handSeen = false;
     typer.reset();
     smoother.reset();
+    steady.reset();
+    shown = undefined;
     drawing = undefined;
     progress = 0;
   }
@@ -151,7 +166,7 @@
       : !handSeen
         ? 'Hold your hand up to the camera'
         : waiting
-          ? 'Got it. Change shape or drop your hand to go on.'
+          ? 'Got it. Change shape or drop your hand.'
           : drawing
             ? `Drawing ${drawing.toUpperCase()}…`
             : moving
@@ -193,11 +208,11 @@
         </svg>
         <span>{label(flash ?? (waiting ? '' : reading))}</span>
       </div>
-      {#if !compact}<p class="msg" aria-live="polite">{message}</p>{/if}
+      {#if !compact}<p class="msg" aria-live="polite">{shown ?? message}</p>{/if}
     </div>
     {#if compact}
       <div class="side-text">
-        <p class="msg-line" aria-live="polite">{status === 'loading' ? 'Loading hand tracking…' : message}</p>
+        <p class="msg-line" aria-live="polite">{status === 'loading' ? 'Loading hand tracking…' : (shown ?? message)}</p>
         <button class="ghost small" onclick={stop}>Camera off</button>
       </div>
     {/if}
@@ -246,8 +261,14 @@
   .compact .reading { top: auto; left: auto; right: 6px; bottom: 6px; width: 40px; height: 40px; }
   .compact .reading span { font-size: 1.15rem; }
   .compact .reading circle { stroke-width: 6; }
+  /* The strip is always the same height, whatever the message says: on a phone the board is sized around it. */
+  .wrap-cam.compact { height: 84px; }
   .side-text { display: grid; gap: 4px; justify-items: start; min-width: 0; }
-  .msg-line { margin: 0; font-weight: 600; font-size: 0.9rem; color: var(--ink); }
+  .msg-line {
+    margin: 0; font-weight: 600; font-size: 0.875rem; line-height: 1.3; color: var(--ink);
+    height: 2.6em; overflow: hidden;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  }
   .msg {
     position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 2; margin: 0;
     padding: 6px 12px; border-radius: var(--radius-sm); text-align: center;
