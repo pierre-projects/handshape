@@ -26,6 +26,21 @@
   --warn-ink: #93370d;
   --bar: #2456d3;
 
+  /* Spell drill and Sign Five */
+  --spell: #6d28d9;
+  --spell-soft: #f4f0ff;
+  --spell-tint: #faf7ff;
+  --spell-line: #c4b5fd;
+  --spell-glow: #a78bfa;
+  /* Sign Five tiles and keys */
+  --hit: var(--good);
+  --near: #b88a00;
+  --miss: var(--ink-3);
+  /* Over the camera image */
+  --cam-match: #2fbf71;
+  --cam-idle: #f2f2f2;
+  --rec: #b23a2e;
+
   /* Hand illustrations: black ink line art on white, in both themes */
   --skin: #ffffff;
   --skin-shade: #f4f4f5;

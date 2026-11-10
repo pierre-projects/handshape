@@ -92,7 +92,7 @@
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
     text-decoration: none;
-    color: #18181b;
+    color: var(--ink);
     font-weight: 600;
     background: var(--paper);
   }

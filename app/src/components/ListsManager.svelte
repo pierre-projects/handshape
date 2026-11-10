@@ -285,7 +285,7 @@
   .uses { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
   .use { font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
   .use.read { background: var(--accent-soft); color: var(--accent); }
-  .use.five { background: #f4f0ff; color: #6d28d9; }
+  .use.five { background: var(--spell-soft); color: var(--spell); }
   .list-card.new {
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
     border-style: dashed; box-shadow: none; color: var(--accent); font-weight: 650; background: transparent;
@@ -314,7 +314,7 @@
     justify-content: flex-start; gap: 10px; padding: 10px 12px; text-align: left; font-weight: 400;
     border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface);
   }
-  .use-toggle.five { --c: #6d28d9; --soft: #f4f0ff; }
+  .use-toggle.five { --c: var(--spell); --soft: var(--spell-soft); }
   .use-toggle span:last-child { display: grid; }
   .use-toggle small { color: var(--ink-3); font-size: 0.78rem; }
   .use-toggle[aria-pressed='true'] { border-color: var(--c); background: var(--soft); }
@@ -336,12 +336,12 @@
   .skip { color: var(--warn-ink); }
   .chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
   .chip { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface); overflow: hidden; }
-  .chip.five { border-color: #c4b5fd; background: #faf7ff; }
+  .chip.five { border-color: var(--spell-line); background: var(--spell-tint); }
   .word { padding: 4px 4px 4px 12px; font-weight: 650; letter-spacing: 0.05em; }
   .x { border: 0; border-radius: 0; box-shadow: none; background: transparent; min-height: 32px; padding: 4px 10px 4px 6px; color: var(--ink-3); }
   .x:hover { color: var(--bad); background: var(--bad-soft); }
   .legend { display: flex; align-items: center; gap: 6px; margin: 0; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid #c4b5fd; background: #faf7ff; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--spell-line); background: var(--spell-tint); }
   .toast { justify-self: start; display: inline-flex; align-items: center; gap: 8px; padding: 4px 4px 4px 12px; border-radius: var(--radius-sm); background: var(--ink); color: #fff; }
   .toast button { color: #fff; min-height: 28px; }
 
