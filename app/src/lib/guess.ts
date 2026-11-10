@@ -1,4 +1,7 @@
 // "Sign Five": guess a five-letter word in six tries, fingerspelling each guess.
+import type { Store } from './db';
+import { DEFAULT_SIGN_FIVE, type SignFiveSave } from './types';
+
 export const WORD_LENGTH = 5;
 export const MAX_GUESSES = 6;
 
@@ -89,6 +92,36 @@ export function dailyAnswer(key: string = dayKey()): string {
 export function randomAnswer(avoid?: string, random: () => number = Math.random, from: string[] = ANSWERS): string {
   const pool = from.length > 1 ? from.filter((w) => w !== avoid) : from.length ? from : ANSWERS;
   return pool[Math.floor(random() * pool.length)];
+}
+
+/** Where older versions kept Sign Five data, before it moved into the database. */
+export const LEGACY_STORAGE_KEY = 'asl-sign-five';
+
+/**
+ * Sign Five's saved game and stats. The first time, it moves anything an older
+ * version left in localStorage into the database, so exports include it.
+ */
+export async function loadSignFive(
+  store: Pick<Store, 'signFive' | 'saveSignFive'>,
+  storage: Pick<Storage, 'getItem' | 'removeItem'> | undefined = globalThis.localStorage,
+): Promise<SignFiveSave> {
+  const saved = await store.signFive();
+  if (saved) return saved;
+  let legacy: SignFiveSave | undefined;
+  try {
+    const raw = storage?.getItem(LEGACY_STORAGE_KEY);
+    if (raw) legacy = { ...DEFAULT_SIGN_FIVE, ...JSON.parse(raw) };
+  } catch {
+    legacy = undefined;
+  }
+  if (!legacy) return structuredClone(DEFAULT_SIGN_FIVE);
+  await store.saveSignFive(legacy);
+  try {
+    storage?.removeItem(LEGACY_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+  return legacy;
 }
 
 /** Where today's word came from. */

@@ -1,13 +1,17 @@
 // All learner data lives in IndexedDB on this device. Export/import is a plain JSON file.
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import { migrateSettings } from './lists';
-import { DEFAULT_SETTINGS, type ReviewEntry, type Settings, type SpellingAttempt, type StoredCard } from './types';
+import {
+  DEFAULT_SETTINGS, DEFAULT_SIGN_FIVE, type ReviewEntry, type Settings, type SignFiveSave, type SpellingAttempt,
+  type StoredCard,
+} from './types';
 
 interface AslDB extends DBSchema {
   cards: { key: string; value: StoredCard };
   reviews: { key: number; value: ReviewEntry; indexes: { at: Date } };
   attempts: { key: number; value: SpellingAttempt; indexes: { at: Date } };
-  settings: { key: string; value: { key: string; value: Settings } };
+  /** Small key-value records: 'settings' and 'signFive'. */
+  settings: { key: string; value: { key: string; value: Settings | SignFiveSave } };
 }
 
 export const EXPORT_VERSION = 1;
@@ -20,6 +24,8 @@ export interface ExportFile {
   cards: StoredCard[];
   reviews: ReviewEntry[];
   attempts: SpellingAttempt[];
+  /** Added later; older files don't have it. */
+  signFive?: SignFiveSave;
 }
 
 export class Store {
@@ -68,21 +74,35 @@ export class Store {
 
   async settings(): Promise<Settings> {
     const row = await this.db.get('settings', 'settings');
-    return migrateSettings((row?.value ?? {}) as Record<string, unknown>);
+    return migrateSettings((row?.value ?? {}) as unknown as Record<string, unknown>);
   }
 
   async saveSettings(settings: Settings): Promise<void> {
     await this.db.put('settings', { key: 'settings', value: settings });
   }
 
+  /** Sign Five's saved game and stats, or undefined if it has never been played here. */
+  async signFive(): Promise<SignFiveSave | undefined> {
+    const row = await this.db.get('settings', 'signFive');
+    return row ? { ...DEFAULT_SIGN_FIVE, ...(row.value as SignFiveSave) } : undefined;
+  }
+
+  async saveSignFive(save: SignFiveSave): Promise<void> {
+    await this.db.put('settings', { key: 'signFive', value: save });
+  }
+
   async exportAll(now = new Date()): Promise<ExportFile> {
-    const [settings, cards, reviews, attempts] = await Promise.all([
+    const [settings, cards, reviews, attempts, signFive] = await Promise.all([
       this.settings(),
       this.db.getAll('cards'),
       this.db.getAll('reviews'),
       this.db.getAll('attempts'),
+      this.signFive(),
     ]);
-    return { app: 'asl', version: EXPORT_VERSION, exportedAt: now.toISOString(), settings, cards, reviews, attempts };
+    return {
+      app: 'asl', version: EXPORT_VERSION, exportedAt: now.toISOString(), settings, cards, reviews, attempts,
+      ...(signFive ? { signFive } : {}),
+    };
   }
 
   /** Replaces all learner data with the contents of an export file. */
@@ -98,6 +118,9 @@ export class Store {
       ...data.reviews.map((r) => reviews.put(r)),
       ...data.attempts.map((a) => attempts.put(a)),
       tx.objectStore('settings').put({ key: 'settings', value: data.settings }),
+      data.signFive
+        ? tx.objectStore('settings').put({ key: 'signFive', value: data.signFive })
+        : tx.objectStore('settings').delete('signFive'),
     ]);
     await tx.done;
   }
@@ -149,5 +172,6 @@ export function parseExport(raw: unknown): ExportFile {
     })),
     reviews: d.reviews.map((r) => ({ ...r, at: toDate(r.at, 'review') })),
     attempts: d.attempts.map((a) => ({ ...a, at: toDate(a.at, 'attempt') })),
+    ...(d.signFive && typeof d.signFive === 'object' ? { signFive: { ...DEFAULT_SIGN_FIVE, ...d.signFive } } : {}),
   };
 }

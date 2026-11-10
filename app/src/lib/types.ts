@@ -97,6 +97,16 @@ export interface WordListDef {
   words: string[];
 }
 
+/** Sign Five: today's game in progress and the running stats. */
+export interface SignFiveSave {
+  daily?: { key: string; guesses: string[]; answer?: string; source?: 'official' | 'local' };
+  stats: { played: number; won: number; streak: number; best: number; dist: number[] };
+}
+
+export const DEFAULT_SIGN_FIVE: SignFiveSave = {
+  stats: { played: 0, won: 0, streak: 0, best: 0, dist: [0, 0, 0, 0, 0, 0] },
+};
+
 export interface Settings {
   newItemsPerDay: number;
   receptiveSpeed: number;

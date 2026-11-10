@@ -1,6 +1,9 @@
 import { defineConfig } from 'vitest/config';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 export default defineConfig({
+  // Compiles .svelte.ts modules (shared state using runes) for tests.
+  plugins: [svelte()],
   test: {
     include: ['tests/**/*.test.ts'],
     environment: 'node',
