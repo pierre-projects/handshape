@@ -69,8 +69,12 @@ which letter you mean, a letter types only after you hold it steadily for about 
 holding it longer doesn't type it again.
 
 Thumb positions tucked behind the fingers (A, E, M, N, S, T) are hard for any camera to see.
-Those rules are marked unsure: they show as advice but never block a match. J, Z and 10 need
-movement, which isn't checked yet; only their starting handshape is.
+Those rules are marked unsure: they show as advice but never block a match.
+
+J and Z are drawn in the air. Hold the handshape still for a moment, then draw: the app follows
+your pinky (J) or index fingertip (Z), shows the trail, and matches the shape you drew. Drawing it
+mirrored still counts, with a tip. In Sign Five, drawing a J or Z types it. 10's thumb shake isn't
+checked yet; only its starting handshape is.
 
 The rules are tested against a model hand in `tests/`, and real recorded samples in
 `fixtures/handshapes/` keep them honest. See that folder's README to contribute samples.

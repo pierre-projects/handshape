@@ -95,7 +95,8 @@ app/src/
 | `lib/engine/features.ts` | Turns 21 hand points into measurements: finger curl, spread, thumb position, hand and palm direction |
 | `lib/engine/handshapes.ts` | One readable rule list per letter and number, each rule with the fix to suggest |
 | `lib/engine/tracker.ts` | Smoothing across frames, and "held long enough" timing |
-| `lib/engine/reader.ts` | Reads *which* letter is being made (for Sign Five), with safeguards against stray letters |
+| `lib/engine/movement.ts` | Letters drawn in the air (J, Z): follows a fingertip, finds the stroke, matches its shape |
+| `lib/engine/reader.ts` | Reads *which* letter is being made (for Sign Five): still letters and drawn J/Z, with safeguards against stray letters |
 
 Rules that keep this tidy: pages don't import other pages; `lib/` doesn't import components;
 `lib/engine/` doesn't import Svelte; colours come from tokens in `app.css`.
@@ -112,12 +113,23 @@ Every camera feature uses the same pipeline:
 4. **Rules** (`handshapes.ts`): each sign is a list of checks. Thumb positions the camera often
    can't see are marked *unsure*: they show as advice but never block a match.
 5. **Judging** (`judge()`): a loose match doesn't count if the hand fully matches a different
-   sign, so one fist can't pass for A, E, M, N, S and T alike.
+   sign, so one fist can't pass for A, E, M, N, S and T alike. T and X are separated by one
+   shared test, whether the index finger stands up off the fist (`indexStandsUp`): X requires
+   it and T forbids it, so no hand can be both.
 6. **Timing:** a target sign counts once held for 0.6 s (`HoldTimer`). Sign Five's open reader
    (`LetterReader`) needs 0.9 s, ignores fast movement, and won't type the same letter again
    until the hand changes or drops, so a long hold types one letter.
+7. **Movement** (`movement.ts`), for J and Z: once the starting handshape is held still, the
+   drawing fingertip (pinky for J, index for Z) is followed. A stroke starts when the tip moves
+   away and ends when it rests; starts and stops are judged by distance, not speed, so jitter
+   and slow drawing are both fine. The stroke is resampled, scaled to its own size and compared
+   with the letter's shape, plus simple structural rules (a J needs a turn into its hook, a Z
+   needs its three strokes) so a plain line or a dropping hand can't pass. A correct shape drawn
+   mirrored counts, with a tip. In Sign Five (`CameraTyper`) a drawn J or Z types that letter
+   and replaces an I or D typed just before from the same handshape.
 
-J, Z and 10 involve movement, which isn't checked yet: only their starting handshape is.
+10's thumb shake isn't checked yet: only its starting handshape is. All thresholds here are
+first estimates on a model hand; `fixtures/handshapes/` holds real recordings to tune them.
 
 ## Data and storage
 
@@ -186,12 +198,13 @@ Done:
 4. Receptive fingerspelling (adaptive speed, WPM) and expressive fingerspelling with per-letter
    camera scoring.
 5. Sign Five word game, named word lists, dashboard.
+6. Movement checks for J and Z (drawn letters), in target checks and in Sign Five.
 
 Next:
 
-1. **Real recorded samples** in `fixtures/handshapes/` to tune the rules against real hands
-   (the folder is set up; no samples yet).
-2. **Movement checks** for J, Z and 10 (wrist trajectory templates).
+1. **Real recorded samples** in `fixtures/handshapes/` to tune the rules against real hands,
+   T, X, J and Z first (the folder and the Save sample button are set up; no samples yet).
+2. **Movement check for 10** (thumb shake), and J/Z words as Sign Five answers once tuned.
 3. **First vocabulary unit** (greetings, introductions) with location checks, which need face
    or body landmarks as a reference.
 4. **Run tracking in a Web Worker** so the page stays smooth on slower phones.

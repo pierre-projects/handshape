@@ -4,7 +4,8 @@ import { evaluate, judge, looksLike, SPECS } from '../app/src/lib/engine/handsha
 import { HoldTimer, Smoother } from '../app/src/lib/engine/tracker';
 import { content } from '../app/src/lib/content';
 import { buildHand, type Pose } from './helpers/synthHand';
-import { POSES, TWINS } from './helpers/poses';
+import { POSES, REAL, TWINS } from './helpers/poses';
+import { classifyLetter } from '../app/src/lib/engine/reader';
 
 const feats = (pose: Pose) => computeFeatures(buildHand(pose));
 const ids = [...SPECS.keys()];
@@ -135,5 +136,40 @@ describe('P is not too strict', () => {
   });
   it('does not let an upright K count as P', () => {
     expect(judge('p', feats(POSES.k)).pass).toBe(false);
+  });
+});
+
+describe('T and X are told apart', () => {
+  it('accepts a real T, with the index resting on the thumb, and never calls it X', () => {
+    for (const name of ['t', 'tLoose', 'tHigh']) {
+      const f = feats(REAL[name]);
+      const j = judge('t', f);
+      expect(j.pass, `${name} as T`).toBe(true);
+      expect(j.rivals, `${name} rivals`).not.toContain('x');
+      expect(judge('x', f).pass, `${name} as X`).toBe(false);
+      expect(classifyLetter(f), `${name} read`).toBe('t');
+    }
+  });
+
+  it('tells the learner to fold the index when an X is held for T', () => {
+    const j = judge('t', feats(POSES.x));
+    expect(j.pass).toBe(false);
+    expect(j.hint).toBe('Fold your index finger down over your thumb, not up in a hook.');
+  });
+
+  it('still accepts X, even when the index is not raised all the way', () => {
+    for (const pose of [POSES.x, REAL.xLazy]) {
+      const f = feats(pose);
+      expect(judge('x', f).pass).toBe(true);
+      expect(judge('t', f).pass).toBe(false);
+      expect(classifyLetter(f)).toBe('x');
+    }
+  });
+
+  it('never lets one hand count as both', () => {
+    for (let knuckle = 10; knuckle <= 90; knuckle += 5) {
+      const f = feats({ ...REAL.t, fingers: { ...REAL.t.fingers, index: [knuckle, 92, 50, 0] } });
+      expect(evaluate('t', f).pass && evaluate('x', f).pass, `index knuckle ${knuckle}`).toBe(false);
+    }
   });
 });

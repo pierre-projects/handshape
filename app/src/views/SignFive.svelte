@@ -154,8 +154,15 @@
     requestAnimationFrame(() => (shake = true));
   }
 
-  function type(letter: string, fromCamera = false) {
-    if (!answer || over || current.length >= WORD_LENGTH) return;
+  /** `replaces`: a drawn J or Z takes the place of the still letter the camera typed from the same handshape. */
+  function type(letter: string, fromCamera = false, replaces?: string) {
+    if (!answer || over) return;
+    if (replaces && current.endsWith(replaces) && currentSigned[currentSigned.length - 1]) {
+      current = current.slice(0, -1) + letter.toUpperCase();
+      confirmUnknown = false;
+      return;
+    }
+    if (current.length >= WORD_LENGTH) return;
     current += letter.toUpperCase();
     currentSigned = [...currentSigned, fromCamera];
     confirmUnknown = false;
@@ -375,15 +382,15 @@
             enabled={current.length < WORD_LENGTH && !confirmUnknown}
             autostart={settings?.showCameraByDefault ?? false}
             dominantHand={settings?.dominantHand}
-            onLetter={(l) => type(l, true)}
+            onLetter={(l, o) => type(l, true, o?.replaces)}
           />
           <div class="cam-actions">
             <button onclick={erase} disabled={!current}><Icon name="arrow-left" size={16} />Delete letter</button>
             <button class="primary" onclick={enter} disabled={current.length < WORD_LENGTH}>Enter guess</button>
           </div>
           <p class="small muted tip">
-            To repeat a letter (like the PP in APPLE), drop or change your hand between them. J and Z move, so tap those
-            on the keyboard. Typed a wrong letter? Delete it before you enter.
+            To repeat a letter (like the PP in APPLE), drop or change your hand between them. For J and Z, hold the
+            handshape, then draw the letter in the air. Typed a wrong letter? Delete it before you enter.
           </p>
         </section>
       {/if}
@@ -412,7 +419,7 @@
           enabled={current.length < WORD_LENGTH && !confirmUnknown}
           autostart={settings?.showCameraByDefault ?? false}
           dominantHand={settings?.dominantHand}
-          onLetter={(l) => type(l, true)}
+          onLetter={(l, o) => type(l, true, o?.replaces)}
         />
       </div>
     {/if}
@@ -439,7 +446,8 @@
       <li>Fingerspell each letter to the camera and hold it for about a second, or tap the keys.</li>
       <li>Green: right letter, right place. Gold: in the word, wrong place. Grey: not in the word.</li>
       <li>To repeat a letter (like the PP in APPLE), drop or change your hand between them.</li>
-      <li>J and Z move, so tap those on the keyboard. Typed a wrong letter? Delete it before you enter.</li>
+      <li>For J and Z, hold the handshape, then draw the letter in the air (or tap the key).</li>
+      <li>Typed a wrong letter? Delete it before you enter.</li>
     </ul>
     <label class="shapes-toggle small">
       <input type="checkbox" bind:checked={showShapes} /> Show handshapes on tiles and keys

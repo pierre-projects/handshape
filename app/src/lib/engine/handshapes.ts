@@ -23,7 +23,10 @@ export interface Check {
 export interface SignSpec {
   id: string;
   checks: Check[];
-  /** Signs with movement (J, Z, 10): only the starting handshape is checked. */
+  /**
+   * Signs with movement (J, Z, 10). These checks cover the starting handshape;
+   * J and Z's drawn letter is checked in movement.ts, 10's shake isn't checked yet.
+   */
   movement?: string;
 }
 
@@ -49,7 +52,26 @@ export const T = {
   crossMin: 0.05,
   /** Degrees from straight up; 100 is just below horizontal. */
   tippedDownMin: 100,
+  /**
+   * X vs T: the index "stands up" off the fist when its knuckle is this much
+   * straighter than the middle finger's (degrees) and its tip reaches this much
+   * higher along the hand (palm lengths).
+   */
+  raiseKnuckleMin: 40,
+  raiseTipMin: 0.3,
 };
+
+/**
+ * True when the index finger is raised off the fist, as in X's hook. In T the
+ * index folds down over the thumb, which the camera reads as a looser curl but
+ * not a raised finger. X requires this and T forbids it, so one hand can never
+ * be both.
+ */
+export function indexStandsUp(f: Features): boolean {
+  return (
+    f.mcpBend.middle - f.mcpBend.index >= T.raiseKnuckleMin && f.tipHeight.index - f.tipHeight.middle >= T.raiseTipMin
+  );
+}
 
 const NAMES: Record<Finger, string> = { index: 'index', middle: 'middle', ring: 'ring', pinky: 'pinky' };
 
@@ -104,6 +126,22 @@ const hooked = (finger: Finger): Check => ({
   hint: `Raise your ${NAMES[finger]} finger and bend just the tip into a hook.`,
   reliable: true,
 });
+
+const indexRaised: Check = {
+  id: 'index-raised',
+  param: 'handshape',
+  test: indexStandsUp,
+  hint: 'Raise your index finger off your fist, then hook it.',
+  reliable: true,
+};
+
+const indexFolded: Check = {
+  id: 'index-folded',
+  param: 'handshape',
+  test: (f) => !indexStandsUp(f),
+  hint: 'Fold your index finger down over your thumb, not up in a hook.',
+  reliable: true,
+};
 
 type ThumbTarget = keyof Features['thumbTo'];
 const TARGET_NAMES: Record<ThumbTarget, string> = {
@@ -434,6 +472,8 @@ const S: SignSpec[] = [
     id: 't',
     checks: [
       ...curledAll('index', 'middle', 'ring', 'pinky'),
+      // The index rests on the thumb, so it curls less than a fist, but it must not stand up like X.
+      indexFolded,
       thumbTouches('indexPip', false),
       thumbAcross(0.05, 0.45, 'Tuck your thumb between your index and middle fingers.', 'thumb-between'),
       thumbUnderFingers,
@@ -474,7 +514,10 @@ const S: SignSpec[] = [
       palmOut,
     ],
   },
-  { id: 'x', checks: [hooked('index'), ...(['middle', 'ring', 'pinky'] as Finger[]).map(closed), palmOut] },
+  {
+    id: 'x',
+    checks: [hooked('index'), indexRaised, ...(['middle', 'ring', 'pinky'] as Finger[]).map(closed), palmOut],
+  },
   {
     id: 'y',
     checks: [extended('pinky'), thumbOut, ...curledAll('index', 'middle', 'ring'), palmOut],

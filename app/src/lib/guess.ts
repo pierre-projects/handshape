@@ -11,7 +11,11 @@ export type Mark = 'hit' | 'near' | 'miss';
 /** Every word the game knows, upper case. The list lives in content/words, checked by `npm run validate`. */
 export const WORDS: string[] = fiveLetter.words.map((w) => w.toUpperCase());
 
-/** Answers avoid J and Z, which need movement the camera can't read, so every answer can be signed. */
+/**
+ * Answers avoid J and Z for now. The camera can read them drawn in the air, but
+ * that is new and still being tuned on real hands; until then every answer
+ * uses only letters read from a still hand.
+ */
 export const ANSWERS: string[] = WORDS.filter((w) => !/[JZ]/.test(w));
 
 /** Colours a guess like the classic game: hits first, then nears use up the remaining letters. */

@@ -1,12 +1,14 @@
 <script lang="ts">
   // Camera keyboard: reads whichever letter the hand makes and types it once it's
-  // held steady. Fast movement, unclear shapes and long holds don't type.
+  // held steady, and types J and Z when they're drawn in the air. Fast movement,
+  // unclear shapes and long holds don't type.
   import { onDestroy } from 'svelte';
   import { computeFeatures } from '../lib/engine/features';
   import type { HandFrame, Handedness } from '../lib/engine/hand';
-  import { cameraSupported, drawHand, HandTracker, problemMessage } from '../lib/engine/camera';
+  import { cameraSupported, drawHand, drawTrail, HandTracker, problemMessage } from '../lib/engine/camera';
+  import type { MoveId, Pt } from '../lib/engine/movement';
   import { Smoother } from '../lib/engine/tracker';
-  import { classifyLetter, handMotion, LetterReader } from '../lib/engine/reader';
+  import { CameraTyper, handMotion, type TyperState } from '../lib/engine/reader';
 
   let {
     enabled = true,
@@ -19,7 +21,8 @@
     enabled?: boolean;
     autostart?: boolean;
     dominantHand?: Handedness;
-    onLetter: (letter: string) => void;
+    /** `replaces`: the still letter typed just before from the same handshape (I before J); swap it. */
+    onLetter: (letter: string, opts?: { replaces?: string }) => void;
     /** Phone layout: a slim strip with a small video, the status beside it. */
     compact?: boolean;
   } = $props();
@@ -38,11 +41,13 @@
   let reading = $state<string>();
   let progress = $state(0);
   let waiting = $state(false);
+  let drawing = $state<MoveId>();
+  let trail: Pt[] = [];
   let flash = $state<string>();
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
 
   const smoother = new Smoother(0.5);
-  const reader = new LetterReader();
+  const typer = new CameraTyper();
   const supported = cameraSupported;
   const tracker = new HandTracker(onFrame, () => dominantHand);
 
@@ -53,8 +58,10 @@
   // Pausing (row full, game over) forgets any half-held letter.
   $effect(() => {
     if (!enabled) {
-      reader.reset();
+      typer.reset();
       progress = 0;
+      drawing = undefined;
+      trail = [];
     }
   });
 
@@ -79,7 +86,7 @@
       handSeen = false;
       prevPoints = undefined;
       smoother.reset();
-      step(undefined, now);
+      if (enabled) apply(typer.update(undefined, undefined, false, now));
       draw(undefined);
       return;
     }
@@ -87,24 +94,18 @@
     moving = handMotion(prevPoints, frame.image) > MOTION_LIMIT;
     prevPoints = frame.image;
     const smooth = smoother.push(frame);
-    const letter = moving ? undefined : classifyLetter(computeFeatures(smooth));
-    step(letter, now);
+    if (enabled) apply(typer.update(smooth, computeFeatures(smooth), moving, now));
     draw(smooth);
   }
 
-  function step(letter: string | undefined, now: number) {
-    if (!enabled) {
-      reading = letter;
-      progress = 0;
-      waiting = false;
-      return;
-    }
-    const s = reader.update(letter, now);
+  function apply(s: TyperState) {
     reading = s.letter;
     progress = s.progress;
     waiting = s.waitingForRelease;
+    drawing = s.drawing;
+    trail = s.trail;
     if (s.typed) {
-      onLetter(s.typed.toUpperCase());
+      onLetter(s.typed.toUpperCase(), s.replaces ? { replaces: s.replaces.toUpperCase() } : undefined);
       flash = s.typed;
       clearTimeout(flashTimer);
       flashTimer = setTimeout(() => (flash = undefined), 500);
@@ -113,14 +114,16 @@
 
   function draw(frame: HandFrame | undefined) {
     drawHand(canvas, video, frame, progress > 0 ? 'var(--spell-glow)' : 'rgba(255,255,255,0.85)', { joints: false });
+    if (drawing) drawTrail(canvas, video, trail, 'var(--spell-glow)');
   }
 
   function stop() {
     tracker.stop();
     status = 'off';
     handSeen = false;
-    reader.reset();
+    typer.reset();
     smoother.reset();
+    drawing = undefined;
     progress = 0;
   }
 
@@ -136,11 +139,13 @@
         ? 'Hold your hand up to the camera'
         : waiting
           ? 'Got it. Change shape or drop your hand for the next letter.'
-          : moving
-            ? 'Hold still…'
-            : reading
-              ? `Hold ${reading.toUpperCase()}…`
-              : 'Make a letter',
+          : drawing
+            ? `Drawing ${drawing.toUpperCase()}…`
+            : moving
+              ? 'Hold still…'
+              : reading
+                ? `Hold ${reading.toUpperCase()}…`
+                : 'Make a letter',
   );
 </script>
 

@@ -104,6 +104,21 @@ export const POSES: Record<string, Pose> = {
   '10': { ...a, transforms: [{ rotateY: 90 }] },
 };
 
+const tThumb = (p: Pts) => front(mid(p.indexPip, p.middlePip, 0.5), -0.004);
+
+/**
+ * Closer to real hands than the tidy poses above, for look-alike tests. A real
+ * T rests the index on the thumb, so its knuckle bends much less than a fist's
+ * (the tidy T above is a plain fist, which no real T is). A lazy X doesn't
+ * raise the index all the way.
+ */
+export const REAL: Record<string, Pose> = {
+  t: { fingers: { ...fist4, index: [50, 95, 45, 0] }, thumb: { to: tThumb } },
+  tLoose: { fingers: { ...fist4, index: [60, 90, 40, 0] }, thumb: { to: tThumb } },
+  tHigh: { fingers: { ...fist4, index: [45, 95, 45, 0] }, thumb: { to: tThumb } },
+  xLazy: { fingers: { ...fist4, index: [35, 90, 60, 0] }, thumb: { to: sThumb } },
+};
+
 /** Signs that share a handshape and orientation in ASL, so they may match each other. */
 export const TWINS: Record<string, string[]> = {
   o: ['0'],

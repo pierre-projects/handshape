@@ -1,11 +1,13 @@
 <script lang="ts">
-  // Live camera check of a static handshape. Video is processed on this
-  // device and never stored, except a sample you choose to save yourself.
+  // Live camera check of one sign: its handshape and, for J and Z, the letter
+  // drawn in the air. Video is processed on this device and never stored,
+  // except a sample you choose to save yourself.
   import { onDestroy } from 'svelte';
   import { computeFeatures, type Features } from '../lib/engine/features';
   import { judge, looksLike, SPECS, type Evaluation } from '../lib/engine/handshapes';
   import type { HandFrame, Handedness } from '../lib/engine/hand';
-  import { cameraSupported, drawHand, HandTracker, problemMessage } from '../lib/engine/camera';
+  import { cameraSupported, drawHand, drawTrail, HandTracker, problemMessage } from '../lib/engine/camera';
+  import { imagePalm, imagePoint, isMoveId, MOVES, StrokeTracker, thumbSide, type Pt } from '../lib/engine/movement';
   import { HoldTimer, Smoother } from '../lib/engine/tracker';
   import { content } from '../lib/content';
 
@@ -42,9 +44,17 @@
   let showDetails = $state(false);
   let saved = $state('');
 
+  // J and Z: after the starting handshape is held, a fingertip is followed as it draws the letter.
+  const move = $derived(isMoveId(target) ? MOVES[target] : undefined);
+  let stroke: StrokeTracker | undefined;
+  let trail: Pt[] = [];
+  let movePhase = $state<'idle' | 'ready' | 'drawing'>('idle');
+  let moveHint = $state<string>();
+  let mirroredNote = $state(false);
+
   const smoother = new Smoother(0.5);
   const hold = new HoldTimer(600);
-  const recent: HandFrame[] = [];
+  const recent: { frame: HandFrame; t: number }[] = [];
   const supported = cameraSupported;
   const tracker = new HandTracker(onFrame, () => dominantHand);
   const candidates = [...SPECS.keys()];
@@ -60,7 +70,16 @@
     progress = 0;
     similar = [];
     saved = '';
+    resetStroke();
   });
+
+  function resetStroke() {
+    stroke = move ? new StrokeTracker(move) : undefined;
+    trail = [];
+    movePhase = 'idle';
+    moveHint = undefined;
+    mirroredNote = false;
+  }
 
   $effect(() => {
     if (autostart && supported && status === 'off') start();
@@ -87,29 +106,54 @@
       handSeen = false;
       smoother.reset();
       progress = hold.update(false, now);
+      if (stroke && !matched) followStroke(undefined, false, now);
       draw(undefined, false);
       return;
     }
     handSeen = true;
-    recent.push(frame);
-    if (recent.length > 30) recent.shift();
+    recent.push({ frame, t: now });
+    // About a second for a still sign; long enough to hold a whole drawn letter otherwise.
+    if (recent.length > (move ? 100 : 30)) recent.shift();
     const smooth = smoother.push(frame);
     features = computeFeatures(smooth);
     const j = judge(target, features, candidates);
     evaluation = j;
-    progress = hold.update(evaluation.pass, now);
     if (j.rivals.length) similar = j.rivals.slice(0, 2);
     else if (!evaluation.pass && ++frameCount % 5 === 0) similar = looksLike(features, candidates, target).slice(0, 2);
     if (evaluation.pass) similar = [];
-    if (progress >= 1 && !matched) {
-      matched = true;
-      onMatch?.();
+    if (stroke) {
+      if (!matched) followStroke(smooth, evaluation.pass, now);
+    } else {
+      progress = hold.update(evaluation.pass, now);
+      if (progress >= 1 && !matched) {
+        matched = true;
+        onMatch?.();
+      }
     }
     draw(smooth, evaluation.pass);
   }
 
+  /** Feeds the drawing fingertip to the stroke tracker and matches when the letter is drawn. */
+  function followStroke(frame: HandFrame | undefined, shapeOk: boolean, now: number) {
+    if (!stroke || !move) return;
+    const st = frame
+      ? stroke.update(imagePoint(frame, move.tip), imagePalm(frame), shapeOk, thumbSide(frame), now)
+      : stroke.update(undefined, 1, false, 0, now);
+    trail = st.trail;
+    movePhase = st.phase;
+    moveHint = st.hint;
+    progress = st.phase === 'drawing' ? Math.max(0.1, st.progress) : 0;
+    if (st.matched) {
+      matched = true;
+      mirroredNote = st.matched.mirrored;
+      progress = 1;
+      onMatch?.();
+    }
+  }
+
   function draw(frame: HandFrame | undefined, ok: boolean) {
     drawHand(canvas, video, frame, ok ? 'var(--cam-match)' : 'var(--cam-idle)');
+    if (move && (movePhase === 'drawing' || matched)) drawTrail(canvas, video, trail, matched ? 'var(--cam-match)' : 'var(--spell-glow)');
   }
 
   function stop() {
@@ -125,16 +169,19 @@
     matched = false;
     hold.reset();
     progress = 0;
+    resetStroke();
   }
 
-  /** Downloads the last second of landmarks, labelled with the target sign, for tuning the rules. */
+  /** Downloads the last second of landmarks (about three for a drawn letter), labelled with the target sign, for tuning the rules. */
   function saveSample() {
     if (!recent.length) return;
     const data = {
       sign: target,
+      ...(move ? { movement: true } : {}),
       note: 'Landmarks only, no video. Add to fixtures/handshapes/ to help tune the checks.',
       recordedAt: new Date().toISOString(),
-      frames: recent.map((f) => ({
+      frames: recent.map(({ frame: f, t }) => ({
+        t: Math.round(t - recent[0].t),
         handedness: f.handedness,
         aspect: f.aspect,
         image: f.image.map(({ x, y, z }) => [x, y, z].map((n) => Math.round(n * 1e5) / 1e5)),
@@ -153,8 +200,15 @@
 
   const message = $derived.by(() => {
     if (!handSeen) return { tone: 'info', text: 'Hold your hand up in view of the camera.' };
-    if (matched) return { tone: 'good', text: `That's ${gloss(target)}.` };
+    if (matched) {
+      return { tone: 'good', text: `That's ${gloss(target)}.${mirroredNote ? ' Next time, draw it the other way round.' : ''}` };
+    }
     if (!evaluation) return { tone: 'info', text: '' };
+    if (move) {
+      if (movePhase === 'drawing') return { tone: 'good', text: 'Keep going…' };
+      if (movePhase === 'ready') return { tone: moveHint ? 'info' : 'good', text: moveHint ? `${moveHint} Try again.` : move.prompt };
+      if (evaluation.pass) return { tone: 'good', text: moveHint ?? 'Hold it still…' };
+    }
     if (evaluation.pass) {
       return evaluation.unsure.length
         ? { tone: 'good', text: `Close. Check yourself: ${evaluation.unsure[0]}` }
@@ -214,11 +268,16 @@
             {/each}
           </ul>
           <p class="muted">? marks thumb positions the camera often can't see. They never block a match.</p>
+          <div class="row">
+            <button class="small" onclick={saveSample}>Save sample</button>
+            <span class="muted">{move ? `Draw a correct ${gloss(target)}, then save.` : `Hold a correct ${gloss(target)}, then save.`}</span>
+          </div>
+          {#if saved}<p role="status">{saved}</p>{/if}
         </div>
       {/if}
     </div>
 
-    {#if evaluation?.movement && !fill}
+    {#if evaluation?.movement && !move && !fill}
       <p class="small muted">Movement isn't checked yet. {evaluation.movement}</p>
     {/if}
 
@@ -240,13 +299,14 @@
           <p class="muted mono">
             curl {Object.values(features.curl).map(Math.round).join('/')} · spread
             {Object.values(features.spread).map(Math.round).join('/')} · thumb across {r2(features.thumbAcross)} front
-            {r2(features.thumbFront)} · palm {features.facing} · points {features.handDirection}
+            {r2(features.thumbFront)} · palm {features.facing} · points {features.handDirection} · index raise
+            {Math.round(features.mcpBend.middle - features.mcpBend.index)}° / {r2(features.tipHeight.index - features.tipHeight.middle)}
           </p>
         {/if}
         <p class="muted">? marks thumb positions the camera often can't see. They never block a match.</p>
         <div class="row">
           <button class="small" onclick={saveSample}>Save sample</button>
-          <span class="muted">Help tune the checks: save a sample of a correct {gloss(target)}.</span>
+          <span class="muted">Help tune the checks: {move ? `draw a correct ${gloss(target)}, then save.` : `save a sample of a correct ${gloss(target)}.`}</span>
         </div>
         {#if saved}<p role="status">{saved}</p>{/if}
       </div>

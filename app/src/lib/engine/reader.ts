@@ -2,9 +2,11 @@
 // (not just "is it the target?") and types it only when the learner clearly
 // means it. Passing shapes, wobbles and one long hold must not type letters.
 import type { Features } from './features';
-import { judge, SPECS } from './handshapes';
+import type { HandFrame } from './hand';
+import { evaluate, judge, SPECS } from './handshapes';
+import { imagePalm, imagePoint, MOVES, StrokeTracker, thumbSide, type MoveId, type Pt } from './movement';
 
-/** Letters the camera can read from a still hand. J and Z need movement, so they're typed by key. */
+/** Letters the camera can read from a still hand. J and Z are drawn in the air; see CameraTyper. */
 export const READABLE_LETTERS = [...'abcdefghiklmnopqrstuvwxy'].filter((l) => SPECS.has(l));
 
 /**
@@ -53,6 +55,8 @@ export class LetterReader {
   private since = 0;
   private misses = 0;
   private lastTyped?: string;
+  /** Readings that count as still holding the letter just typed. */
+  private held = new Set<string>();
   private releaseSince?: number;
   private needRelease = false;
 
@@ -70,7 +74,7 @@ export class LetterReader {
 
   update(letter: string | undefined, now: number): ReaderState {
     if (this.needRelease) {
-      if (letter !== this.lastTyped) {
+      if (!letter || !this.held.has(letter)) {
         this.releaseSince ??= now;
         if (now - this.releaseSince >= this.opts.releaseMs) {
           this.needRelease = false;
@@ -99,10 +103,98 @@ export class LetterReader {
 
     const typed = this.candidate;
     this.lastTyped = typed;
+    this.held = new Set([typed]);
     this.needRelease = true;
     this.releaseSince = undefined;
     this.candidate = undefined;
     return { letter: typed, progress: 1, waitingForRelease: true, typed };
+  }
+
+  /**
+   * A letter was typed another way (drawn in the air). Nothing else types
+   * until the hand leaves that letter's handshapes, `sameAs`: after a J, the
+   * still-held I handshape must not go on to type an I.
+   */
+  typedNow(letter: string, sameAs: string[] = []): void {
+    this.lastTyped = letter;
+    this.held = new Set([letter, ...sameAs]);
+    this.needRelease = true;
+    this.releaseSince = undefined;
+    this.candidate = undefined;
+    this.misses = 0;
+  }
+}
+
+/** The still letters a drawn letter starts from. */
+const STARTS_FROM: Record<MoveId, string[]> = { j: ['i'], z: ['d', 'l'] };
+/** A drawn letter replaces its starting letter if that was typed this recently. */
+const REPLACE_WINDOW_MS = 3000;
+
+export interface TyperState extends ReaderState {
+  /** The letter being drawn in the air right now, if any. */
+  drawing?: MoveId;
+  /** The fingertip's trail while drawing, for showing on screen. */
+  trail: Pt[];
+  /**
+   * With `typed`: the still letter typed just before from the same handshape
+   * (I before J, D before Z). The drawn letter should replace it, not follow it.
+   */
+  replaces?: string;
+}
+
+/**
+ * Everything the camera can type: still letters held steady (LetterReader) and
+ * J and Z drawn in the air (StrokeTracker). While a letter is being drawn, still
+ * letters don't type, and a drawn letter isn't followed by its own handshape.
+ */
+export class CameraTyper {
+  private reader: LetterReader;
+  private strokes = [new StrokeTracker(MOVES.j), new StrokeTracker(MOVES.z)];
+  private lastStill?: { letter: string; at: number };
+
+  constructor(opts: Partial<ReaderOptions> = {}) {
+    this.reader = new LetterReader(opts);
+  }
+
+  reset(): void {
+    this.reader.reset();
+    this.strokes.forEach((s) => s.reset());
+    this.lastStill = undefined;
+  }
+
+  /**
+   * One camera frame. `frame` and `features` are undefined when no hand is in
+   * view. `moving` is true while the whole hand is travelling fast.
+   */
+  update(frame: HandFrame | undefined, features: Features | undefined, moving: boolean, now: number): TyperState {
+    if (!frame || !features) {
+      this.strokes.forEach((s) => s.update(undefined, 1, false, 0, now));
+      return { ...this.reader.update(undefined, now), trail: [] };
+    }
+
+    let drawing: MoveId | undefined;
+    let trail: Pt[] = [];
+    for (const stroke of this.strokes) {
+      const id = stroke.move.id;
+      const st = stroke.update(imagePoint(frame, stroke.move.tip), imagePalm(frame), evaluate(id, features).pass, thumbSide(frame), now);
+      if (st.matched) {
+        const before = this.lastStill;
+        const replaces =
+          before && STARTS_FROM[id].includes(before.letter) && now - before.at <= REPLACE_WINDOW_MS ? before.letter : undefined;
+        this.reader.typedNow(id, STARTS_FROM[id]);
+        this.strokes.forEach((s) => s.reset());
+        this.lastStill = undefined;
+        return { letter: id, progress: 1, waitingForRelease: true, typed: id, replaces, trail: st.trail };
+      }
+      if (st.phase === 'drawing') {
+        drawing = id;
+        trail = st.trail;
+      }
+    }
+
+    const state = this.reader.update(moving || drawing ? undefined : classifyLetter(features), now);
+    if (state.typed) this.lastStill = { letter: state.typed, at: now };
+    return { ...state, drawing, trail };
   }
 }
 

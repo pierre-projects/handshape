@@ -148,3 +148,31 @@ export function drawHand(
     ctx.fill();
   }
 }
+
+/**
+ * Draws a fingertip's trail (see movement.ts) on top of the hand. Points are in
+ * picture units with x already multiplied by the aspect ratio. Call after
+ * drawHand, which clears the canvas.
+ */
+export function drawTrail(
+  canvas: HTMLCanvasElement | undefined,
+  video: HTMLVideoElement | undefined,
+  points: { x: number; y: number }[],
+  color: string,
+): void {
+  if (!canvas || !video || points.length < 2) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const h = video.videoHeight;
+  ctx.save();
+  ctx.strokeStyle = resolveColor(canvas, color);
+  ctx.lineWidth = Math.max(5, video.videoWidth / 90);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  // x was scaled by width/height, so multiplying by the height gives pixels.
+  ctx.moveTo(points[0].x * h, points[0].y * h);
+  for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x * h, points[i].y * h);
+  ctx.stroke();
+  ctx.restore();
+}

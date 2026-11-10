@@ -7,6 +7,7 @@
   import { loadSettings, mirrored, prefs } from '../lib/settings.svelte';
   import { content } from '../lib/content';
   import { SPECS } from '../lib/engine/handshapes';
+  import { isMoveId } from '../lib/engine/movement';
   import type { ResolvedItem } from '../lib/types';
   import HandCheck from '../components/HandCheck.svelte';
   import SignPicture from '../components/SignPicture.svelte';
@@ -37,7 +38,8 @@
   const current = $derived(queue[0]);
   const movement = $derived(current ? SPECS.get(current.id)?.movement : undefined);
   const upNext = $derived(queue[1]);
-  // Signs with movement (J, Z, 10) are in too: the camera checks their starting handshape.
+  // Signs with movement are in too: J and Z are followed as you draw them; 10 is checked on its starting handshape.
+  const drawnMove = $derived(!!current && isMoveId(current.id));
   const pool = (s: Set) => content.items.filter((i) => i.kind === s && SPECS.has(i.id));
   const average = $derived(times.length ? times.reduce((a, t) => a + t.seconds, 0) / times.length : undefined);
 
@@ -226,7 +228,10 @@
         <div class="tip">
           <p class="how">{current.handshape}</p>
           {#if movement}
-            <p class="move"><b>Then move:</b> {movement} The camera checks the starting handshape only.</p>
+            <p class="move">
+              <b>Then move:</b> {movement}
+              {drawnMove ? 'Hold the handshape still for a moment, then draw. The camera follows your fingertip.' : 'The camera checks the starting handshape only.'}
+            </p>
           {/if}
           {#if current.tips?.length}<p class="extra"><b>Tip:</b> {current.tips[0]}</p>{/if}
         </div>
