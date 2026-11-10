@@ -1,6 +1,7 @@
 <script lang="ts">
-  // Today: one clear next step (the hero), then every way to practise with its
-  // status, then a slim progress line that leads to the dashboard.
+  // Today: a hero with the one next step and where you stand, then today's
+  // plan (review, read, the daily word) ticked off as you go, then the other
+  // ways to practise.
   import { onMount } from 'svelte';
   import { getStore } from '../lib/app';
   import { content } from '../lib/content';
@@ -9,10 +10,10 @@
   import { activityDates, streak } from '../lib/stats';
   import { spellingSummary, type SpellingSummary } from '../lib/spelling';
   import { dailyStatus, describeDaily, type DailyState } from '../lib/guess';
-  import { confusions, LEVELS, mixUpLetterCount, nextLevel, passedCount } from '../lib/receptive';
+  import { confusions, LEVELS, mixUpLetterCount, nextLevel, passedCount, type Level } from '../lib/receptive';
   import { routes } from '../lib/routes';
-  import HandSign from '../components/HandSign.svelte';
   import Icon from '../components/Icon.svelte';
+  import SignPicture from '../components/SignPicture.svelte';
 
   let loaded = $state(false);
   let due = $state(0);
@@ -22,8 +23,10 @@
   let started = $state(false);
   let learned = $state(0);
   let spelling = $state<SpellingSummary>();
-  /** Where reading practice stands: "3 of 10 levels · next: Four letters". */
-  let reading = $state('');
+  let nextRead = $state<Level>();
+  let levelsPassed = $state(0);
+  /** Whether anything has been read in reading practice today. */
+  let readToday = $state(false);
   let five = $state<{ state: DailyState; guesses: number }>({ state: 'unplayed', guesses: 0 });
 
   const drafts = content.units.filter((u) => u.review.status === 'draft').length;
@@ -39,18 +42,17 @@
       store.attempts(),
       store.signFive(),
     ]);
-    const q = buildQueue(content.items, cards, { now: new Date(), newItemsPerDay: settings.newItemsPerDay });
+    const now = new Date();
+    const q = buildQueue(content.items, cards, { now, newItemsPerDay: settings.newItemsPerDay });
     due = q.due.length;
     fresh = new Set(q.fresh.map((c) => c.itemId)).size;
     newRemaining = q.newRemaining;
-    days = streak(activityDates(reviews, attempts), new Date());
+    days = streak(activityDates(reviews, attempts), now);
     spelling = spellingSummary(attempts);
     const levels = settings.readLevels ?? {};
-    const nextRead = nextLevel(levels, mixUpLetterCount(confusions(attempts)));
-    const passed = passedCount(levels);
-    reading = passed || nextRead?.id !== LEVELS[0].id || levels[LEVELS[0].id]
-      ? `${passed} of ${LEVELS.length} levels${nextRead ? ` · next: ${nextRead.title}` : ''}`
-      : '';
+    nextRead = nextLevel(levels, mixUpLetterCount(confusions(attempts)));
+    levelsPassed = passedCount(levels);
+    readToday = attempts.some((a) => a.mode === 'receptive' && a.at.toDateString() === now.toDateString());
     started = cards.size > 0;
     learned = new Set([...cards.values()].map((c) => c.itemId)).size;
     five = dailyStatus(signFive);
@@ -60,15 +62,56 @@
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const minutes = $derived(Math.max(1, Math.round(todo / 4)));
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-  const fiveStatus = $derived(describeDaily(five));
+  // Today's plan: three short things, in the order that works best.
+  const reviewDone = $derived(started && todo === 0);
+  const fiveDone = $derived(five.state === 'won' || five.state === 'lost');
+  const readHref = $derived(nextRead ? routes.readLevel(nextRead.id) : routes.readFree);
+  const plan = $derived([
+    {
+      id: 'review',
+      title: 'Review your signs',
+      detail: reviewDone
+        ? 'Done for today'
+        : !started
+          ? `${plural(fresh, 'new sign')} to meet · about 5 minutes`
+          : `${due && fresh ? `${due} to review, ${fresh} new` : due ? `${plural(due, 'sign')} to review` : `${plural(fresh, 'new sign')}`} · about ${plural(minutes, 'minute')}`,
+      href: routes.review,
+      done: reviewDone,
+      icon: 'review' as const,
+    },
+    {
+      id: 'read',
+      title: 'Read some fingerspelling',
+      detail: readToday
+        ? `Read today${nextRead ? ` · next level: ${nextRead.title}` : ''}`
+        : nextRead
+          ? `${levelsPassed || nextRead.id !== LEVELS[0].id ? 'Next level' : 'Start with'}: ${nextRead.title} · ten quick reads`
+          : 'Every level passed · free practice',
+      href: readHref,
+      done: readToday,
+      icon: 'eye' as const,
+    },
+    {
+      id: 'five',
+      title: 'Play Sign Five',
+      detail: describeDaily(five),
+      href: routes.signFive,
+      done: fiveDone,
+      icon: 'spell' as const,
+    },
+  ]);
+  const doneCount = $derived(plan.filter((p) => p.done).length);
+  /** The first thing on the plan still to do. */
+  const upNext = $derived(plan.find((p) => !p.done));
 </script>
 
-<section class="hero card">
+<section class="hero">
   <div class="hero-text">
     {#if !loaded}
       <p class="eyebrow">Loading…</p>
-      <h1 class="muted">Getting your lessons ready…</h1>
+      <h1>Getting your lessons ready…</h1>
     {:else if !started}
       <p class="eyebrow">Welcome</p>
       <h1>Let's learn to sign.</h1>
@@ -77,80 +120,96 @@
         forget them.
       </p>
       <div class="ctas">
-        <a class="btn primary lg" href={routes.review}><Icon name="play" size={18} />Start your first lesson</a>
+        <a class="cta" href={routes.review}><Icon name="play" size={18} />Start your first lesson</a>
       </div>
-      <p class="small muted">{fresh} new signs · about 5 minutes</p>
     {:else if todo > 0}
       <p class="eyebrow">{greeting}</p>
-      <h1>{todo} {todo === 1 ? 'sign' : 'signs'} ready for you.</h1>
+      <h1>{plural(todo, 'sign')} ready for you.</h1>
       <p class="lead">
-        {#if due && fresh}{due} to review and {fresh} new.{:else if due}Reviews only, nothing new today.{:else}{fresh} new
-          {fresh === 1 ? 'sign' : 'signs'} to meet.{/if}
-        About {minutes} {minutes === 1 ? 'minute' : 'minutes'}.
+        {#if due && fresh}{due} to review and {fresh} new.{:else if due}Reviews only, nothing new today.{:else}{plural(fresh, 'new sign')} to meet.{/if}
+        About {plural(minutes, 'minute')}.
       </p>
       <div class="ctas">
-        <a class="btn primary lg" href={routes.review}><Icon name="play" size={18} />Start review</a>
+        <a class="cta" href={routes.review}><Icon name="play" size={18} />Start review</a>
+      </div>
+    {:else if upNext}
+      <p class="eyebrow">{greeting}</p>
+      <h1>Reviews done. {upNext.id === 'read' ? 'Now read a little.' : 'One game left.'}</h1>
+      <p class="lead">
+        {upNext.id === 'read'
+          ? 'Reading fingerspelling is the hard part, and ten quick reads a day is how it gets easy.'
+          : "Guess today's five-letter word by fingerspelling it to your camera."}
+      </p>
+      <div class="ctas">
+        <a class="cta" href={upNext.href}>
+          <Icon name="play" size={18} />{upNext.id === 'read' ? (nextRead ? `Read: ${nextRead.title}` : 'Free reading practice') : five.state === 'playing' ? 'Keep playing Sign Five' : "Play today's Sign Five"}
+        </a>
+        {#if newRemaining > 0}
+          <a class="cta ghost" href={routes.reviewMore}><Icon name="plus" size={18} />Learn 5 new signs</a>
+        {/if}
       </div>
     {:else}
       <p class="eyebrow">{greeting}</p>
-      <h1>You're all caught up.</h1>
-      <p class="lead">Reviews are done for today. Keep going with something below, or learn a few more signs.</p>
+      <h1>That's today done.</h1>
+      <p class="lead">Review, reading and today's word are all ticked off. Come back tomorrow, or keep going.</p>
       <div class="ctas">
-        {#if five.state === 'unplayed' || five.state === 'playing'}
-          <a class="btn primary lg" href={routes.signFive}><Icon name="play" size={18} />Play today's Sign Five</a>
-        {:else}
-          <a class="btn primary lg" href={routes.fingerspelling}><Icon name="spell" size={18} />Practise fingerspelling</a>
-        {/if}
+        <a class="cta" href={routes.camera}><Icon name="camera" size={18} />Practise on camera</a>
         {#if newRemaining > 0}
-          <a class="btn lg" href={routes.reviewMore}><Icon name="plus" size={18} />Learn 5 new signs</a>
+          <a class="cta ghost" href={routes.reviewMore}><Icon name="plus" size={18} />Learn 5 new signs</a>
         {/if}
       </div>
     {/if}
+
+    {#if loaded && started}
+      <a class="stats" href={routes.dashboard}>
+        <span><b>{days}</b> day streak</span>
+        <span class="signs">
+          <span><b>{learned}</b> of {total} signs started</span>
+          <span class="bar" aria-hidden="true"><span style="width:{(learned / total) * 100}%"></span></span>
+        </span>
+        <span><b>{levelsPassed}</b> of {LEVELS.length} reading levels</span>
+        <span class="more">Dashboard<Icon name="arrow-right" size={15} /></span>
+      </a>
+    {/if}
   </div>
+  <!-- A, S and L, as you'd fingerspell them. -->
   <div class="hero-art" aria-hidden="true">
-    <HandSign id="5" size={130} animate={false} label="" />
+    {#each ['a', 's', 'l'] as id}
+      <span class="tile"><SignPicture {id} size={74} /><b>{id.toUpperCase()}</b></span>
+    {/each}
   </div>
 </section>
 
-{#if loaded && started}
-  <a class="progress-strip" href={routes.dashboard}>
-    <span class="ps-item"><b>{days}</b> {days === 1 ? 'day' : 'days'} streak</span>
-    <span class="ps-item grow">
-      <span><b>{learned}</b> of {total} signs started</span>
-      <span class="progress" aria-hidden="true"><span style="width:{(learned / total) * 100}%"></span></span>
-    </span>
-    <span class="ps-link">Dashboard<Icon name="arrow-right" size={16} /></span>
-  </a>
-{/if}
+<section class="plan" aria-labelledby="plan-title">
+  <div class="plan-head">
+    <h2 id="plan-title">Today's plan</h2>
+    {#if loaded}<span class="small muted">{doneCount} of {plan.length} done</span>{/if}
+  </div>
+  <ol>
+    {#each plan as step, i}
+      <li>
+        <a class="step" class:done={loaded && step.done} class:next={loaded && step === upNext} href={step.href}>
+          <span class="mark">{#if loaded && step.done}<Icon name="check" size={16} />{:else}{i + 1}{/if}</span>
+          <span class="step-text">
+            <b>{step.title}</b>
+            <span>{loaded ? step.detail : '…'}</span>
+          </span>
+          <span class="step-go">
+            {#if loaded && step.done}Again{:else if loaded && step === upNext}Up next{:else}Open{/if}<Icon name="arrow-right" size={16} />
+          </span>
+        </a>
+      </li>
+    {/each}
+  </ol>
+</section>
 
-<h2 class="section-title">Practise</h2>
+<h2 class="section-title">More practice</h2>
 <div class="hub">
-  <a class="hub-card" href={routes.review} style="--c: var(--accent); --s: var(--accent-soft)">
-    <span class="hub-icon"><Icon name="review" size={22} /></span>
-    <span class="hub-text">
-      <b>Review</b>
-      <span>{!loaded ? '…' : todo ? `${todo} ready now` : 'All caught up today'}</span>
-    </span>
-  </a>
-  <a class="hub-card" href={routes.read} style="--c: var(--accent); --s: var(--accent-soft)">
-    <span class="hub-icon"><Icon name="eye" size={22} /></span>
-    <span class="hub-text">
-      <b>Read fingerspelling</b>
-      <span>{reading || 'Levels for letters, words and numbers'}</span>
-    </span>
-  </a>
   <a class="hub-card" href={routes.spell} style="--c: var(--spell); --s: var(--spell-soft)">
     <span class="hub-icon"><Icon name="camera" size={22} /></span>
     <span class="hub-text">
       <b>Spell with the camera</b>
       <span>{spelling?.spell.clean !== undefined ? `${spelling.spell.clean}% clean lately` : 'Sign words letter by letter'}</span>
-    </span>
-  </a>
-  <a class="hub-card" href={routes.signFive} style="--c: var(--spell); --s: var(--spell-soft)">
-    <span class="hub-icon five" aria-hidden="true"><i>5</i></span>
-    <span class="hub-text">
-      <b>Sign Five</b>
-      <span>{fiveStatus}</span>
     </span>
   </a>
   <a class="hub-card" href={routes.camera} style="--c: var(--good); --s: var(--good-soft)">
@@ -176,48 +235,72 @@
 {/if}
 
 <style>
+  /* The hero: the app's colour, the one next step, and where you stand. */
   .hero {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: 32px;
-    padding: 28px 32px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 32px;
+    padding: 32px 36px; border-radius: calc(var(--radius) + 4px); color: #fff;
+    background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 58%, #0b1020));
+    box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--accent) 70%, transparent);
   }
-  .hero-text > * + * { margin-top: 10px; }
-  .hero h1 { font-size: 1.75rem; margin: 0; }
-  .lead { font-size: 1rem; color: var(--ink-2); max-width: 52ch; margin-bottom: 4px; }
+  .hero-text { display: grid; gap: 10px; justify-items: start; min-width: 0; }
+  .hero .eyebrow { margin: 0; color: rgb(255 255 255 / 0.78); }
+  .hero h1 { margin: 0; font-size: 2.1rem; line-height: 1.12; letter-spacing: -0.03em; color: #fff; }
+  .lead { margin: 0; font-size: 1.02rem; color: rgb(255 255 255 / 0.9); max-width: 50ch; }
   .ctas { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 8px; }
-  .hero-art {
-    width: 160px;
-    height: 160px;
-    border-radius: var(--radius);
-    background: var(--paper);
-    border: 1px solid var(--line);
-    display: grid;
-    place-items: end center;
-    padding: 16px 16px 0;
-    overflow: hidden;
+  .cta {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 10px 20px;
+    border-radius: var(--radius-sm); background: #fff; color: var(--accent); font-weight: 700; text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.15s;
   }
+  .cta:hover { transform: translateY(-1px); box-shadow: 0 6px 16px -6px rgb(0 0 0 / 0.4); }
+  .cta.ghost { background: rgb(255 255 255 / 0.14); color: #fff; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.35); }
+  .cta.ghost:hover { background: rgb(255 255 255 / 0.22); }
+  .cta:focus-visible, .stats:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 
-  .progress-strip {
-    display: flex;
-    align-items: center;
-    gap: 12px 24px;
-    flex-wrap: wrap;
-    margin-top: 12px;
-    padding: 12px 18px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--ink-2);
-    text-decoration: none;
-    font-size: 0.9rem;
+  .stats {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; margin-top: 14px; padding-top: 14px;
+    width: 100%; border-top: 1px solid rgb(255 255 255 / 0.2);
+    color: rgb(255 255 255 / 0.85); font-size: 0.9rem; text-decoration: none;
   }
-  .progress-strip:hover { border-color: var(--accent); }
-  .ps-item b { color: var(--ink); font-variant-numeric: tabular-nums; }
-  .ps-item.grow { flex: 1; min-width: 180px; display: grid; gap: 6px; }
-  .ps-item .progress { height: 6px; }
-  .ps-link { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); font-weight: 600; margin-left: auto; }
+  .stats b { color: #fff; font-variant-numeric: tabular-nums; }
+  .signs { display: grid; gap: 5px; min-width: 150px; }
+  .bar { display: block; height: 5px; border-radius: 999px; background: rgb(255 255 255 / 0.22); overflow: hidden; }
+  .bar > span { display: block; height: 100%; border-radius: inherit; background: #fff; }
+  .more { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; font-weight: 650; color: #fff; }
+  .stats:hover .more { text-decoration: underline; }
+
+  .hero-art { display: flex; gap: 10px; align-items: center; }
+  .tile {
+    display: grid; justify-items: center; gap: 2px; padding: 10px 8px 6px; border-radius: 12px;
+    background: var(--paper); box-shadow: 0 8px 18px -8px rgb(0 0 0 / 0.45);
+  }
+  .tile b { font-size: 1.05rem; color: #18181b; }
+  .tile:nth-child(1) { transform: rotate(-5deg) translateY(6px); }
+  .tile:nth-child(3) { transform: rotate(5deg) translateY(6px); }
+
+  /* Today's plan */
+  .plan { margin-top: 26px; }
+  .plan-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  .plan-head h2 { margin: 0; font-size: 1.05rem; }
+  .plan ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .step {
+    display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+    color: var(--ink); text-decoration: none; box-shadow: var(--shadow);
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  }
+  .step:hover { border-color: var(--accent); box-shadow: var(--shadow-lift); transform: translateY(-1px); }
+  .step.next { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .mark {
+    flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums;
+  }
+  .done .mark { background: var(--good-soft); color: var(--good); }
+  .step-text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+  .step-text span { font-size: 0.875rem; color: var(--ink-3); }
+  .done .step-text b { color: var(--ink-2); }
+  .step-go { display: inline-flex; align-items: center; gap: 4px; font-size: 0.875rem; font-weight: 650; color: var(--ink-3); white-space: nowrap; }
+  .next .step-go { color: var(--accent); }
 
   .section-title { font-size: 1.05rem; margin: 28px 0 12px; }
   .hub { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -245,17 +328,6 @@
     background: var(--s);
     color: var(--c);
   }
-  .hub-icon.five i {
-    display: grid;
-    place-items: center;
-    width: 26px;
-    height: 26px;
-    border-radius: 5px;
-    background: var(--hit);
-    color: #fff;
-    font-style: normal;
-    font-weight: 750;
-  }
   .hub-text { display: grid; gap: 2px; min-width: 0; }
   .hub-text span { font-size: 0.85rem; color: var(--ink-3); }
 
@@ -263,13 +335,18 @@
 
   @media (max-width: 900px) {
     .hub { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hero-art { display: none; }
+    .hero { grid-template-columns: 1fr; }
   }
   @media (max-width: 640px) {
-    .hero { grid-template-columns: 1fr; padding: 24px 20px; }
-    .hero-art { display: none; }
-    .hero h1 { font-size: 1.45rem; }
-    .ctas .btn { flex: 1 1 100%; justify-content: center; }
+    .hero { padding: 24px 20px; }
+    .hero h1 { font-size: 1.6rem; }
+    .ctas { width: 100%; }
+    .ctas .cta { flex: 1 1 100%; justify-content: center; }
+    .more { margin-left: 0; }
     .hub { grid-template-columns: 1fr; }
     .hub-card { padding: 12px 14px; }
+    .step { padding: 12px; gap: 12px; }
+    .step-go { display: none; }
   }
 </style>
