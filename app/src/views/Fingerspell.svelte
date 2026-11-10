@@ -1,40 +1,92 @@
 <script lang="ts">
   import { routes } from '../lib/routes';
-  // Fingerspelling landing (#/fingerspelling): pick reading practice, the
-  // spelling drill or the word game. Each is its own page: ReadHome and its
-  // levels (#/fingerspelling/read), SpellDrill (#/fingerspelling/spell) and
-  // SignFive (#/fingerspelling/sign-five).
+  // Fingerspelling landing (#/fingerspelling). Sign Five, the daily word game,
+  // leads the page with today's board; under it are the two drills (reading
+  // and spelling), then the word lists they use. Each is its own page:
+  // SignFive (#/fingerspelling/sign-five), ReadHome and its levels
+  // (#/fingerspelling/read) and SpellDrill (#/fingerspelling/spell).
   import { onMount } from 'svelte';
   import { getStore } from '../lib/app';
   import { spellingSummary } from '../lib/spelling';
   import { builtInWords, canRead, drillWords } from '../lib/fingerspell';
   import { loadSettings, prefs, updateSettings } from '../lib/settings.svelte';
-  import type { SpellingAttempt } from '../lib/types';
-  import { dailyStatus, describeDaily } from '../lib/guess';
+  import type { SignFiveSave, SpellingAttempt } from '../lib/types';
+  import { dailyStatus, dayKey, describeDaily, MAX_GUESSES, scoreGuess, WORD_LENGTH, type Mark } from '../lib/guess';
   import { confusions, LEVELS, mixUpLetterCount, nextLevel, passedCount } from '../lib/receptive';
   import ListPicker from '../components/ListPicker.svelte';
   import Icon from '../components/Icon.svelte';
 
   let attempts = $state<SpellingAttempt[]>([]);
-  let fiveToday = $state('');
+  let five = $state<SignFiveSave>();
+  let loaded = $state(false);
   const summary = $derived(spellingSummary(attempts));
   const chosen = $derived(drillWords(prefs.value).list);
   const levels = $derived(prefs.value?.readLevels ?? {});
   const nextRead = $derived(nextLevel(levels, mixUpLetterCount(confusions(attempts))));
 
+  // Sign Five: how today's game stands, and its board so far.
+  const today = $derived(dailyStatus(five));
+  const stats = $derived(five?.stats);
+  type Tile = { letter: string; mark?: Mark };
+  const blank: Tile[] = Array.from({ length: WORD_LENGTH }, () => ({ letter: '' }));
+  /** Today's guesses, coloured, with empty rows after them. Before the first guess, the game's name stands in. */
+  const board = $derived.by((): Tile[][] => {
+    const daily = five?.daily?.key === dayKey() ? five.daily : undefined;
+    const rows: Tile[][] = (daily?.guesses ?? []).map((g) => {
+      const marks = daily?.answer ? scoreGuess(g, daily.answer) : [];
+      return g.split('').map((letter, i) => ({ letter, mark: marks[i] }));
+    });
+    if (!rows.length) {
+      const demo: Mark[] = ['hit', 'near', 'miss', 'hit', 'near'];
+      rows.push('SIGN5'.split('').map((letter, i) => ({ letter, mark: demo[i] })));
+    }
+    while (rows.length < MAX_GUESSES) rows.push(blank);
+    return rows;
+  });
+  const fiveCta = $derived(
+    { unplayed: "Play today's word", playing: 'Keep playing', won: 'Play a practice word', lost: 'Play a practice word' }[today.state],
+  );
+
   onMount(async () => {
     const store = await getStore();
     await loadSettings();
     attempts = await store.attempts();
-    fiveToday = describeDaily(dailyStatus(await store.signFive()));
+    five = await store.signFive();
+    loaded = true;
   });
 </script>
 
 <header class="hub-head">
   <h1>Fingerspelling</h1>
-  <p class="muted">Two different skills: reading other people's spelling, and spelling clearly yourself.</p>
+  <p class="muted">Play today's word, then practise the two skills behind it: reading and spelling.</p>
 </header>
 
+<a class="feature" href={routes.signFive}>
+  <span class="feature-text">
+    <span class="kicker light">Daily word game</span>
+    <span class="feature-title">Sign Five</span>
+    <span class="feature-desc">Guess the five-letter word in six tries, fingerspelling each guess to your camera.</span>
+    <span class="feature-status">
+      {#if loaded}
+        <b>{describeDaily(today)}.</b>
+        {#if stats?.played}
+          <span class="chip">{stats.streak} day streak</span>
+          <span class="chip">{stats.won} of {stats.played} won</span>
+        {/if}
+      {:else}
+        &nbsp;
+      {/if}
+    </span>
+    <span class="feature-go">{fiveCta}<Icon name="arrow-right" size={18} /></span>
+  </span>
+  <span class="board" class:fresh={today.state === 'unplayed'} aria-hidden="true">
+    {#each board as row}
+      {#each row as t}<i class={t.mark ?? ''} class:filled={!!t.letter}>{t.letter}</i>{/each}
+    {/each}
+  </span>
+</a>
+
+<h2 class="section-title">Practise</h2>
 <div class="modes">
   <a class="mode-card read" href={routes.read} class:locked={!canRead} aria-disabled={!canRead}>
     <div class="art" aria-hidden="true">
@@ -74,17 +126,6 @@
   </a>
 </div>
 
-<a class="game-card" href={routes.signFive}>
-  <span class="mini-board" aria-hidden="true">
-    <i class="h">S</i><i class="n">I</i><i>G</i><i class="h">N</i><i class="n">5</i>
-  </span>
-  <span class="game-text">
-    <b>Sign Five</b>
-    <span class="small muted">Guess the five-letter word in six tries by fingerspelling it.{fiveToday ? ` ${fiveToday}.` : ""}</span>
-  </span>
-  <span class="game-go">Play<Icon name="arrow-right" size={16} /></span>
-</a>
-
 <h2 class="section-title">Words to practise</h2>
 <ListPicker
   lists={prefs.value?.lists ?? []}
@@ -108,7 +149,7 @@
   .read { --m: var(--accent); --m-soft: var(--accent-soft); }
   .spell { --m: var(--spell); --m-soft: var(--spell-soft); }
 
-  .hub-head { margin: 4px 0 18px; }
+  .hub-head { margin: 4px 0 16px; }
   .hub-head h1 { margin: 0 0 4px; }
   .hub-head p { margin: 0; }
   .modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }
@@ -149,27 +190,54 @@
     display: flex; align-items: center; justify-content: space-between; margin: 14px 18px 16px; padding: 10px 14px;
     border-radius: var(--radius-sm); background: var(--m); color: #fff; font-weight: 650;
   }
-  .game-card {
-    display: flex; align-items: center; gap: 16px; margin: -12px 0 28px; padding: 14px 18px;
-    border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
-    color: var(--ink); text-decoration: none; box-shadow: var(--shadow); transition: border-color 0.15s, box-shadow 0.15s;
+  /* Sign Five leads the page: a full-width banner in the game's own colour, with today's board. */
+  .feature {
+    --tile: 34px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 28px;
+    margin-bottom: 30px; padding: 26px 30px; border-radius: calc(var(--radius) + 4px);
+    background: linear-gradient(135deg, var(--spell), color-mix(in srgb, var(--spell) 62%, #0b1020));
+    color: #fff; text-decoration: none;
+    box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--spell) 70%, transparent);
+    transition: transform 0.15s, box-shadow 0.15s;
   }
-  .game-card:hover { border-color: var(--spell); box-shadow: var(--shadow-lift); }
-  .mini-board { display: flex; gap: 3px; flex: none; }
-  .mini-board i {
-    display: grid; place-items: center; width: 26px; height: 26px; border-radius: 4px; font-style: normal;
-    font-weight: 750; font-size: 0.85rem; color: #fff; background: var(--miss);
+  .feature:hover { transform: translateY(-2px); box-shadow: 0 16px 30px -12px color-mix(in srgb, var(--spell) 80%, transparent); }
+  .feature:focus-visible { outline: 3px solid var(--spell-glow); outline-offset: 3px; }
+  .feature-text { display: grid; gap: 6px; justify-items: start; min-width: 0; }
+  .kicker.light { color: rgb(255 255 255 / 0.78); }
+  .feature-title { font-size: 2.3rem; font-weight: 750; line-height: 1.05; letter-spacing: -0.03em; }
+  .feature-desc { max-width: 44ch; color: rgb(255 255 255 / 0.88); }
+  .feature-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 4px; min-height: 1.6em; font-size: 0.9rem; }
+  .chip { padding: 2px 9px; border-radius: 999px; background: rgb(255 255 255 / 0.16); font-variant-numeric: tabular-nums; }
+  .feature-go {
+    display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; padding: 11px 18px;
+    border-radius: var(--radius-sm); background: #fff; color: var(--spell); font-weight: 700;
   }
-  .mini-board i.h { background: var(--hit); }
-  .mini-board i.n { background: var(--near); }
-  .game-text { display: grid; flex: 1; min-width: 0; }
-  .game-go { display: inline-flex; align-items: center; gap: 4px; font-weight: 650; color: var(--spell); }
+  .board { display: grid; grid-template-columns: repeat(5, var(--tile)); gap: 4px; flex: none; }
+  .board i {
+    display: grid; place-items: center; width: var(--tile); height: var(--tile); border-radius: 5px;
+    font-style: normal; font-weight: 750; font-size: calc(var(--tile) * 0.5); color: #fff;
+    background: rgb(255 255 255 / 0.1); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.22);
+  }
+  .board i.filled { background: rgb(255 255 255 / 0.24); box-shadow: none; }
+  .board i.hit { background: var(--cam-match); }
+  .board i.near { background: #e0a800; }
+  .board i.miss { background: rgb(11 16 32 / 0.45); }
+  /* Before the first guess the empty rows fade away, so the name row reads as the game's sign. */
+  .board.fresh i:nth-child(n + 16) { opacity: 0.55; }
+
   .section-title { font-size: 1.05rem; margin: 0 0 10px; }
   .weak { margin-top: 16px; padding: 12px 16px; }
   .weak p { margin: 0; }
   @media (max-width: 760px) {
     .modes { grid-template-columns: 1fr; }
     .art { height: 104px; }
+    .feature { --tile: 26px; padding: 20px; gap: 16px; }
+    .feature-title { font-size: 1.9rem; }
   }
-  @media (max-width: 560px) { .mini-board { display: none; } }
+  @media (max-width: 480px) {
+    .feature { --tile: 19px; padding: 18px 16px; gap: 12px; align-items: start; }
+    .board { gap: 3px; margin-top: 4px; }
+    .feature-title { font-size: 1.7rem; }
+    .feature-desc { font-size: 0.92rem; }
+  }
 </style>
