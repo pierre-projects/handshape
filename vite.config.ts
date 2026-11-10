@@ -2,6 +2,14 @@ import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Local stand-in for functions/api/wordle/[date].js: /api/wordle/<date>.json
+// → the NYT daily word. (The deployed function trims the reply to the answer.)
+const wordleProxy = {
+  target: 'https://www.nytimes.com',
+  changeOrigin: true,
+  rewrite: (p: string) => p.replace(/^\/api\/wordle/, '/svc/wordle/v2'),
+};
+
 // The app lives in app/, content in content/. BASE_PATH lets the GitHub Pages
 // build serve from /<repo>/ while local dev serves from /.
 export default defineConfig({
@@ -10,7 +18,8 @@ export default defineConfig({
   publicDir: 'public',
   assetsInclude: ['**/*.task'],
   build: { outDir: '../dist', emptyOutDir: true },
-  server: { fs: { allow: ['..'] } },
+  server: { fs: { allow: ['..'] }, proxy: { '/api/wordle': wordleProxy } },
+  preview: { proxy: { '/api/wordle': wordleProxy } },
   plugins: [
     svelte(),
     VitePWA({

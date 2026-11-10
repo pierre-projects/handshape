@@ -86,7 +86,43 @@ export function dailyAnswer(key: string = dayKey()): string {
   return ANSWERS[(h >>> 0) % ANSWERS.length];
 }
 
-export function randomAnswer(avoid?: string, random: () => number = Math.random): string {
-  const pool = ANSWERS.filter((w) => w !== avoid);
+export function randomAnswer(avoid?: string, random: () => number = Math.random, from: string[] = ANSWERS): string {
+  const pool = from.length > 1 ? from.filter((w) => w !== avoid) : from.length ? from : ANSWERS;
   return pool[Math.floor(random() * pool.length)];
+}
+
+/** Where today's word came from. */
+export type DailySource = 'official' | 'local';
+
+/**
+ * Today's official Wordle answer, through this app's relay (a Cloudflare Pages
+ * Function in production, the Vite proxy in development). Undefined when it
+ * can't be reached, e.g. offline or on a host without the relay.
+ */
+export async function fetchOfficialAnswer(
+  key: string = dayKey(),
+  fetcher: typeof fetch = fetch,
+  base: string = import.meta.env.BASE_URL ?? '/',
+): Promise<string | undefined> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetcher(`${base}api/wordle/${key}.json`, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok || !res.headers.get('content-type')?.includes('json')) return undefined;
+    const data = (await res.json()) as { solution?: unknown };
+    const word = typeof data.solution === 'string' ? data.solution.toUpperCase() : '';
+    return /^[A-Z]{5}$/.test(word) ? word : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Today's word: the official one when reachable, otherwise this app's own pick. */
+export async function todaysAnswer(
+  key: string = dayKey(),
+  fetcher?: typeof fetch,
+): Promise<{ word: string; source: DailySource }> {
+  const official = await fetchOfficialAnswer(key, fetcher);
+  return official ? { word: official, source: 'official' } : { word: dailyAnswer(key), source: 'local' };
 }
