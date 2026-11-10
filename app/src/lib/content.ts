@@ -58,7 +58,3 @@ export const content: Content = resolveContent(Object.values(unitModules));
 export function letterMap(c: Content = content): Map<string, ResolvedItem> {
   return new Map(c.items.filter((i) => i.kind === 'letter').map((i) => [i.answer.toUpperCase(), i]));
 }
-
-export function hasLocalMedia(item: ResolvedItem): boolean {
-  return item.files.length > 0;
-}

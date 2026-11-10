@@ -1,26 +1,14 @@
 <script lang="ts">
-  import { GRADES, type Grade } from '../lib/srs';
+  import { describeInterval, GRADES, type Grade } from '../lib/srs';
 
   let {
     intervals,
     suggested,
     onGrade,
-  }: { intervals: Record<number, string>; suggested?: Grade; onGrade: (g: Grade) => void } = $props();
+  }: { intervals: Record<number, number>; suggested?: Grade; onGrade: (g: Grade) => void } = $props();
 
   const HINTS: Record<number, string> = { 1: 'Missed it', 2: 'Struggled', 3: 'Got it', 4: 'Too easy' };
-  const UNITS: Record<string, [string, string]> = {
-    m: ['min', 'min'], h: ['hour', 'hours'], d: ['day', 'days'], mo: ['month', 'months'], y: ['year', 'years'],
-  };
-
-  /** "10m" → "in 10 min", "1d" → "tomorrow". */
-  function when(short: string | undefined): string {
-    const m = short?.match(/^(\d+)(mo|m|h|d|y)$/);
-    if (!m) return '';
-    const n = Number(m[1]);
-    if (m[2] === 'd' && n === 1) return 'tomorrow';
-    const [one, many] = UNITS[m[2]];
-    return `in ${n} ${n === 1 ? one : many}`;
-  }
+  const when = (ms: number | undefined) => (ms === undefined ? '' : describeInterval(ms));
 
   function onKey(e: KeyboardEvent) {
     if (e.target instanceof HTMLInputElement) return;

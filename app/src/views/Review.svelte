@@ -4,7 +4,7 @@
   import type { Store } from '../lib/db';
   import { content } from '../lib/content';
   import {
-    buildQueue, checkAnswer, formatInterval, previewIntervals, Rating, ReviewSession, State, suggestedRating, type Grade,
+    buildQueue, checkAnswer, describeInterval, previewIntervals, Rating, ReviewSession, State, suggestedRating, type Grade,
   } from '../lib/srs';
   import { isCheckable } from '../lib/engine/handshapes';
   import HandCheck from '../components/HandCheck.svelte';
@@ -25,7 +25,7 @@
   let correct = $state<boolean>();
   let gaveUp = $state(false);
   let cameraMatched = $state(false);
-  let intervals = $state<Record<number, string>>({});
+  let intervals = $state<Record<number, number>>({});
   let mirror = $state(false);
   let showCamera = $state(false);
   let nextDue = $state<Date>();
@@ -167,7 +167,7 @@
     {/if}
     {#if nextDue}
       <p class="next small">
-        <Icon name="review" size={16} />Next review in <b>{formatInterval(nextDue.getTime() - Date.now())}</b>
+        <Icon name="review" size={16} />Next review <b>{describeInterval(nextDue.getTime() - Date.now())}</b>
       </p>
     {/if}
     <div class="row center actions">

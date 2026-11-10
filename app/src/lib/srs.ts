@@ -175,22 +175,33 @@ export const GRADES: { rating: Grade; label: string; key: string }[] = [
   { rating: Rating.Easy, label: 'Easy', key: '4' },
 ];
 
-/** How long until the card comes back, for each grade, e.g. "10m" or "4d". */
-export function previewIntervals(card: StoredCard, now: Date): Record<number, string> {
+/** How long until the card comes back for each grade, in milliseconds. */
+export function previewIntervals(card: StoredCard, now: Date): Record<number, number> {
   const preview = scheduler.repeat(card.fsrs, now);
-  const out: Record<number, string> = {};
-  for (const { rating } of GRADES) out[rating] = formatInterval(preview[rating].card.due.getTime() - now.getTime());
+  const out: Record<number, number> = {};
+  for (const { rating } of GRADES) out[rating] = preview[rating].card.due.getTime() - now.getTime();
   return out;
 }
 
-export function formatInterval(ms: number): string {
+type Unit = 'min' | 'hour' | 'day' | 'month' | 'year';
+
+/** A wait rounded to the largest sensible unit. */
+function intervalParts(ms: number): { n: number; unit: Unit } {
   const min = Math.max(1, Math.round(ms / 60000));
-  if (min < 60) return `${min}m`;
+  if (min < 60) return { n: min, unit: 'min' };
   const h = Math.round(min / 60);
-  if (h < 24) return `${h}h`;
+  if (h < 24) return { n: h, unit: 'hour' };
   const d = Math.round(h / 24);
-  if (d < 31) return `${d}d`;
+  if (d < 31) return { n: d, unit: 'day' };
   const mo = Math.round(d / 30);
-  if (mo < 12) return `${mo}mo`;
-  return `${Math.round(d / 365)}y`;
+  if (mo < 12) return { n: mo, unit: 'month' };
+  return { n: Math.round(d / 365), unit: 'year' };
+}
+
+/** In words, e.g. "in 10 min", "tomorrow", "in 3 days". */
+export function describeInterval(ms: number): string {
+  const { n, unit } = intervalParts(ms);
+  if (unit === 'day' && n === 1) return 'tomorrow';
+  if (unit === 'min') return `in ${n} min`;
+  return `in ${n} ${unit}${n === 1 ? '' : 's'}`;
 }
