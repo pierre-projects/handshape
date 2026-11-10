@@ -13,6 +13,7 @@
   import SignMedia from '../components/SignMedia.svelte';
   import CameraMirror from '../components/CameraMirror.svelte';
   import GradeButtons from '../components/GradeButtons.svelte';
+  import Icon from '../components/Icon.svelte';
 
   let store: Store;
   let settings = $state<Settings>();
@@ -117,13 +118,14 @@
 {#if !session}
   <p class="muted">Loading…</p>
 {:else if !card || !item}
-  <section class="card stack center">
-    <h1>Done for now</h1>
+  <section class="card stack center done">
+    <div class="done-art"><span class="done-icon"><Icon name="check" size={40} /></span></div>
+    <h1>{session.done > 0 ? 'Session complete!' : 'Nothing due right now'}</h1>
     {#if session.done > 0}<p>You reviewed {session.done} {session.done === 1 ? 'card' : 'cards'}.</p>{/if}
     {#if nextDue}
       <p class="muted">Next review in {formatInterval(nextDue.getTime() - Date.now())}.</p>
     {/if}
-    <div class="row" style="justify-content:center">
+    <div class="row center">
       {#if newRemaining > 0}
         <button onclick={() => start(settings!.newItemsPerDay, 5)}>Learn 5 more signs</button>
       {/if}
@@ -131,12 +133,16 @@
     </div>
   </section>
 {:else}
-  <div class="spread small muted bar">
-    <span>{session.remaining} left</span>
-    <span>
-      {#if isNew}<span class="badge new">New sign</span>{/if}
-      {card.kind === 'recognize' ? 'What is this sign?' : 'Sign it'}
-    </span>
+  <div class="session-bar">
+    <a class="btn ghost small" href="#/" aria-label="End session"><Icon name="x" size={18} /></a>
+    <div class="progress" role="progressbar" aria-label="Session progress" aria-valuemin={0} aria-valuemax={session.done + session.remaining} aria-valuenow={session.done}>
+      <span style="width:{(session.done / (session.done + session.remaining)) * 100}%"></span>
+    </div>
+    <span class="small muted count">{session.remaining} left</span>
+  </div>
+  <div class="spread prompt-head">
+    <span class="eyebrow">{card.kind === 'recognize' ? 'What is this sign?' : isNew ? 'Meet a new sign' : 'Sign it'}</span>
+    {#if isNew}<span class="badge new">New</span>{/if}
   </div>
 
   <section class="card stack">
@@ -166,10 +172,11 @@
         <SignDetail {item} bind:mirror />
       {/if}
     {:else if phase === 'prompt'}
-      <div class="center stack">
-        <p class="muted">Sign this {item.kind === 'sign' ? 'word' : item.kind}:</p>
-        <div class="big-gloss">{item.gloss}</div>
-        <div><button class="primary" onclick={() => (phase = 'answer')}>Show answer <kbd>Space</kbd></button></div>
+      <div class="center stack prompt">
+        <p class="muted">Sign this {item.kind === 'sign' ? 'word' : item.kind}</p>
+        <div class="giant">{item.gloss}</div>
+        <p class="small muted">Make the sign, then check yourself.</p>
+        <div><button class="primary lg" onclick={() => (phase = 'answer')}>Show answer <kbd>Space</kbd></button></div>
       </div>
     {:else}
       {#if cameraMatched}
@@ -192,18 +199,50 @@
   {/if}
 
   {#if phase === 'answer'}
-    <GradeButtons
-      {intervals}
-      suggested={correct !== undefined ? suggestedRating(correct) : cameraMatched ? Rating.Good : undefined}
-      onGrade={grade}
-    />
-    <p class="small muted center hint">
-      {isNew ? 'Practise it a few times, then grade how well you know it.' : 'Again if you missed it, Good if you got it.'}
-    </p>
+    <div class="grade-dock">
+      <p class="small muted center hint">
+        {isNew ? 'Practise it a few times, then grade how well you know it.' : 'Again if you missed it, Good if you got it.'}
+      </p>
+      <GradeButtons
+        {intervals}
+        suggested={correct !== undefined ? suggestedRating(correct) : cameraMatched ? Rating.Good : undefined}
+        onGrade={grade}
+      />
+    </div>
   {/if}
 {/if}
 
 <style>
-  .bar { margin-bottom: 8px; }
-  .hint { margin-top: 10px; }
+  .session-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .session-bar .progress { flex: 1; height: 10px; }
+  .count { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .prompt-head { margin-bottom: 8px; padding: 0 4px; }
+  .prompt-head .eyebrow { margin: 0; }
+  .prompt { padding: 24px 0 8px; }
+  .giant { font-size: clamp(4.5rem, 20vw, 7rem); font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+  .done { padding: 36px 24px; }
+  .done-art { display: grid; place-items: center; }
+  .done-icon {
+    display: grid;
+    place-items: center;
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: var(--good-soft);
+    color: var(--good);
+  }
+  .grade-dock {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin: 0 -16px;
+    padding: 10px 16px 14px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
+  }
+  .hint { margin: 0 0 8px; }
+  @media (max-width: 820px) {
+    .grade-dock { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); }
+  }
 </style>

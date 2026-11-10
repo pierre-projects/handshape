@@ -1,10 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getStore } from '../lib/app';
-  import { content, letterMap } from '../lib/content';
+  import { content } from '../lib/content';
   import { buildQueue } from '../lib/srs';
   import { activityDates, streak } from '../lib/stats';
   import { lettersPerSecondToWpm, readingSpeed } from '../lib/spelling';
+  import HandSign from '../components/HandSign.svelte';
+  import SignPicture from '../components/SignPicture.svelte';
+  import Icon from '../components/Icon.svelte';
 
   let loaded = $state(false);
   let due = $state(0);
@@ -13,10 +16,10 @@
   let days = $state(0);
   let speed = $state<number>();
   let started = $state(false);
+  let learned = $state(0);
 
-  const withMedia = content.items.filter((i) => i.files.length > 0).length;
-  const lettersWithMedia = [...letterMap().values()].filter((i) => i.files.length > 0).length;
   const drafts = content.units.filter((u) => u.review.status === 'draft').length;
+  const total = content.items.length;
 
   onMount(async () => {
     const store = await getStore();
@@ -33,67 +36,154 @@
     days = streak(activityDates(reviews, attempts), new Date());
     speed = readingSpeed(attempts);
     started = cards.size > 0;
+    learned = new Set([...cards.values()].map((c) => c.itemId)).size;
     loaded = true;
   });
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const todo = $derived(due + fresh);
+
+  const ways = [
+    { href: '#/review', icon: 'review', title: 'Daily review', text: 'Short spaced-repetition sessions. Sign each prompt, then grade yourself.', sign: 'b' },
+    { href: '#/fingerspell', icon: 'spell', title: 'Fingerspelling', text: 'Read words spelled letter by letter, or spell them yourself against the clock.', sign: 'v' },
+    { href: '#/practice', icon: 'camera', title: 'Camera coach', text: 'Sign to your camera and get told exactly what to fix.', sign: 'l' },
+    { href: '#/learn', icon: 'signs', title: 'All signs', text: 'Browse every letter and number with drawings and tips.', sign: 'y' },
+  ] as const;
 </script>
 
-<section class="card stack">
-  <h1>{started ? 'Today' : 'Start learning ASL'}</h1>
-  {#if !loaded}
-    <p class="muted">Loading…</p>
-  {:else}
-    {#if !started}
-      <p>
-        Each day you get a short review of signs you are learning, plus a few new ones. Signs come back just
-        before you would forget them, so a few minutes a day goes a long way.
+<section class="hero card">
+  <div class="hero-text">
+    {#if !loaded}
+      <p class="eyebrow">Loading…</p>
+      <h1 class="muted">Getting your lessons ready…</h1>
+    {:else if !started}
+      <p class="eyebrow">Welcome</p>
+      <h1>Let's learn to sign.</h1>
+      <p class="lead">
+        A few minutes a day is all it takes. You'll learn a handful of new signs, and they'll come back just before you'd
+        forget them.
       </p>
-    {/if}
-    <div class="stat-grid">
-      <div class="stat"><div class="value">{due}</div><div class="label">reviews due</div></div>
-      <div class="stat"><div class="value">{fresh}</div><div class="label">new signs today</div></div>
-      <div class="stat"><div class="value">{days}</div><div class="label">day streak</div></div>
-      {#if speed}
-        <div class="stat">
-          <div class="value">{lettersPerSecondToWpm(speed)}</div>
-          <div class="label">fingerspelling read, wpm</div>
-        </div>
-      {/if}
-    </div>
-    {#if due + fresh > 0}
-      <a class="btn primary" href="#/review">Start review</a>
+      <a class="btn primary lg" href="#/review"><Icon name="play" size={18} />Start your first lesson</a>
+      <p class="small muted">{fresh} new signs to start · about 5 minutes</p>
+    {:else if todo > 0}
+      <p class="eyebrow">{greeting}</p>
+      <h1>{todo} {todo === 1 ? 'sign' : 'signs'} ready for you.</h1>
+      <p class="lead">
+        {#if due && fresh}{due} to review and {fresh} new.{:else if due}All reviews, nothing new.{:else}{fresh} new signs to meet.{/if}
+      </p>
+      <a class="btn primary lg" href="#/review"><Icon name="play" size={18} />Start review</a>
     {:else}
-      <p>You're done for today.{newRemaining > 0 ? ' You can learn extra signs from the Review page.' : ''}</p>
-      <a class="btn" href="#/fingerspell">Practise fingerspelling</a>
-    {/if}
-  {/if}
-</section>
-
-<section class="card stack">
-  <h2>Ways to practise</h2>
-  <ul class="ways">
-    <li><a href="#/review">Review</a>: daily spaced-repetition queue. Sign each prompt, then grade yourself.</li>
-    <li><a href="#/fingerspell">Fingerspell</a>: read fingerspelled words at a speed that adapts to you, or spell words yourself against a timer.</li>
-    <li><a href="#/practice">Camera</a>: sign letters and numbers to your camera and get told what to fix. Moves on as soon as you get each one.</li>
-    <li><a href="#/learn">Signs</a>: browse every sign with handshape, palm and movement notes.</li>
-  </ul>
-</section>
-
-{#if drafts > 0 || withMedia < content.items.length}
-  <section class="notice stack">
-    {#if withMedia < content.items.length}
-      <p>
-        {withMedia} of {content.items.length} signs have an image or video, including {lettersWithMedia} of 26 letters.
-        Reading drills unlock as media is added to the content folder.
+      <p class="eyebrow">{greeting}</p>
+      <h1>You're all caught up.</h1>
+      <p class="lead">
+        Nice work. {newRemaining > 0 ? 'Want more? Learn extra signs from the review page, or' : 'Keep it fresh:'} practise
+        fingerspelling.
       </p>
+      <div class="row">
+        <a class="btn primary lg" href="#/fingerspell"><Icon name="spell" size={18} />Practise spelling</a>
+        {#if newRemaining > 0}<a class="btn lg" href="#/review">Learn more</a>{/if}
+      </div>
     {/if}
-    {#if drafts > 0}
-      <p>Sign descriptions are drafts until a Deaf signer reviews them. Check against a fluent signer when you can.</p>
+  </div>
+  <div class="hero-art">
+    <HandSign id="5" size={130} animate={false} label="" />
+  </div>
+</section>
+
+{#if loaded && started}
+  <div class="stat-grid stats">
+    <div class="stat"><div class="value">{days}<span class="unit"> {days === 1 ? 'day' : 'days'}</span></div><div class="label">streak</div></div>
+    <div class="stat">
+      <div class="value">{learned}<span class="unit">/{total}</span></div>
+      <div class="label">signs started</div>
+      <div class="progress" aria-hidden="true"><span style="width:{(learned / total) * 100}%"></span></div>
+    </div>
+    <div class="stat"><div class="value">{due}</div><div class="label">reviews due</div></div>
+    {#if speed}
+      <div class="stat"><div class="value">{lettersPerSecondToWpm(speed)}</div><div class="label">reading wpm</div></div>
     {/if}
-  </section>
+  </div>
+{/if}
+
+<h2 class="section-title">Ways to practise</h2>
+<div class="ways">
+  {#each ways as w}
+    <a class="way card" href={w.href}>
+      <div class="way-art"><SignPicture id={w.sign} size={56} /></div>
+      <div>
+        <h3><Icon name={w.icon} size={18} /> {w.title}</h3>
+        <p class="small muted">{w.text}</p>
+      </div>
+    </a>
+  {/each}
+</div>
+
+{#if drafts > 0}
+  <p class="small muted footnote">
+    Sign descriptions and drawings are drafts until a Deaf signer reviews them. Check with a fluent signer when you can.
+  </p>
 {/if}
 
 <style>
-  .ways { margin: 0; padding-left: 20px; }
-  .ways li + li { margin-top: 6px; }
-  .notice p { margin: 0; }
+  .hero {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 32px;
+    padding: 28px 32px;
+  }
+  .hero-text > * + * { margin-top: 10px; }
+  .hero h1 { font-size: 1.75rem; margin: 0; }
+  .lead { font-size: 1rem; color: var(--ink-2); max-width: 52ch; margin-bottom: 4px; }
+  .hero .btn.lg { margin-top: 10px; }
+  .hero-art {
+    width: 160px;
+    height: 160px;
+    border-radius: var(--radius);
+    background: var(--paper);
+    border: 1px solid var(--line);
+    display: grid;
+    place-items: end center;
+    padding: 16px 16px 0;
+    overflow: hidden;
+  }
+  .stats { margin-bottom: 24px; }
+  .stat .unit { font-size: 0.95rem; font-weight: 600; color: var(--ink-3); }
+  .stat .progress { margin-top: 8px; height: 6px; }
+  .section-title { margin: 8px 0 12px; }
+  .ways { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .way {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin: 0;
+    padding: 16px 18px;
+    text-decoration: none;
+    color: var(--ink);
+    transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+  }
+  .way:hover { box-shadow: var(--shadow-lift); border-color: var(--line-strong); }
+  .way h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  .way h3 :global(svg) { color: var(--accent); }
+  .way p { margin: 0; }
+  .way-art {
+    flex: none;
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    border: 1px solid var(--line);
+    display: grid;
+    place-items: center;
+    padding-top: 6px;
+    overflow: hidden;
+  }
+  .footnote { margin-top: 20px; text-align: center; }
+  @media (max-width: 640px) {
+    .hero { grid-template-columns: 1fr; padding: 24px 20px; text-align: left; }
+    .hero-art { display: none; }
+    .hero h1 { font-size: 1.45rem; }
+    .ways { grid-template-columns: 1fr; }
+  }
 </style>

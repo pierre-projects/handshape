@@ -9,6 +9,9 @@
   } from '../lib/spelling';
   import type { Settings, SpellingAttempt } from '../lib/types';
   import CameraMirror from '../components/CameraMirror.svelte';
+  import HandSign from '../components/HandSign.svelte';
+  import SignPicture from '../components/SignPicture.svelte';
+  import { hasIllustration } from '../lib/illustrations';
 
   type Mode = 'receptive' | 'expressive';
 
@@ -30,7 +33,11 @@
   let timers: ReturnType<typeof setTimeout>[] = [];
 
   const letters = letterMap();
-  const available = new Set([...letters].filter(([, i]) => i.files.length > 0).map(([l]) => l));
+  // A letter can be shown if it has real media or a drawn illustration.
+  const available = new Set(
+    [...letters].filter(([, i]) => i.files.length > 0 || hasIllustration(i.id)).map(([l]) => l),
+  );
+  let hints = $state(false);
   const receptiveWords = spellableWords(content.practiceWords, available);
   const allWords = content.practiceWords;
   const canRead = receptiveWords.length > 0;
@@ -166,15 +173,18 @@
 
 <svelte:window onkeydown={onKey} />
 
-<div class="row tabs" role="tablist">
-  <button role="tab" aria-selected={mode === 'receptive'} onclick={() => setMode('receptive')}>Read</button>
-  <button role="tab" aria-selected={mode === 'expressive'} onclick={() => setMode('expressive')}>Spell</button>
+<div class="spread head">
+  <h1>Fingerspelling</h1>
+  <div class="segmented" role="tablist">
+    <button role="tab" aria-selected={mode === 'receptive'} onclick={() => setMode('receptive')}>Read</button>
+    <button role="tab" aria-selected={mode === 'expressive'} onclick={() => setMode('expressive')}>Spell</button>
+  </div>
 </div>
 
 {#if mode === 'receptive'}
   <section class="card stack">
     {#if !canRead}
-      <h1>Read fingerspelling</h1>
+      <h2>Read fingerspelling</h2>
       <p>
         Reading drills need an image or video for each letter. {available.size} of 26 letters have one so far, so no
         practice words can be shown yet.
@@ -182,7 +192,7 @@
       <p class="small muted">Add letter media to the content folder (see its README) and this drill unlocks automatically.</p>
     {:else}
       <div class="spread">
-        <h1>Read fingerspelling</h1>
+        <h2>Read fingerspelling</h2>
         <div class="row small">
           <button class="small" onclick={() => adjust(0.9)} aria-label="Slower">−</button>
           <span class="mono">{speed.toFixed(1)} letters/s · {lettersPerSecondToWpm(speed)} wpm</span>
@@ -193,15 +203,16 @@
       <div class="stage" aria-live="off">
         {#if phase === 'playing' && frame}
           {@const m = media(frame.letter)}
-          {#if m}
-            <div class="letter" class:shift={frame.repeat}>
-              {#if m.type === 'video'}
-                <video src={m.url} autoplay muted playsinline></video>
-              {:else}
-                <img src={m.url} alt="" />
-              {/if}
-            </div>
-          {/if}
+          {@const id = letters.get(frame.letter)?.id}
+          <div class="letter" class:shift={frame.repeat}>
+            {#if m?.type === 'video'}
+              <video src={m.url} autoplay muted playsinline></video>
+            {:else if m}
+              <img src={m.url} alt="" />
+            {:else if id}
+              <HandSign {id} size={200} label="" animate={false} mirror={settings?.dominantHand === 'Left'} />
+            {/if}
+          </div>
         {:else if phase === 'idle'}
           <p class="muted center">Watch a word, then type it. Speed adjusts as you go.</p>
         {:else if phase === 'feedback'}
@@ -240,14 +251,28 @@
   </section>
 {:else}
   <section class="card stack">
-    <h1>Spell words</h1>
+    <h2>Spell words</h2>
     {#if phase === 'idle'}
       <p>A word appears. Fingerspell it as smoothly as you can, then press Done. Aim for a steady rhythm, not speed.</p>
       <button class="primary" onclick={next}>Start <kbd>Enter</kbd></button>
     {:else if phase === 'signing'}
       <div class="center stack">
         <div class="big-gloss">{word}</div>
-        <button class="primary" onclick={finishSigning}>Done <kbd>Enter</kbd></button>
+        {#if hints}
+          <div class="hint-strip" aria-label="Handshapes for {word}">
+            {#each word.toUpperCase().split('') as l}
+              {@const id = letters.get(l)?.id}
+              <div class="hint-letter">
+                {#if id}<SignPicture {id} size={52} mirror={settings?.dominantHand === 'Left'} />{/if}
+                <span>{l}</span>
+              </div>
+            {/each}
+          </div>
+        {/if}
+        <div class="row center">
+          <button class="ghost" onclick={() => (hints = !hints)} aria-pressed={hints}>{hints ? 'Hide' : 'Show'} handshapes</button>
+          <button class="primary lg" onclick={finishSigning}>Done <kbd>Enter</kbd></button>
+        </div>
       </div>
     {:else}
       <div class="center stack">
@@ -290,14 +315,25 @@
 </section>
 
 <style>
-  .tabs { margin-bottom: 12px; }
-  .tabs button[aria-selected='true'] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  .head { margin: 4px 0 16px; }
+  .head h1 { margin: 0; }
+  .hint-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+  .hint-letter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--paper);
+    color: #18181b;
+    border-radius: 12px;
+    padding: 6px 6px 4px;
+    font-weight: 600;
+  }
   .mono { font-variant-numeric: tabular-nums; }
   .stage {
     min-height: 260px;
     display: grid;
     place-items: center;
-    background: var(--surface-2);
+    background: var(--paper);
     border-radius: 10px;
     overflow: hidden;
   }
