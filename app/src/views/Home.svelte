@@ -29,7 +29,6 @@
   let readToday = $state(false);
   let five = $state<{ state: DailyState; guesses: number }>({ state: 'unplayed', guesses: 0 });
 
-  const drafts = content.units.filter((u) => u.review.status === 'draft').length;
   const total = content.items.length;
   const todo = $derived(due + fresh);
 
@@ -228,11 +227,6 @@
   </a>
 </div>
 
-{#if drafts > 0}
-  <p class="small muted footnote">
-    Sign descriptions and drawings are drafts until a Deaf signer reviews them. Check with a fluent signer when you can.
-  </p>
-{/if}
 
 <style>
   /* The hero: the app's color, the one next step, and where you stand. */
@@ -331,7 +325,6 @@
   .hub-text { display: grid; gap: 2px; min-width: 0; }
   .hub-text span { font-size: 0.85rem; color: var(--ink-3); }
 
-  .footnote { margin-top: 24px; text-align: center; }
 
   @media (max-width: 900px) {
     .hub { grid-template-columns: repeat(2, minmax(0, 1fr)); }

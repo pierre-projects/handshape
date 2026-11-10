@@ -20,7 +20,7 @@ describe('parseRoute', () => {
   });
 
   it('round-trips every route', () => {
-    for (const r of [routes.review, routes.reviewMore, routes.sign('a'), routes.cameraSign('10'), routes.read, routes.readFree, routes.readLevel('words-2'), routes.settings]) {
+    for (const r of [routes.review, routes.reviewMore, routes.sign('a'), routes.cameraSign('10'), routes.read, routes.readFree, routes.readLevel('words-2'), routes.settings, routes.about]) {
       expect(toHash(parseRoute(r))).toBe(r);
     }
   });
@@ -35,5 +35,6 @@ describe('pageTitle', () => {
     expect(pageTitle('#/fingerspell/spell')).toBe('Spell drill');
     expect(pageTitle(routes.fingerspelling)).toBe('Fingerspelling');
     expect(pageTitle('#/')).toBe('Today');
+    expect(pageTitle(routes.about)).toBe('About');
   });
 });

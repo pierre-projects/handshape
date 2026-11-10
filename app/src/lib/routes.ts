@@ -23,6 +23,7 @@ export const routes = {
   lists: '#/dashboard/lists',
   list: (id: string) => `#/dashboard/lists/${encodeURIComponent(id)}`,
   settings: '#/dashboard/settings',
+  about: '#/about',
 } as const;
 
 export interface Route {
@@ -72,7 +73,7 @@ export function pageTitle(hash: string): string {
     return { spell: 'Spell drill', 'sign-five': 'Sign Five' }[param ?? ''] ?? 'Fingerspelling';
   }
   return (
-    { '': 'Today', review: 'Review', signs: 'Signs', camera: 'Camera practice', dashboard: 'Dashboard' }[name] ?? 'Today'
+    { '': 'Today', review: 'Review', signs: 'Signs', camera: 'Camera practice', dashboard: 'Dashboard', about: 'About' }[name] ?? 'Today'
   );
 }
 

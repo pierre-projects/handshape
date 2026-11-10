@@ -32,7 +32,8 @@ It runs entirely in your browser: no accounts, and camera video never leaves you
   phone's home screen.
 
 Content covers the alphabet and numbers 0 to 10. Descriptions are drafts until a Deaf signer
-reviews them. Reading drills unlock as images and videos are added; see `content/README.md`.
+reviews them; the app says so on its About page (linked from every page's footer), which also
+explains in plain words what the app does, how the camera check works and what happens to your data. Reading drills unlock as images and videos are added; see `content/README.md`.
 
 ## Run it
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { clearReturn, parseRoute, routes, type Route } from './lib/routes';
+  import About from './views/About.svelte';
   import Home from './views/Home.svelte';
   import Review from './views/Review.svelte';
   import Learn from './views/Learn.svelte';
@@ -87,6 +88,8 @@
         <Fingerspell />
       {:else if route.name === 'dashboard'}
         <Progress section={route.param} listId={route.sub} />
+      {:else if route.name === 'about'}
+        <About />
       {:else}
         <Home />
       {/if}
@@ -95,7 +98,8 @@
 </main>
 
 <footer class="wrap small muted">
-  Camera video and your progress stay on this device. Nothing is uploaded.
+  <span>Camera video and your progress stay on this device. Nothing is uploaded.</span>
+  <a href={routes.about} aria-current={route.name === 'about' ? 'page' : undefined}>About Handshape</a>
 </footer>
 
 <nav class="tabbar" aria-label="Main">
@@ -151,7 +155,9 @@
   @keyframes enter { from { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .page { animation: none; } }
 
-  footer { padding: 24px 16px 40px; text-align: center; }
+  footer { padding: 24px 16px 40px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; text-align: center; }
+  footer a { color: var(--ink-2); font-weight: 600; }
+  footer a:hover, footer a[aria-current='page'] { color: var(--accent); }
 
   .tabbar { display: none; }
 

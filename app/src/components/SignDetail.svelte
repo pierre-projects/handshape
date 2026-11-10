@@ -8,7 +8,6 @@
   let { item, mirror = $bindable(false), showGloss = true }: { item: ResolvedItem; mirror?: boolean; showGloss?: boolean } =
     $props();
 
-  const unit = $derived(content.units.find((u) => u.id === item.unitId));
   const contrasts = $derived((item.confusable_with ?? []).map((id) => content.byId.get(id)).filter((x) => x !== undefined));
 </script>
 
@@ -24,9 +23,6 @@
           <p class="eyebrow">{item.kind === 'letter' ? 'Letter' : item.kind === 'number' ? 'Number' : 'Sign'}</p>
           <div class="big-gloss">{item.gloss}</div>
         </div>
-        {#if unit?.review.status === 'draft'}
-          <span class="badge draft" title="Not yet reviewed by a Deaf signer">Draft</span>
-        {/if}
       </div>
     {/if}
 

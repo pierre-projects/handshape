@@ -73,7 +73,6 @@
           <p class="muted small desc">{unit.description}</p>
         </div>
         <div class="unit-actions">
-          {#if unit.review.status === 'draft'}<span class="badge draft" title="Not yet reviewed by a Deaf signer">Draft</span>{/if}
           {#if unit.items[0]}
             <a class="btn ghost small" href={routes.cameraSign(unit.items[0].id)}><Icon name="camera" size={16} />On camera</a>
           {/if}

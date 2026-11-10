@@ -61,6 +61,7 @@ Dashboard. Camera practice belongs with Signs (and is linked from Today and ever
 | Free reading | `#/fingerspelling/read/free` | Watches word after word from the built-in words or a list and types it; speed adapts |
 | Spell drill | `#/fingerspelling/spell` | Fingerspells a word; the camera checks each letter and scores the word |
 | Sign Five | `#/fingerspelling/sign-five` | Guesses a five-letter word in six tries by fingerspelling it (daily word or practice) |
+| About | `#/about` | Reads what the app is and does, how the camera check works, what happens to their data, and what it can't do. Linked from the footer of every page |
 | Dashboard | `#/dashboard` | Signs and fingerspelling progress, activity, word lists (`/lists`, `/lists/<id>`), settings and data (`/settings`) |
 
 "Edit list" in a drill remembers the drill for the browser tab, and the lists page offers "Back
@@ -186,7 +187,7 @@ All learner data is in one IndexedDB database (`asl`):
 | `content/words/*.json` | Word lists, e.g. the Sign Five dictionary | `schema/wordlist.schema.json` + validator (length, repeats) |
 
 Each unit records whether it has been reviewed by a Deaf signer (`review.status`, `reviewed_by`);
-the app shows unreviewed content as a draft.
+until every unit is reviewed, the About page says the descriptions have not yet been reviewed by a Deaf signer.
 
 ## Network and privacy
 
