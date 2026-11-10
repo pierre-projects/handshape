@@ -14,7 +14,7 @@
   } from '../lib/guess';
   import LetterCam from '../components/LetterCam.svelte';
   import ListPicker from '../components/ListPicker.svelte';
-  import { fiveLetterWords } from '../lib/lists';
+  import { fiveLetterWords, selectedList } from '../lib/lists';
   import SignPicture from '../components/SignPicture.svelte';
   import Icon from '../components/Icon.svelte';
 
@@ -38,7 +38,7 @@
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
   const lists = $derived(settings?.lists ?? []);
-  const chosen = $derived(lists.find((l) => l.id === settings?.fiveListId && fiveLetterWords(l.words).length));
+  const chosen = $derived(selectedList(lists, settings?.fiveListId, fiveLetterWords));
   const fiveWords = $derived(chosen ? fiveLetterWords(chosen.words) : []);
   const useMine = $derived(fiveWords.length > 0);
   const won = $derived(!!answer && guesses.includes(answer));
@@ -189,7 +189,7 @@
 
 <div class="five">
   <header class="top">
-    <a class="back small" href="#/fingerspell"><Icon name="arrow-left" size={16} />Fingerspelling</a>
+    <a class="back-link small" href="#/fingerspell"><Icon name="arrow-left" size={16} />Fingerspelling</a>
     <div class="title-row">
       <div>
         <h1>Sign Five</h1>
@@ -342,8 +342,6 @@
 <style>
   .five { --m: var(--spell); --m-soft: var(--spell-soft); }
   .top { margin-bottom: 16px; }
-  .back { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-3); text-decoration: none; font-weight: 600; }
-  .back:hover { color: var(--ink); }
   .title-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
   .title-row h1 { margin: 0; }
   .title-row p { margin: 2px 0 0; }

@@ -4,6 +4,9 @@
   import Review from './views/Review.svelte';
   import Learn from './views/Learn.svelte';
   import Fingerspell from './views/Fingerspell.svelte';
+  import ReadDrill from './views/ReadDrill.svelte';
+  import SpellDrill from './views/SpellDrill.svelte';
+  import SignFive from './views/SignFive.svelte';
   import Progress from './views/Progress.svelte';
   import Practice from './views/Practice.svelte';
   import Icon from './components/Icon.svelte';
@@ -65,8 +68,14 @@
         <Review />
       {:else if route.name === 'learn'}
         <Learn itemId={route.param} />
+      {:else if route.name === 'fingerspell' && route.param === 'read'}
+        <ReadDrill />
+      {:else if route.name === 'fingerspell' && route.param === 'spell'}
+        <SpellDrill />
+      {:else if route.name === 'fingerspell' && route.param === 'game'}
+        <SignFive />
       {:else if route.name === 'fingerspell'}
-        <Fingerspell modeParam={route.param} />
+        <Fingerspell />
       {:else if route.name === 'practice'}
         <Practice startId={route.param} />
       {:else if route.name === 'progress'}

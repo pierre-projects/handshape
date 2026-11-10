@@ -178,11 +178,11 @@
     <a class="btn" href="#/progress/lists">All lists</a>
   </section>
 {:else}
-  <a class="back small" href="#/progress/lists"><Icon name="arrow-left" size={16} />All lists</a>
+  <a class="back-link small" href="#/progress/lists"><Icon name="arrow-left" size={16} />All lists</a>
 
   <section class="card detail">
     <div class="name-row">
-      <label class="sr" for="list-name">List name</label>
+      <label class="sr-only" for="list-name">List name</label>
       <input
         id="list-name"
         class="name"
@@ -241,7 +241,7 @@
     {#if list.words.length}
       <ul class="chips">
         {#each list.words as w (w)}
-          <li class="chip" class:five={w.length === 5}>
+          <li class="pill chip" class:five={w.length === 5}>
             <span class="word">{w}</span>
             <button class="x" onclick={() => remove(w)} aria-label="Remove {w}" title="Remove"><Icon name="x" size={14} /></button>
           </li>
@@ -295,8 +295,7 @@
   .empty h3, .empty p { margin: 0; }
   .empty-ico { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); }
 
-  .back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 10px; color: var(--ink-3); text-decoration: none; font-weight: 600; }
-  .back:hover { color: var(--ink); }
+  .back-link { margin-bottom: 10px; }
   .detail { display: grid; gap: 16px; }
   .name-row { display: flex; align-items: center; gap: 12px; }
   .name {
@@ -306,7 +305,6 @@
   .name:hover { border-color: var(--line); }
   .name:focus { border-color: var(--accent); background: var(--surface); }
   .count { white-space: nowrap; }
-  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .label { margin: 0 0 8px; font-size: 0.8rem; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.05em; }
   .use-toggles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .use-toggle {
@@ -334,10 +332,9 @@
   .help { display: flex; flex-direction: column; gap: 2px; }
   .will { color: var(--good); font-weight: 600; }
   .skip { color: var(--warn-ink); }
-  .chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface); overflow: hidden; }
+  .chip { gap: 0; overflow: hidden; }
   .chip.five { border-color: var(--spell-line); background: var(--spell-tint); }
-  .word { padding: 4px 4px 4px 12px; font-weight: 650; letter-spacing: 0.05em; }
+  .word { padding: 4px 4px 4px 12px; }
   .x { border: 0; border-radius: 0; box-shadow: none; background: transparent; min-height: 32px; padding: 4px 10px 4px 6px; color: var(--ink-3); }
   .x:hover { color: var(--bad); background: var(--bad-soft); }
   .legend { display: flex; align-items: center; gap: 6px; margin: 0; }

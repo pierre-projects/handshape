@@ -17,6 +17,18 @@ export function fiveLetterWords(words: string[]): string[] {
   return words.filter((w) => w.length === 5);
 }
 
+/**
+ * The learner's list with this id, if it has any words this feature can use
+ * (e.g. Sign Five only uses five-letter words).
+ */
+export function selectedList(
+  lists: WordListDef[],
+  id: string | undefined,
+  usable: (words: string[]) => string[] = (w) => w,
+): WordListDef | undefined {
+  return lists.find((l) => l.id === id && usable(l.words).length > 0);
+}
+
 /** A name not already taken: "My list", "My list 2", … */
 export function uniqueName(base: string, lists: WordListDef[]): string {
   const taken = new Set(lists.map((l) => l.name.trim().toLowerCase()));

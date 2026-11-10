@@ -52,7 +52,7 @@
     <ul class="chips" aria-label="{selected.name}. Tap a word to practise it.">
       {#each words as w (w)}
         <li>
-          <button class="chip" class:active={w === activeWord} onclick={() => onPlay?.(w)} title="Practise {w}">
+          <button class="pill chip" class:active={w === activeWord} onclick={() => onPlay?.(w)} title="Practise {w}">
             <span class="tri"><Icon name="play" size={11} /></span>{w}
           </button>
         </li>
@@ -68,11 +68,8 @@
   .select-wrap { flex: 1; min-width: 180px; max-width: 360px; }
   select { width: 100%; font-weight: 600; }
   .manage { margin-left: auto; color: var(--m, var(--accent)); }
-  .chips { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip {
-    gap: 6px; min-height: 34px; padding: 3px 12px 3px 6px; border-radius: 999px;
-    border: 1px solid var(--line-strong); background: var(--surface); font-weight: 650; letter-spacing: 0.05em;
-  }
+  .chips { margin-top: 10px; }
+  .chip { min-height: 34px; padding: 3px 12px 3px 6px; }
   .chip:hover { border-color: var(--m, var(--accent)); }
   .tri {
     display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
