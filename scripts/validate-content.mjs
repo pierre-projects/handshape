@@ -1,6 +1,7 @@
 // Validates every lesson unit in content/units against the JSON Schema,
 // then checks the rules a schema cannot express: unique ids across units,
-// valid cross-references, and media files that actually exist.
+// valid cross-references, and media files that actually exist. Word lists in
+// content/words are checked against their own schema and word length.
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -59,15 +60,44 @@ export function validateContent(contentDir = root) {
     }
   }
 
-  return { errors, unitCount: units.length, itemCount: itemIds.size };
+  const wordLists = validateWordLists(contentDir, errors);
+  return { errors, unitCount: units.length, itemCount: itemIds.size, wordLists };
+}
+
+/** Word lists in content/words: the schema, plus the exact word length a list asks for. */
+function validateWordLists(contentDir, errors) {
+  const dir = join(contentDir, 'words');
+  if (!existsSync(dir)) return 0;
+  const schema = JSON.parse(readFileSync(join(contentDir, 'schema', 'wordlist.schema.json'), 'utf8'));
+  const validate = new Ajv2020({ allErrors: true }).compile(schema);
+  const files = readdirSync(dir).filter((f) => f.endsWith('.json')).sort();
+  for (const file of files) {
+    const where = `words/${file}`;
+    let list;
+    try {
+      list = JSON.parse(readFileSync(join(dir, file), 'utf8'));
+    } catch (e) {
+      errors.push(`${where}: invalid JSON: ${e.message}`);
+      continue;
+    }
+    if (!validate(list)) {
+      for (const err of validate.errors) errors.push(`${where}${err.instancePath}: ${err.message}`);
+      continue;
+    }
+    if (list.length) {
+      const wrong = list.words.filter((w) => w.length !== list.length);
+      if (wrong.length) errors.push(`${where}: not ${list.length} letters: ${wrong.join(', ')}`);
+    }
+  }
+  return files.length;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const { errors, unitCount, itemCount } = validateContent();
+  const { errors, unitCount, itemCount, wordLists } = validateContent();
   if (errors.length) {
     console.error(`Content validation failed with ${errors.length} error(s):`);
     for (const e of errors) console.error(`  - ${e}`);
     process.exit(1);
   }
-  console.log(`Content OK: ${unitCount} units, ${itemCount} items.`);
+  console.log(`Content OK: ${unitCount} units, ${itemCount} items, ${wordLists} word lists.`);
 }
