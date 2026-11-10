@@ -42,3 +42,21 @@ describe('resolveContent', () => {
     expect(c.byId.get('second-1')!.files).toHaveLength(0);
   });
 });
+
+describe('word list validation', () => {
+  it('reports words of the wrong length, repeats and non-letters', async () => {
+    const { mkdtempSync, mkdirSync, copyFileSync, writeFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(join(tmpdir(), 'asl-content-'));
+    for (const d of ['schema', 'units', 'words']) mkdirSync(join(dir, d));
+    for (const f of ['unit.schema.json', 'wordlist.schema.json']) copyFileSync(join('content/schema', f), join(dir, 'schema', f));
+    const list = (words: string[]) => JSON.stringify({ title: 't', description: 'd', length: 5, words });
+    writeFileSync(join(dir, 'words', 'bad-length.json'), list(['house', 'cat']));
+    writeFileSync(join(dir, 'words', 'bad-chars.json'), list(['house', 'house', 'Ho-me']));
+    const { errors, wordLists } = validateContent(dir);
+    expect(wordLists).toBe(2);
+    expect(errors.some((e: string) => e.includes('bad-length.json: not 5 letters: cat'))).toBe(true);
+    expect(errors.filter((e: string) => e.includes('bad-chars.json')).length).toBeGreaterThanOrEqual(2);
+  });
+});

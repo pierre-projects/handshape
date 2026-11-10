@@ -59,6 +59,41 @@ export function normaliseWord(s: string): string {
   return s.toUpperCase().replace(/[^A-Z]/g, '');
 }
 
+export const MAX_WORD_LETTERS = 20;
+
+export interface WordSort {
+  /** New words to add, in order, normalised to A–Z. */
+  added: string[];
+  /** Already in the list, or typed twice. */
+  duplicates: string[];
+  /** Typed pieces with no letters in them, as typed. */
+  invalid: string[];
+  /** Longer than MAX_WORD_LETTERS, or not the exact length asked for. */
+  tooLong: string[];
+}
+
+/**
+ * Sorts typed text ("cat, dog\nO'Neil") into words for a custom list. Words
+ * are separated by spaces, commas or semicolons; anything that isn't a letter
+ * is dropped inside a word, so "O'Neil" becomes ONEIL.
+ */
+export function sortWords(text: string, existing: string[] = [], exact?: number): WordSort {
+  const seen = new Set(existing);
+  const out: WordSort = { added: [], duplicates: [], invalid: [], tooLong: [] };
+  for (const raw of text.split(/[\s,;]+/)) {
+    if (!raw) continue;
+    const w = normaliseWord(raw);
+    if (!w) out.invalid.push(raw);
+    else if (exact ? w.length !== exact : w.length > MAX_WORD_LETTERS) out.tooLong.push(w);
+    else if (seen.has(w)) out.duplicates.push(w);
+    else {
+      seen.add(w);
+      out.added.push(w);
+    }
+  }
+  return out;
+}
+
 export function checkWord(expected: string, typed: string): boolean {
   return normaliseWord(expected) === normaliseWord(typed);
 }
@@ -137,4 +172,41 @@ export function readingSpeed(attempts: SpellingAttempt[], window = 20): number |
   if (speeds.length === 0) return undefined;
   const mid = Math.floor(speeds.length / 2);
   return speeds.length % 2 ? speeds[mid] : (speeds[mid - 1] + speeds[mid]) / 2;
+}
+
+/** Share of the most recent attempts that were right, as a whole percentage. */
+function recentPercent(xs: SpellingAttempt[], window = 20): number | undefined {
+  if (!xs.length) return undefined;
+  const recent = xs.slice(-window);
+  return Math.round((recent.filter((a) => a.correct).length / recent.length) * 100);
+}
+
+export interface SpellingSummary {
+  /** Every fingerspelling attempt, read or spelled. */
+  total: number;
+  read: { count: number; wpm?: number; accuracy?: number };
+  spell: { count: number; lettersPerSecond?: number; clean?: number };
+  /** Letters most often misread (seen at least 3 times), worst first. */
+  weakLetters: [string, LetterStat][];
+}
+
+/** Everything the app shows about fingerspelling progress, worked out in one place. */
+export function spellingSummary(attempts: SpellingAttempt[]): SpellingSummary {
+  const read = attempts.filter((a) => a.mode === 'receptive');
+  const spell = attempts.filter((a) => a.mode === 'expressive');
+  const clean = spell.filter((a) => a.correct).slice(-10).map((a) => a.lettersPerSecond);
+  const reading = readingSpeed(attempts);
+  return {
+    total: attempts.length,
+    read: { count: read.length, wpm: reading ? lettersPerSecondToWpm(reading) : undefined, accuracy: recentPercent(read) },
+    spell: {
+      count: spell.length,
+      lettersPerSecond: clean.length ? clean.reduce((a, b) => a + b, 0) / clean.length : undefined,
+      clean: recentPercent(spell),
+    },
+    weakLetters: [...letterStats(attempts).entries()]
+      .filter(([, s]) => s.seen >= 3 && s.missed > 0)
+      .sort((a, b) => b[1].rate - a[1].rate)
+      .slice(0, 5),
+  };
 }

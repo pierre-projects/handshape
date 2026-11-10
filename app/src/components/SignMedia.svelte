@@ -1,5 +1,8 @@
 <script lang="ts">
   import type { ResolvedItem } from '../lib/types';
+  import { POSES } from '../lib/illustrations';
+  import HandSign from './HandSign.svelte';
+  import Icon from './Icon.svelte';
 
   let {
     item,
@@ -9,6 +12,7 @@
 
   const file = $derived(item.files[0]);
   const embed = $derived(file ? undefined : item.embeds[0]);
+  const pose = $derived(POSES[item.id]);
   let speed = $state(1);
   let video = $state<HTMLVideoElement>();
 
@@ -27,7 +31,7 @@
 
 <figure class="media">
   {#if file}
-    <div class="frame" class:mirror>
+    <div class="frame" class:still={file.type !== 'video'} class:mirror>
       {#if file.type === 'video'}
         <video bind:this={video} src={file.url} autoplay loop muted playsinline aria-label="Sign for {item.gloss}"></video>
       {:else}
@@ -36,11 +40,13 @@
     </div>
     {#if controls}
       <div class="row tools">
-        <button class="small" onclick={() => (mirror = !mirror)} aria-pressed={mirror}>Mirror</button>
+        <button class="small" onclick={() => (mirror = !mirror)} aria-pressed={mirror}><Icon name="flip" size={16} />Mirror</button>
         {#if file.type === 'video'}
-          {#each [0.25, 0.5, 1] as s}
-            <button class="small" onclick={() => (speed = s)} aria-pressed={speed === s}>{s}x</button>
-          {/each}
+          <div class="segmented">
+            {#each [0.25, 0.5, 1] as s}
+              <button class="small" onclick={() => (speed = s)} aria-pressed={speed === s}>{s}x</button>
+            {/each}
+          </div>
         {/if}
       </div>
     {/if}
@@ -50,9 +56,22 @@
       <iframe src={embedUrl(embed)} title="Sign for {item.gloss}" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe>
     </div>
     <figcaption class="small muted">{embed.credit} · needs internet</figcaption>
+  {:else if pose}
+    <div class="frame drawn">
+      <HandSign id={item.id} size="100%" {mirror} label="Drawing of the handshape for {item.gloss}" />
+    </div>
+    {#if pose.note}<p class="note">{pose.note}</p>{/if}
+    {#if controls}
+      <div class="row tools">
+        <button class="small" onclick={() => (mirror = !mirror)} aria-pressed={mirror}>
+          <Icon name="flip" size={16} />{mirror ? 'Left hand' : 'Right hand'}
+        </button>
+      </div>
+    {/if}
+    <figcaption class="small muted">Simplified drawing, palm toward you. Check details against a fluent signer.</figcaption>
   {:else}
     <div class="frame empty">
-      <span>No image or video yet for <strong>{item.gloss}</strong>.</span>
+      <span>No picture yet for <strong>{item.gloss}</strong>.</span>
       <span class="small">Use the description, a reference chart, or a teacher.</span>
     </div>
   {/if}
@@ -61,8 +80,8 @@
 <style>
   .media { margin: 0; }
   .frame {
-    background: var(--surface-2);
-    border-radius: 10px;
+    background: var(--paper);
+    border-radius: var(--radius);
     overflow: hidden;
     display: grid;
     place-items: center;
@@ -70,9 +89,37 @@
     max-height: 340px;
     margin: 0 auto;
   }
-  img, video { width: 100%; height: 100%; object-fit: contain; display: block; }
+  video { width: 100%; height: 100%; object-fit: contain; display: block; }
+  /* Still pictures: a fixed, bordered box; the drawing shrinks to fit inside it. */
+  .still {
+    aspect-ratio: auto;
+    width: 100%;
+    height: 300px;
+    padding: 24px;
+    border: 1px solid var(--line);
+  }
+  .still img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    object-fit: contain;
+  }
+  @media (max-width: 640px) {
+    .still { height: 220px; padding: 16px; }
+  }
   .embed { aspect-ratio: 16 / 9; }
   iframe { width: 100%; height: 100%; border: 0; }
+  .drawn {
+    aspect-ratio: 1;
+    max-height: none;
+    padding: 6% 12% 0;
+    align-items: end;
+    background: var(--paper);
+    border: 1px solid var(--line);
+  }
+  .drawn :global(svg) { width: 100%; }
+  .note { text-align: center; font-weight: 600; font-size: 0.875rem; color: var(--ink-2); margin: 10px 0 0; }
   .empty {
     border: 2px dashed var(--line);
     background: transparent;
@@ -86,7 +133,8 @@
     aspect-ratio: auto;
     min-height: 140px;
   }
-  .tools { margin-top: 8px; justify-content: center; }
-  figcaption { margin-top: 6px; text-align: center; }
+  .tools { margin-top: 10px; justify-content: center; }
+  figcaption { margin-top: 8px; text-align: center; }
   button[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .segmented button[aria-pressed='true'] { background: var(--surface); color: var(--ink); border-color: transparent; }
 </style>

@@ -71,6 +71,8 @@ export interface ReviewEntry {
   correct?: boolean;
   /** For recognize cards: what the learner typed. */
   typed?: string;
+  /** For produce cards: whether the camera matched the handshape before grading. */
+  camera?: boolean;
   /** FSRS state before this review (0 new, 1 learning, 2 review, 3 relearning). */
   stateBefore: number;
   at: Date;
@@ -88,16 +90,45 @@ export interface SpellingAttempt {
   at: Date;
 }
 
+export interface WordListDef {
+  id: string;
+  name: string;
+  /** Upper case A–Z words. */
+  words: string[];
+}
+
+/** Sign Five: today's game in progress and the running stats. */
+export interface SignFiveSave {
+  daily?: { key: string; guesses: string[]; answer?: string; source?: 'official' | 'local' };
+  stats: { played: number; won: number; streak: number; best: number; dist: number[] };
+}
+
+export const DEFAULT_SIGN_FIVE: SignFiveSave = {
+  stats: { played: 0, won: 0, streak: 0, best: 0, dist: [0, 0, 0, 0, 0, 0] },
+};
+
 export interface Settings {
   newItemsPerDay: number;
   receptiveSpeed: number;
   showCameraByDefault: boolean;
   mirrorMedia: boolean;
+  /** Which hand to check when both are in view. */
+  dominantHand: 'Right' | 'Left';
+  /** The learner's word lists. */
+  lists: WordListDef[];
+  /** List the fingerspelling drills use; empty means the built-in words. */
+  spellListId: string;
+  /** List Sign Five practice games use (its five-letter words); empty means built-in. */
+  fiveListId: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  lists: [],
+  spellListId: '',
+  fiveListId: '',
   newItemsPerDay: 6,
   receptiveSpeed: 1.5,
   showCameraByDefault: false,
   mirrorMedia: false,
+  dominantHand: 'Right',
 };

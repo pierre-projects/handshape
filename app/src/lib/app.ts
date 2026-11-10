@@ -6,7 +6,3 @@ let storePromise: Promise<Store> | undefined;
 export function getStore(): Promise<Store> {
   return (storePromise ??= Store.open());
 }
-
-export function go(path: string): void {
-  location.hash = `#/${path}`;
-}

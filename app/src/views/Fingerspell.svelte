@@ -1,307 +1,166 @@
 <script lang="ts">
-  import { onDestroy, onMount, tick } from 'svelte';
+  // Fingerspelling landing (#/fingerspell): pick a drill or the word game.
+  // The drills are their own pages: ReadDrill (#/fingerspell/read),
+  // SpellDrill (#/fingerspell/spell) and SignFive (#/fingerspell/game).
+  import { onMount } from 'svelte';
   import { getStore } from '../lib/app';
-  import type { Store } from '../lib/db';
-  import { content, letterMap } from '../lib/content';
-  import {
-    buildSequence, checkWord, letterStats, lettersPerSecondToWpm, MAX_SPEED, MIN_SPEED, nextSpeed, normaliseWord,
-    pickWord, readingSpeed, sequenceDuration, spellableWords, type Frame,
-  } from '../lib/spelling';
-  import type { Settings, SpellingAttempt } from '../lib/types';
-  import CameraMirror from '../components/CameraMirror.svelte';
+  import { spellingSummary } from '../lib/spelling';
+  import { builtInWords, canRead, drillWords } from '../lib/fingerspell';
+  import { loadSettings, prefs, updateSettings } from '../lib/settings.svelte';
+  import type { SpellingAttempt } from '../lib/types';
+  import ListPicker from '../components/ListPicker.svelte';
+  import Icon from '../components/Icon.svelte';
 
-  type Mode = 'receptive' | 'expressive';
-
-  let store: Store;
-  let settings = $state<Settings>();
   let attempts = $state<SpellingAttempt[]>([]);
-  let mode = $state<Mode>('expressive');
-  let phase = $state<'idle' | 'playing' | 'answer' | 'feedback' | 'signing'>('idle');
-  let word = $state('');
-  let recent: string[] = [];
-  let frame = $state<Frame>();
-  let replays = $state(0);
-  let typed = $state('');
-  let lastCorrect = $state(false);
-  let speedBefore = $state(0);
-  let startedAt = 0;
-  let elapsed = $state(0);
-  let input = $state<HTMLInputElement>();
-  let timers: ReturnType<typeof setTimeout>[] = [];
-
-  const letters = letterMap();
-  const available = new Set([...letters].filter(([, i]) => i.files.length > 0).map(([l]) => l));
-  const receptiveWords = spellableWords(content.practiceWords, available);
-  const allWords = content.practiceWords;
-  const canRead = receptiveWords.length > 0;
-
-  const stats = $derived(letterStats(attempts));
-  const weakLetters = $derived(
-    [...stats.entries()].filter(([, s]) => s.seen >= 3 && s.missed > 0).sort((a, b) => b[1].rate - a[1].rate).slice(0, 5),
-  );
-  const reading = $derived(readingSpeed(attempts));
-  const expressive = $derived(
-    attempts.filter((a) => a.mode === 'expressive' && a.correct).slice(-10).map((a) => a.lettersPerSecond),
-  );
-  const signingSpeed = $derived(expressive.length ? expressive.reduce((a, b) => a + b, 0) / expressive.length : undefined);
-  const speed = $derived(settings?.receptiveSpeed ?? 1.5);
+  const summary = $derived(spellingSummary(attempts));
+  const chosen = $derived(drillWords(prefs.value).list);
 
   onMount(async () => {
-    store = await getStore();
-    settings = await store.settings();
+    const store = await getStore();
+    await loadSettings();
     attempts = await store.attempts();
-    if (canRead) mode = 'receptive';
   });
-
-  onDestroy(clearTimers);
-
-  function clearTimers() {
-    timers.forEach(clearTimeout);
-    timers = [];
-  }
-
-  function setMode(m: Mode) {
-    clearTimers();
-    mode = m;
-    phase = 'idle';
-  }
-
-  function next() {
-    const pool = mode === 'receptive' ? receptiveWords : allWords;
-    word = pickWord(pool, mode === 'receptive' ? stats : new Map(), recent) ?? pool[0];
-    recent = [...recent.slice(-9), word];
-    replays = 0;
-    typed = '';
-    if (mode === 'receptive') play();
-    else {
-      phase = 'signing';
-      startedAt = performance.now();
-    }
-  }
-
-  /** Plays the word. After feedback, replaying returns to feedback instead of the answer box. */
-  async function play(after: 'answer' | 'feedback' = 'answer') {
-    clearTimers();
-    phase = 'playing';
-    frame = undefined;
-    const frames = buildSequence(word, speed);
-    const lead = 400;
-    for (const f of frames) {
-      timers.push(setTimeout(() => (frame = f), lead + f.startMs));
-      timers.push(setTimeout(() => { if (frame === f) frame = undefined; }, lead + f.startMs + f.durationMs));
-    }
-    timers.push(
-      setTimeout(async () => {
-        frame = undefined;
-        phase = after;
-        if (after === 'answer') {
-          await tick();
-          input?.focus();
-        }
-      }, lead + sequenceDuration(frames) + 150),
-    );
-  }
-
-  function replay() {
-    replays++;
-    play();
-  }
-
-  async function saveSpeed(v: number) {
-    if (!settings) return;
-    settings = { ...settings, receptiveSpeed: v };
-    await store.saveSettings($state.snapshot(settings));
-  }
-
-  async function submit(e: Event) {
-    e.preventDefault();
-    if (!normaliseWord(typed)) return;
-    lastCorrect = checkWord(word, typed);
-    speedBefore = speed;
-    const attempt: SpellingAttempt = {
-      word, mode: 'receptive', correct: lastCorrect, typed: normaliseWord(typed),
-      lettersPerSecond: speed, replays, at: new Date(),
-    };
-    await store.addAttempt(attempt);
-    attempts = [...attempts, attempt];
-    await saveSpeed(nextSpeed(speed, lastCorrect, replays));
-    phase = 'feedback';
-  }
-
-  function finishSigning() {
-    elapsed = (performance.now() - startedAt) / 1000;
-    phase = 'feedback';
-  }
-
-  async function gradeSigning(clean: boolean) {
-    const attempt: SpellingAttempt = {
-      word, mode: 'expressive', correct: clean,
-      lettersPerSecond: Math.round((word.length / Math.max(elapsed, 0.1)) * 100) / 100,
-      replays: 0, at: new Date(),
-    };
-    await store.addAttempt(attempt);
-    attempts = [...attempts, attempt];
-    next();
-  }
-
-  function adjust(factor: number) {
-    const v = Math.round(Math.min(MAX_SPEED, Math.max(MIN_SPEED, speed * factor)) * 100) / 100;
-    saveSpeed(v);
-  }
-
-  function onKey(e: KeyboardEvent) {
-    if (e.target instanceof HTMLInputElement) return;
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    if (phase === 'idle' || (phase === 'feedback' && mode === 'receptive')) {
-      e.preventDefault();
-      next();
-    } else if (phase === 'signing') {
-      e.preventDefault();
-      finishSigning();
-    }
-  }
-
-  const media = (l: string) => letters.get(l)?.files[0];
 </script>
 
-<svelte:window onkeydown={onKey} />
+<header class="hub-head">
+  <h1>Fingerspelling</h1>
+  <p class="muted">Two different skills: reading other people's spelling, and spelling clearly yourself.</p>
+</header>
 
-<div class="row tabs" role="tablist">
-  <button role="tab" aria-selected={mode === 'receptive'} onclick={() => setMode('receptive')}>Read</button>
-  <button role="tab" aria-selected={mode === 'expressive'} onclick={() => setMode('expressive')}>Spell</button>
+<div class="modes">
+  <a class="mode-card read" href="#/fingerspell/read" class:locked={!canRead} aria-disabled={!canRead}>
+    <div class="art" aria-hidden="true">
+      <span class="flash">C</span><span class="flash on">A</span><span class="flash">T</span>
+      <span class="art-icon"><Icon name="eye" size={22} /></span>
+    </div>
+    <div class="mode-body">
+      <span class="kicker"><Icon name="eye" size={15} />Receptive</span>
+      <h2>Read</h2>
+      <p>Watch a word flash by one letter at a time, then type what you saw. Speed adapts to you.</p>
+      <div class="mode-meta">
+        {#if summary.read.wpm}<span><b>{summary.read.wpm}</b> wpm reading</span>{/if}
+        <span><b>{summary.read.count}</b> {summary.read.count === 1 ? 'word' : 'words'} read</span>
+        {#if summary.read.accuracy !== undefined}<span><b>{summary.read.accuracy}%</b> right</span>{/if}
+      </div>
+    </div>
+    <span class="go">{canRead ? 'Start reading' : 'Needs letter images'}<Icon name="arrow-right" size={18} /></span>
+  </a>
+
+  <a class="mode-card spell" href="#/fingerspell/spell">
+    <div class="art" aria-hidden="true">
+      <span class="tile ok">C</span><span class="tile now">A</span><span class="tile">T</span>
+      <span class="art-icon"><Icon name="camera" size={22} /></span>
+    </div>
+    <div class="mode-body">
+      <span class="kicker"><Icon name="signs" size={15} />Expressive</span>
+      <h2>Spell</h2>
+      <p>See a word and fingerspell it to your camera. Each letter is checked as you go, and you get a score.</p>
+      <div class="mode-meta">
+        {#if summary.spell.lettersPerSecond}<span><b>{summary.spell.lettersPerSecond.toFixed(1)}</b> letters/s</span>{/if}
+        <span><b>{summary.spell.count}</b> {summary.spell.count === 1 ? 'word' : 'words'} spelled</span>
+        {#if summary.spell.clean !== undefined}<span><b>{summary.spell.clean}%</b> clean</span>{/if}
+      </div>
+    </div>
+    <span class="go">Start spelling<Icon name="arrow-right" size={18} /></span>
+  </a>
 </div>
 
-{#if mode === 'receptive'}
-  <section class="card stack">
-    {#if !canRead}
-      <h1>Read fingerspelling</h1>
-      <p>
-        Reading drills need an image or video for each letter. {available.size} of 26 letters have one so far, so no
-        practice words can be shown yet.
-      </p>
-      <p class="small muted">Add letter media to the content folder (see its README) and this drill unlocks automatically.</p>
-    {:else}
-      <div class="spread">
-        <h1>Read fingerspelling</h1>
-        <div class="row small">
-          <button class="small" onclick={() => adjust(0.9)} aria-label="Slower">−</button>
-          <span class="mono">{speed.toFixed(1)} letters/s · {lettersPerSecondToWpm(speed)} wpm</span>
-          <button class="small" onclick={() => adjust(1.1)} aria-label="Faster">+</button>
-        </div>
-      </div>
+<a class="game-card" href="#/fingerspell/game">
+  <span class="mini-board" aria-hidden="true">
+    <i class="h">S</i><i class="n">I</i><i>G</i><i class="h">N</i><i class="n">5</i>
+  </span>
+  <span class="game-text">
+    <b>Sign Five</b>
+    <span class="small muted">A word game: guess the five-letter word in six tries by fingerspelling it to the camera.</span>
+  </span>
+  <span class="game-go">Play<Icon name="arrow-right" size={16} /></span>
+</a>
 
-      <div class="stage" aria-live="off">
-        {#if phase === 'playing' && frame}
-          {@const m = media(frame.letter)}
-          {#if m}
-            <div class="letter" class:shift={frame.repeat}>
-              {#if m.type === 'video'}
-                <video src={m.url} autoplay muted playsinline></video>
-              {:else}
-                <img src={m.url} alt="" />
-              {/if}
-            </div>
-          {/if}
-        {:else if phase === 'idle'}
-          <p class="muted center">Watch a word, then type it. Speed adjusts as you go.</p>
-        {:else if phase === 'feedback'}
-          <div class="center">
-            <div class="big-gloss">{word}</div>
-          </div>
-        {/if}
-      </div>
+<h2 class="section-title">Words to practise</h2>
+<ListPicker
+  lists={prefs.value?.lists ?? []}
+  selectedId={chosen?.id ?? ''}
+  builtInCount={builtInWords.length}
+  onSelect={(id) => updateSettings({ spellListId: id })}
+/>
 
-      {#if phase === 'idle'}
-        <button class="primary" onclick={next}>Start <kbd>Enter</kbd></button>
-      {:else if phase === 'answer'}
-        <form class="center stack" onsubmit={submit}>
-          <input bind:this={input} bind:value={typed} class="answer-input" type="text" autocomplete="off"
-            autocapitalize="characters" spellcheck="false" aria-label="What word was spelled?" />
-          <div class="row" style="justify-content:center">
-            <button type="button" onclick={replay}>Replay</button>
-            <button class="primary" type="submit" disabled={!normaliseWord(typed)}>Check</button>
-          </div>
-        </form>
-      {:else if phase === 'feedback'}
-        <div class="result" class:good={lastCorrect} class:bad={!lastCorrect}>
-          {#if lastCorrect}
-            Correct{replays ? ` after ${replays} ${replays === 1 ? 'replay' : 'replays'}` : ''}.
-          {:else}
-            You typed “{normaliseWord(typed)}”.
-          {/if}
-          {#if speed > speedBefore} Speeding up.{:else if speed < speedBefore} Slowing down a little.{/if}
-        </div>
-        <div class="row">
-          <button onclick={() => play('feedback')}>Watch again</button>
-          <button class="primary" onclick={next}>Next word <kbd>Enter</kbd></button>
-        </div>
-      {/if}
-    {/if}
-  </section>
-{:else}
-  <section class="card stack">
-    <h1>Spell words</h1>
-    {#if phase === 'idle'}
-      <p>A word appears. Fingerspell it as smoothly as you can, then press Done. Aim for a steady rhythm, not speed.</p>
-      <button class="primary" onclick={next}>Start <kbd>Enter</kbd></button>
-    {:else if phase === 'signing'}
-      <div class="center stack">
-        <div class="big-gloss">{word}</div>
-        <button class="primary" onclick={finishSigning}>Done <kbd>Enter</kbd></button>
-      </div>
-    {:else}
-      <div class="center stack">
-        <div class="big-gloss">{word}</div>
-        <p class="muted">{elapsed.toFixed(1)} s · {(word.length / Math.max(elapsed, 0.1)).toFixed(1)} letters/s</p>
-        <p>Was every letter clear, with no restarts?</p>
-        <div class="row" style="justify-content:center">
-          <button onclick={() => gradeSigning(false)}>Stumbled</button>
-          <button class="primary" onclick={() => gradeSigning(true)}>Clean</button>
-        </div>
-      </div>
-    {/if}
-    <CameraMirror autostart={settings?.showCameraByDefault ?? false} />
+{#if summary.weakLetters.length}
+  <section class="card weak">
+    <p class="small">
+      <b>Letters you misread most:</b>
+      {#each summary.weakLetters as [l, s], i}<a href="#/learn/{l.toLowerCase()}">{l}</a> ({Math.round(s.rate * 100)}%){i < summary.weakLetters.length - 1 ? ', ' : ''}{/each}.
+      Read mode shows words with these letters more often.
+    </p>
   </section>
 {/if}
 
-<section class="card stack">
-  <h2>Your fingerspelling</h2>
-  <div class="stat-grid">
-    <div class="stat">
-      <div class="value">{reading ? lettersPerSecondToWpm(reading) : '–'}</div>
-      <div class="label">reading speed, wpm</div>
-    </div>
-    <div class="stat">
-      <div class="value">{signingSpeed ? signingSpeed.toFixed(1) : '–'}</div>
-      <div class="label">clean spelling, letters/s</div>
-    </div>
-    <div class="stat">
-      <div class="value">{attempts.length}</div>
-      <div class="label">words practised</div>
-    </div>
-  </div>
-  {#if weakLetters.length}
-    <p class="small">
-      Letters you misread most:
-      {#each weakLetters as [l, s], i}<a href="#/learn/{l.toLowerCase()}">{l}</a> ({Math.round(s.rate * 100)}%){i < weakLetters.length - 1 ? ', ' : ''}{/each}.
-      Words with these letters come up more often.
-    </p>
-  {/if}
-</section>
-
 <style>
-  .tabs { margin-bottom: 12px; }
-  .tabs button[aria-selected='true'] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
-  .mono { font-variant-numeric: tabular-nums; }
-  .stage {
-    min-height: 260px;
-    display: grid;
-    place-items: center;
-    background: var(--surface-2);
-    border-radius: 10px;
-    overflow: hidden;
+  /* Each drill has its own colour so the two never look alike. */
+  .read { --m: var(--accent); --m-soft: var(--accent-soft); }
+  .spell { --m: var(--spell); --m-soft: var(--spell-soft); }
+
+  .hub-head { margin: 4px 0 18px; }
+  .hub-head h1 { margin: 0 0 4px; }
+  .hub-head p { margin: 0; }
+  .modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .mode-card {
+    display: grid; grid-template-rows: auto 1fr auto; overflow: hidden;
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+    color: var(--ink); text-decoration: none; box-shadow: var(--shadow);
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
   }
-  .letter { width: 100%; height: 260px; display: grid; place-items: center; }
-  .letter img, .letter video { max-width: 100%; max-height: 260px; object-fit: contain; }
-  .letter.shift { transform: translateX(14%); }
+  .mode-card:hover { border-color: var(--m); box-shadow: var(--shadow-lift); transform: translateY(-1px); }
+  .mode-card.locked { opacity: 0.6; pointer-events: none; }
+  .art {
+    position: relative; display: flex; justify-content: center; align-items: center; gap: 10px; height: 132px;
+    background: var(--m-soft); border-bottom: 1px solid var(--line);
+  }
+  .art-icon {
+    position: absolute; top: 12px; left: 12px; display: grid; place-items: center; width: 38px; height: 38px;
+    border-radius: 50%; background: var(--surface); color: var(--m);
+  }
+  .flash { font-size: 2.6rem; font-weight: 750; color: color-mix(in srgb, var(--m) 25%, transparent); }
+  .flash.on { font-size: 3.6rem; color: var(--m); }
+  .tile {
+    display: grid; place-items: center; width: 50px; height: 58px; border-radius: var(--radius-sm);
+    border: 1px solid var(--line-strong); background: var(--surface); font-size: 1.7rem; font-weight: 700; color: var(--ink-3);
+  }
+  .tile.ok { border-color: var(--good); background: var(--good-soft); color: var(--good); }
+  .tile.now { border: 2px solid var(--m); color: var(--m); box-shadow: 0 0 0 3px color-mix(in srgb, var(--m) 18%, transparent); }
+  .mode-body { padding: 16px 18px 4px; }
+  .mode-body h2 { margin: 4px 0 6px; font-size: 1.4rem; }
+  .mode-body p { margin: 0; color: var(--ink-2); }
+  .kicker {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--m);
+  }
+  .mode-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 0.85rem; color: var(--ink-3); }
+  .mode-meta b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .go {
+    display: flex; align-items: center; justify-content: space-between; margin: 14px 18px 16px; padding: 10px 14px;
+    border-radius: var(--radius-sm); background: var(--m); color: #fff; font-weight: 650;
+  }
+  .game-card {
+    display: flex; align-items: center; gap: 16px; margin: -12px 0 28px; padding: 14px 18px;
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+    color: var(--ink); text-decoration: none; box-shadow: var(--shadow); transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .game-card:hover { border-color: var(--spell); box-shadow: var(--shadow-lift); }
+  .mini-board { display: flex; gap: 3px; flex: none; }
+  .mini-board i {
+    display: grid; place-items: center; width: 26px; height: 26px; border-radius: 4px; font-style: normal;
+    font-weight: 750; font-size: 0.85rem; color: #fff; background: var(--miss);
+  }
+  .mini-board i.h { background: var(--hit); }
+  .mini-board i.n { background: var(--near); }
+  .game-text { display: grid; flex: 1; min-width: 0; }
+  .game-go { display: inline-flex; align-items: center; gap: 4px; font-weight: 650; color: var(--spell); }
+  .section-title { font-size: 1.05rem; margin: 0 0 10px; }
+  .weak { margin-top: 16px; padding: 12px 16px; }
+  .weak p { margin: 0; }
+  @media (max-width: 760px) {
+    .modes { grid-template-columns: 1fr; }
+    .art { height: 104px; }
+  }
+  @media (max-width: 560px) { .mini-board { display: none; } }
 </style>

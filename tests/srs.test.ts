@@ -102,20 +102,24 @@ describe('answers', () => {
   });
 });
 
-import { formatInterval, previewIntervals } from '../app/src/lib/srs';
+import { describeInterval, previewIntervals } from '../app/src/lib/srs';
 
 describe('intervals', () => {
-  it('formats durations compactly', () => {
-    expect(formatInterval(30 * 1000)).toBe('1m');
-    expect(formatInterval(10 * 60 * 1000)).toBe('10m');
-    expect(formatInterval(3 * 3600 * 1000)).toBe('3h');
-    expect(formatInterval(4 * 86400 * 1000)).toBe('4d');
-    expect(formatInterval(90 * 86400 * 1000)).toBe('3mo');
-    expect(formatInterval(800 * 86400 * 1000)).toBe('2y');
+  it('rounds waits to a sensible unit', () => {
+    expect(describeInterval(30 * 1000)).toBe('in 1 min');
+    expect(describeInterval(3 * 3600 * 1000)).toBe('in 3 hours');
+    expect(describeInterval(800 * 86400 * 1000)).toBe('in 2 years');
   });
   it('previews a shorter interval for Again than for Easy', () => {
     const p = previewIntervals(newCard('a', 'produce', now), now);
     expect(Object.keys(p)).toHaveLength(4);
-    expect(p[Rating.Again]).toMatch(/m$/);
+    expect(p[Rating.Again]).toBeLessThan(p[Rating.Easy]);
+  });
+  it('describes waits in words', () => {
+    expect(describeInterval(10 * 60 * 1000)).toBe('in 10 min');
+    expect(describeInterval(3600 * 1000)).toBe('in 1 hour');
+    expect(describeInterval(86400 * 1000)).toBe('tomorrow');
+    expect(describeInterval(8 * 86400 * 1000)).toBe('in 8 days');
+    expect(describeInterval(90 * 86400 * 1000)).toBe('in 3 months');
   });
 });

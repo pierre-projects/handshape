@@ -22,6 +22,14 @@
       ],
       "confusable_with": [
         "o"
+      ],
+      "media": [
+        {
+          "src": "media/numbers/0.jpg",
+          "type": "image",
+          "credit": "Paul Sherman, wpclipart.com (sign_language/American_Numbers)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -36,6 +44,14 @@
       ],
       "confusable_with": [
         "d"
+      ],
+      "media": [
+        {
+          "src": "media/numbers/1.jpg",
+          "type": "image",
+          "credit": "Paul Sherman, wpclipart.com (sign_language/American_Numbers)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -50,6 +66,14 @@
       ],
       "confusable_with": [
         "v"
+      ],
+      "media": [
+        {
+          "src": "media/numbers/2.jpg",
+          "type": "image",
+          "credit": "Paul Sherman, wpclipart.com (sign_language/American_Numbers)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -61,6 +85,14 @@
       "palm": "toward you",
       "tips": [
         "ASL 3 uses the thumb, not the ring finger."
+      ],
+      "media": [
+        {
+          "src": "media/numbers/3.jpg",
+          "type": "image",
+          "credit": "Paul Sherman, wpclipart.com (sign_language/American_Numbers)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -72,6 +104,14 @@
       "palm": "toward you",
       "confusable_with": [
         "b"
+      ],
+      "media": [
+        {
+          "src": "media/numbers/4.jpg",
+          "type": "image",
+          "credit": "Paul Sherman, wpclipart.com (sign_language/American_Numbers)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -80,7 +120,15 @@
       "answer": "5",
       "kind": "number",
       "handshape": "All five fingers extended and spread.",
-      "palm": "toward you"
+      "palm": "toward you",
+      "media": [
+        {
+          "src": "media/numbers/5.jpg",
+          "type": "image",
+          "credit": "Paul Sherman, wpclipart.com (sign_language/American_Numbers)",
+          "license": "Public domain"
+        }
+      ]
     },
     {
       "id": "6",
@@ -96,6 +144,14 @@
       "confusable_with": [
         "w",
         "7"
+      ],
+      "media": [
+        {
+          "src": "media/numbers/6.jpg",
+          "type": "image",
+          "credit": "Paul Sherman, wpclipart.com (sign_language/American_Numbers)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -108,6 +164,14 @@
       "confusable_with": [
         "6",
         "8"
+      ],
+      "media": [
+        {
+          "src": "media/numbers/7.jpg",
+          "type": "image",
+          "credit": "Paul Sherman, wpclipart.com (sign_language/American_Numbers)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -120,6 +184,14 @@
       "confusable_with": [
         "7",
         "9"
+      ],
+      "media": [
+        {
+          "src": "media/numbers/8.jpg",
+          "type": "image",
+          "credit": "Paul Sherman, wpclipart.com (sign_language/American_Numbers)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -135,6 +207,14 @@
       "confusable_with": [
         "f",
         "8"
+      ],
+      "media": [
+        {
+          "src": "media/numbers/9.jpg",
+          "type": "image",
+          "credit": "Paul Sherman, wpclipart.com (sign_language/American_Numbers)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -150,6 +230,14 @@
       ],
       "confusable_with": [
         "a"
+      ],
+      "media": [
+        {
+          "src": "media/numbers/10.svg",
+          "type": "image",
+          "credit": "Hand from wpclipart.com via Wikimedia Commons (File:Sign_language_A.svg), motion arrows added",
+          "license": "Public domain"
+        }
       ]
     }
   ]

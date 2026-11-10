@@ -10,6 +10,7 @@ content/
   units/02-numbers.json
   media/letters/            images and short videos, referenced from units
   media/numbers/
+  words/five-letter.json    the words Sign Five knows (schema/wordlist.schema.json)
 ```
 
 ## Check your change
@@ -21,6 +22,13 @@ npm run validate
 
 The validator checks the schema, that every item id is unique across all units, that
 "confusable_with" points at real items, and that every media file exists.
+
+## Word lists
+
+`words/five-letter.json` is the dictionary for Sign Five: lower-case words, letters only,
+exactly five letters each, no repeats. Guesses must be in it (or be the answer, or a word
+from the learner's own list), and practice answers are picked from it, skipping words with
+J or Z. The validator checks all of this.
 
 ## Adding media (unlocks the reading drills)
 
