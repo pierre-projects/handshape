@@ -11,12 +11,12 @@ import { POSES } from './poses';
 
 /** Share of each letter's slot spent moving on to the next letter. */
 export const BLEND = 0.4;
-/** How far a drawn letter (J, Z) travels, and how far a doubled letter slides, in metres. */
+/** How far a drawn letter (J, Z) travels, and how far a doubled letter slides, in meters. */
 const STROKE_SIZE = 0.07;
 const DOUBLE_SLIDE = 0.035;
 
 export interface HandMoment {
-  /** 21 points in metres: x right, y down, z away from the viewer, the resting wrist at the origin. */
+  /** 21 points in meters: x right, y down, z away from the viewer, the resting wrist at the origin. */
   points: Point[];
   /** Which letter of the run is being shown or moved away from. */
   index: number;
@@ -32,7 +32,7 @@ function pose(id: string, hand: Handedness): Point[] | undefined {
   return m;
 }
 
-/** A point part-way along a path, by distance travelled. */
+/** A point part-way along a path, by distance traveled. */
 function along(path: Pt[], s: number): Pt {
   const lengths = path.slice(1).map((p, i) => Math.hypot(p.x - path[i].x, p.y - path[i].y));
   let left = Math.min(Math.max(s, 0), 1) * lengths.reduce((a, b) => a + b, 0);

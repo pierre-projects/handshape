@@ -235,7 +235,7 @@
 {/if}
 
 <style>
-  /* The hero: the app's colour, the one next step, and where you stand. */
+  /* The hero: the app's color, the one next step, and where you stand. */
   .hero {
     display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 32px;
     padding: 32px 36px; border-radius: calc(var(--radius) + 4px); color: #fff;

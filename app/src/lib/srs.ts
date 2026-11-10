@@ -114,13 +114,13 @@ export function buildQueue(
   return { due, fresh, introducedToday: introducedItems.size, newRemaining };
 }
 
-/** Normalises a typed answer for comparison: trims, uppercases, drops spaces. */
-export function normaliseAnswer(s: string): string {
+/** Normalizes a typed answer for comparison: trims, uppercases, drops spaces. */
+export function normalizeAnswer(s: string): string {
   return s.trim().toUpperCase().replace(/\s+/g, '');
 }
 
 export function checkAnswer(expected: string, typed: string): boolean {
-  return normaliseAnswer(expected) === normaliseAnswer(typed);
+  return normalizeAnswer(expected) === normalizeAnswer(typed);
 }
 
 /** Grade a recognize card gets by default; the learner can override it. */

@@ -447,7 +447,7 @@
     <summary>How to play</summary>
     <ul class="small">
       <li>Fingerspell each letter to the camera and hold it for about a second, or tap the keys.</li>
-      <li>Green: right letter, right place. Gold: in the word, wrong place. Grey: not in the word.</li>
+      <li>Green: right letter, right place. Gold: in the word, wrong place. Gray: not in the word.</li>
       <li>To repeat a letter (like the PP in APPLE), drop or change your hand between them.</li>
       <li>For J and Z, hold the handshape, then draw the letter in the air (or tap the key).</li>
       <li>👍 Hold a thumbs up to enter your guess. 👎 Hold a thumbs down to delete the last letter. Or tap Enter and the back arrow.</li>
@@ -508,7 +508,7 @@
   .shape :global(img), .shape :global(svg) { width: 100% !important; height: 100% !important; object-fit: contain; }
   .tile:has(.shape) .ch { font-size: 0.55em; line-height: 1; }
   .row.done .tile { color: #fff; border-color: transparent; animation: flip 0.45s both; animation-delay: var(--d); }
-  /* On coloured tiles: draw the hand in white, and let its black background vanish. */
+  /* On colored tiles: draw the hand in white, and let its black background vanish. */
   .row.done .tile .shape { filter: invert(1); mix-blend-mode: screen; }
   .tile.hit { background: var(--hit); }
   .tile.near { background: var(--near); }

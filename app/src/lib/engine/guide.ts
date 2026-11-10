@@ -9,7 +9,7 @@ import { POSES } from './poses';
 export interface GuideHand {
   /**
    * 21 points placed like HandFrame.image (x and y as fractions of the video
-   * frame, not mirrored). z is depth in metres; smaller is nearer the camera.
+   * frame, not mirrored). z is depth in meters; smaller is nearer the camera.
    */
   points: Point[];
   /** Length of the guide's palm on screen, as a fraction of the video height. Sets how thick to draw it. */
@@ -58,7 +58,7 @@ export function hasGuide(sign: string): boolean {
 }
 
 /**
- * How much picture one metre of this hand covers, as a fraction of the video
+ * How much picture one meter of this hand covers, as a fraction of the video
  * height. It must not shrink when the hand tips toward the camera (as P does),
  * so it can't just measure the palm on screen.
  *

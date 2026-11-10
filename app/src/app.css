@@ -64,7 +64,7 @@
 * { box-sizing: border-box; }
 
 html, body { margin: 0; }
-/* Phones: don't let the browser resize text, and no grey flash or double-tap zoom on things you tap. */
+/* Phones: don't let the browser resize text, and no gray flash or double-tap zoom on things you tap. */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 a, button, select, summary, label { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
@@ -280,7 +280,7 @@ kbd {
 
 .mirror { transform: scaleX(-1); }
 
-/* Shared pieces. Colours follow the page's --m (its accent) where one is set. */
+/* Shared pieces. Colors follow the page's --m (its accent) where one is set. */
 .back-link {
   display: inline-flex;
   align-items: center;
@@ -307,7 +307,7 @@ kbd {
   font-weight: 700;
 }
 
-/* A centred row of buttons under a drill or result. */
+/* A centered row of buttons under a drill or result. */
 .button-row { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
 
 /* Word chips: <ul class="chips"><li class="pill">…</li></ul> */

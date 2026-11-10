@@ -32,7 +32,7 @@ describe('handAt', () => {
     const ids = ['b', 'a', 'l', 'l', 'o', 'z', 'j'];
     const end = handDuration(ids.length, 2);
     let prev = handAt(ids, 2, 0)!.points;
-    // At 2 ms steps nothing should move more than a couple of millimetres.
+    // At 2 ms steps nothing should move more than a couple of millimeters.
     for (let t = 2; t <= end; t += 2) {
       const now = handAt(ids, 2, t)!.points;
       expect(off(prev, now), `at ${t} ms`).toBeLessThan(0.004);

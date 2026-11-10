@@ -3,7 +3,7 @@ import { content } from '../app/src/lib/content';
 import { readingMaterial } from '../app/src/lib/fingerspell';
 import {
   buildSession, choicesFor, compare, confusions, DIGIT_LENGTHS, digitString, isRight, LEVELS, levelById, levelState,
-  levelWords, lockedReason, MIXUPS_LEVEL, mixUpLetterCount, nextLevel, normalise, PASS, passedCount, recordResult,
+  levelWords, lockedReason, MIXUPS_LEVEL, mixUpLetterCount, nextLevel, normalize, PASS, passedCount, recordResult,
   scoreSession, SESSION_SIZE, topMixUps, TRACKS, type Answer, type SessionItem,
 } from '../app/src/lib/receptive';
 import { readingSpeed, spellingSummary } from '../app/src/lib/spelling';
@@ -235,8 +235,8 @@ describe('scoring', () => {
   const ans = (item: SessionItem, given: string, replays = 0): Answer => ({ item, given, correct: isRight(item, given), replays });
 
   it('tidies typed answers and compares them', () => {
-    expect(normalise({ kind: 'word' }, ' c-a t ')).toBe('CAT');
-    expect(normalise({ kind: 'number' }, '555-1234')).toBe('5551234');
+    expect(normalize({ kind: 'word' }, ' c-a t ')).toBe('CAT');
+    expect(normalize({ kind: 'number' }, '555-1234')).toBe('5551234');
     expect(isRight(word('CAT'), 'cat')).toBe(true);
     expect(isRight(word('CAT'), 'cot')).toBe(false);
     expect(isRight({ kind: 'number', answer: '10', show: ['10'] }, '10')).toBe(true);

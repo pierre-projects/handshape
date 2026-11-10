@@ -26,7 +26,7 @@
   let canvas = $state<HTMLCanvasElement>();
 
   /**
-   * How much of the model the canvas shows, top to bottom, in metres: room for
+   * How much of the model the canvas shows, top to bottom, in meters: room for
    * the longest finger above the wrist and for P and Q hanging below it.
    */
   const SPAN_M = 0.3;

@@ -5,7 +5,7 @@
   import { onMount } from 'svelte';
   import { getStore } from '../lib/app';
   import type { Store } from '../lib/db';
-  import { normaliseWord, pickWord, spellingSummary } from '../lib/spelling';
+  import { normalizeWord, pickWord, spellingSummary } from '../lib/spelling';
   import { drillWords, letters, plural } from '../lib/fingerspell';
   import { loadSettings, mirrored, prefs } from '../lib/settings.svelte';
   import type { SpellingAttempt } from '../lib/types';
@@ -29,7 +29,7 @@
   let saved = $state(false);
   let hints = $state(false);
 
-  const chars = $derived(normaliseWord(word).split(''));
+  const chars = $derived(normalizeWord(word).split(''));
   const currentId = $derived(letters.get(chars[pos] ?? '')?.id);
   const got = $derived(results.filter(Boolean).length);
   /** The camera confirmed at least one letter, so its score can be trusted. */

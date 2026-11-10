@@ -29,7 +29,7 @@
   const stats = $derived(five?.stats);
   type Tile = { letter: string; mark?: Mark };
   const blank: Tile[] = Array.from({ length: WORD_LENGTH }, () => ({ letter: '' }));
-  /** Today's guesses, coloured, with empty rows after them. Before the first guess, the game's name stands in. */
+  /** Today's guesses, colored, with empty rows after them. Before the first guess, the game's name stands in. */
   const board = $derived.by((): Tile[][] => {
     const daily = five?.daily?.key === dayKey() ? five.daily : undefined;
     const rows: Tile[][] = (daily?.guesses ?? []).map((g) => {
@@ -145,7 +145,7 @@
 {/if}
 
 <style>
-  /* Each drill has its own colour so the two never look alike. */
+  /* Each drill has its own color so the two never look alike. */
   .read { --m: var(--accent); --m-soft: var(--accent-soft); }
   .spell { --m: var(--spell); --m-soft: var(--spell-soft); }
 
@@ -190,7 +190,7 @@
     display: flex; align-items: center; justify-content: space-between; margin: 14px 18px 16px; padding: 10px 14px;
     border-radius: var(--radius-sm); background: var(--m); color: #fff; font-weight: 650;
   }
-  /* Sign Five leads the page: a full-width banner in the game's own colour, with today's board. */
+  /* Sign Five leads the page: a full-width banner in the game's own color, with today's board. */
   .feature {
     --tile: 34px;
     display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 28px;

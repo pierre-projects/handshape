@@ -817,7 +817,7 @@ export function evaluate(target: string, features: Features): Evaluation {
   };
 }
 
-export interface Judgement extends Evaluation {
+export interface Judgment extends Evaluation {
   /** Other signs the hand matches fully while the target only matches loosely. */
   rivals: string[];
 }
@@ -828,7 +828,7 @@ export interface Judgement extends Evaluation {
  * hand fully matches a different sign, it's that sign, not the target. This
  * stops one fist passing for A, E, M, N, S and T alike.
  */
-export function judge(target: string, features: Features, candidates: Iterable<string> = SPECS.keys()): Judgement {
+export function judge(target: string, features: Features, candidates: Iterable<string> = SPECS.keys()): Judgment {
   const e = evaluate(target, features);
   if (!e.pass || e.passAll) return { ...e, rivals: [] };
   const rivals = looksLike(features, candidates, target);

@@ -29,7 +29,7 @@ describe('recorded samples', () => {
         handedness: r.handedness, aspect: r.aspect, image: toPoints(r.image), world: toPoints(r.world),
       }));
 
-      // A drawn letter (J, Z): replay the frames and expect the stroke to be recognised.
+      // A drawn letter (J, Z): replay the frames and expect the stroke to be recognized.
       if (data.movement && isMoveId(data.sign)) {
         const move = MOVES[data.sign];
         const tracker = new StrokeTracker(move);
@@ -42,7 +42,7 @@ describe('recorded samples', () => {
           matched ||= !!st.matched;
           hint = st.hint ?? hint;
         });
-        expect(matched, `the drawn ${data.sign.toUpperCase()} was not recognised${hint ? `: "${hint}"` : ''}`).toBe(true);
+        expect(matched, `the drawn ${data.sign.toUpperCase()} was not recognized${hint ? `: "${hint}"` : ''}`).toBe(true);
         return;
       }
 

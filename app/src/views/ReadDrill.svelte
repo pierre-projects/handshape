@@ -8,7 +8,7 @@
   import { content } from '../lib/content';
   import { routes } from '../lib/routes';
   import {
-    checkWord, letterStats, lettersPerSecondToWpm, MAX_SPEED, MIN_SPEED, nextSpeed, normaliseWord, pickWord,
+    checkWord, letterStats, lettersPerSecondToWpm, MAX_SPEED, MIN_SPEED, nextSpeed, normalizeWord, pickWord,
     spellableWords, spellingSummary,
   } from '../lib/spelling';
   import { canRead, drillWords, plural, showableLetters } from '../lib/fingerspell';
@@ -36,14 +36,14 @@
   let speedBefore = $state(0);
   let input = $state<HTMLInputElement>();
 
-  const chars = $derived(normaliseWord(word).split(''));
+  const chars = $derived(normalizeWord(word).split(''));
   const chosen = $derived(drillWords(settings));
   const words = $derived(spellableWords(chosen.words, showableLetters));
   const stats = $derived(letterStats(attempts));
   const summary = $derived(spellingSummary(attempts));
   const speed = $derived(settings?.receptiveSpeed ?? 1.5);
   /** Feedback: each letter of the word, and whether it was typed in that place. */
-  const compare = $derived(chars.map((c, i) => ({ c, ok: normaliseWord(typed)[i] === c })));
+  const compare = $derived(chars.map((c, i) => ({ c, ok: normalizeWord(typed)[i] === c })));
   /** What kind of word is coming ("a name"), for the built-in words that say. */
   const hint = $derived(chosen.list ? undefined : content.wordHints.get(word));
 
@@ -53,7 +53,7 @@
     attempts = await store.attempts();
   });
 
-  /** Starts the next word (favouring letters often misread), or a word picked from the list. */
+  /** Starts the next word (favoring letters often misread), or a word picked from the list. */
   function next(pick?: string) {
     word = pick ?? pickWord(words, stats, recent) ?? words[0];
     recent = [...recent.slice(-9), word];
@@ -89,11 +89,11 @@
 
   async function submit(e: Event) {
     e.preventDefault();
-    if (!normaliseWord(typed)) return;
+    if (!normalizeWord(typed)) return;
     lastCorrect = checkWord(word, typed);
     speedBefore = speed;
     const attempt: SpellingAttempt = {
-      word, mode: 'receptive', drill: 'word', correct: lastCorrect, typed: normaliseWord(typed),
+      word, mode: 'receptive', drill: 'word', correct: lastCorrect, typed: normalizeWord(typed),
       lettersPerSecond: speed, replays, at: new Date(),
     };
     await store.addAttempt(attempt);
@@ -187,7 +187,7 @@
           autocapitalize="characters" spellcheck="false" placeholder="Type the word" aria-label="What word was spelled?" />
         <button type="button" onclick={() => replay(false)}><Icon name="play" size={14} />Replay</button>
         <button type="button" onclick={() => replay(true)}>Slower</button>
-        <button class="primary" type="submit" disabled={!normaliseWord(typed)}>Check</button>
+        <button class="primary" type="submit" disabled={!normalizeWord(typed)}>Check</button>
       </form>
     {:else if phase === 'feedback'}
       <div class="result" class:good={lastCorrect} class:bad={!lastCorrect}>
@@ -196,7 +196,7 @@
           {#if lastCorrect}
             <b>Correct.</b>{replays ? ` After ${plural(replays, 'replay')}.` : ''}
           {:else}
-            <b>It was {word}.</b> You typed “{normaliseWord(typed)}”.
+            <b>It was {word}.</b> You typed “{normalizeWord(typed)}”.
           {/if}
           {#if speed > speedBefore} Speeding up to {speed.toFixed(1)} letters/s.{:else if speed < speedBefore} Slowing down to {speed.toFixed(1)} letters/s.{/if}
         </span>

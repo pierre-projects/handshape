@@ -103,7 +103,7 @@ export class HandTracker {
 
 /**
  * A canvas can't use CSS variables, so `var(--name)` is looked up on the
- * element, keeping app.css the one place colours are defined.
+ * element, keeping app.css the one place colors are defined.
  */
 function resolveColor(el: Element, color: string): string {
   const m = color.match(/^var\((--[\w-]+)\)$/);
@@ -137,7 +137,7 @@ function tracePath(ctx: CanvasRenderingContext2D, pts: { x: number; y: number }[
  * Draws the hand over the video, sized to match it. Clears the canvas first
  * unless `clear` is false (something was drawn under it), and leaves it clear
  * when there's no hand. `highlight` picks out the parts feedback is about, in
- * the "fix this" colour. Colours may be CSS colours or `var(--token)`.
+ * the "fix this" color. Colors may be CSS colors or `var(--token)`.
  */
 export function drawHand(
   canvas: HTMLCanvasElement | undefined,
@@ -201,7 +201,7 @@ let guideLayer: HTMLCanvasElement | undefined;
  * Draws the guide hand (see guide.ts): the target sign as a pale, solid hand
  * with a dark edge, see-through so the learner's own hand shows under it. Nearer
  * fingers cover farther ones. `focus` paints the parts feedback is about in the
- * "match" colour, as the place to move to. Call after clearOverlay and before
+ * "match" color, as the place to move to. Call after clearOverlay and before
  * drawHand(…, { clear: false }).
  */
 export function drawGuide(
@@ -237,7 +237,7 @@ export function drawGuide(
   ctx.restore();
 }
 
-/** Looks up a colour token (`var(--name)`) on an element, for painting on a canvas. */
+/** Looks up a color token (`var(--name)`) on an element, for painting on a canvas. */
 export const canvasColor = resolveColor;
 
 /**

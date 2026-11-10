@@ -131,8 +131,8 @@ function bounds(pts: Pt[]) {
   return { w: maxX - minX, h: maxY - minY, size: Math.max(maxX - minX, maxY - minY) };
 }
 
-/** Centred on its middle and scaled so its longer side is 1, keeping its proportions. */
-function normalise(pts: Pt[]): Pt[] {
+/** Centered on its middle and scaled so its longer side is 1, keeping its proportions. */
+function normalize(pts: Pt[]): Pt[] {
   const { size } = bounds(pts);
   const cx = pts.reduce((a, p) => a + p.x, 0) / pts.length;
   const cy = pts.reduce((a, p) => a + p.y, 0) / pts.length;
@@ -147,8 +147,8 @@ function meanDistance(a: Pt[], b: Pt[]): number {
 }
 
 const TEMPLATES: Record<MoveId, Pt[]> = {
-  j: normalise(resample(MOVES.j.template)),
-  z: normalise(resample(MOVES.z.template)),
+  j: normalize(resample(MOVES.j.template)),
+  z: normalize(resample(MOVES.z.template)),
 };
 
 export interface StrokeResult {
@@ -210,7 +210,7 @@ export function matchStroke(points: Pt[], move: MoveSpec, side: number, palm = 1
   if (points.length < 4) return none();
   if (bounds(points).size / palm < move.minSize) return none('Draw it bigger.');
 
-  const q = normalise(resample(points));
+  const q = normalize(resample(points));
   const facing = (s: number) => q.map((p) => ({ x: p.x * s, y: p.y }));
   const tpl = TEMPLATES[move.id];
   const problem = move.id === 'j' ? jProblem : zProblem;

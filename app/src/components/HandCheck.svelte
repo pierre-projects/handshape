@@ -221,7 +221,7 @@
     resetStroke();
   }
 
-  /** Downloads the last second of landmarks (about three for a drawn letter), labelled with the target sign, for tuning the rules. */
+  /** Downloads the last second of landmarks (about three for a drawn letter), labeled with the target sign, for tuning the rules. */
   function saveSample() {
     if (!recent.length) return;
     const data = {

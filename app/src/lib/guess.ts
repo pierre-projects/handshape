@@ -18,7 +18,7 @@ export const WORDS: string[] = fiveLetter.words.map((w) => w.toUpperCase());
  */
 export const ANSWERS: string[] = WORDS.filter((w) => !/[JZ]/.test(w));
 
-/** Colours a guess like the classic game: hits first, then nears use up the remaining letters. */
+/** Colors a guess like the classic game: hits first, then nears use up the remaining letters. */
 export function scoreGuess(guess: string, answer: string): Mark[] {
   const g = guess.toUpperCase();
   const a = answer.toUpperCase();
@@ -39,7 +39,7 @@ export function scoreGuess(guess: string, answer: string): Mark[] {
   return marks;
 }
 
-/** Best mark seen so far for each letter, for colouring the keyboard. */
+/** Best mark seen so far for each letter, for coloring the keyboard. */
 export function letterMarks(guesses: string[], answer: string): Map<string, Mark> {
   const rank: Record<Mark, number> = { miss: 0, near: 1, hit: 2 };
   const out = new Map<string, Mark>();
@@ -115,7 +115,7 @@ export function shareTitle(daily: boolean, key: string = dayKey()): string {
 }
 
 /**
- * Results to share, like the classic game: a score and a grid of coloured
+ * Results to share, like the classic game: a score and a grid of colored
  * squares with no letters, so nothing is spoiled. `signed` counts the letters
  * fingerspelled to the camera rather than typed.
  */

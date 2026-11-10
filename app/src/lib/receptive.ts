@@ -286,11 +286,11 @@ export interface Answer {
 }
 
 export function isRight(item: SessionItem, given: string): boolean {
-  return normalise(item, given) === item.answer;
+  return normalize(item, given) === item.answer;
 }
 
 /** Tidies a typed answer: letters only for words, digits only for numbers. */
-export function normalise(item: Pick<SessionItem, 'kind'>, given: string): string {
+export function normalize(item: Pick<SessionItem, 'kind'>, given: string): string {
   return item.kind === 'number' ? given.replace(/\D/g, '') : given.toUpperCase().replace(/[^A-Z]/g, '');
 }
 
@@ -307,7 +307,7 @@ export interface SessionScore {
 
 /** For each thing shown in an item, whether the answer had it right in that place. */
 export function compare(item: SessionItem, given: string): { shown: string; ok: boolean }[] {
-  const g = normalise(item, given);
+  const g = normalize(item, given);
   if (item.show.length === 1) return [{ shown: item.answer, ok: g === item.answer }];
   return item.answer.split('').map((c, i) => ({ shown: c, ok: g[i] === c }));
 }

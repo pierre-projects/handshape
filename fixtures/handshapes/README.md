@@ -5,7 +5,7 @@ Recorded hand points (no video) used to test and tune the camera checks in
 Every file here is run by `tests/fixtures.test.ts`:
 
 - a **still sign** must match on most of its frames;
-- a **drawn letter** (J or Z, marked `"movement": true`) is replayed and must be recognised.
+- a **drawn letter** (J or Z, marked `"movement": true`) is replayed and must be recognized.
 
 ## Adding a sample
 

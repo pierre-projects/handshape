@@ -1,6 +1,6 @@
 // Draws a Sign Five result as a picture to download or share. The score is
 // signed: the ASL handshape for the number of guesses (or X for a miss) sits
-// next to it. The grid has colours only, no letters, so it never spoils the word.
+// next to it. The grid has colors only, no letters, so it never spoils the word.
 import { content } from './content';
 import { MAX_GUESSES, scoreGuess, WORD_LENGTH, type Mark } from './guess';
 
@@ -17,7 +17,7 @@ export interface ShareCard {
 
 const NUMBER_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six'];
 
-/** Reads a colour token from app.css so the picture matches the app. */
+/** Reads a color token from app.css so the picture matches the app. */
 function token(name: string, fallback: string): string {
   if (typeof document === 'undefined') return fallback;
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -87,7 +87,7 @@ export async function drawShareCard(card: ShareCard, size = 1080): Promise<HTMLC
   const accent = token('--accent', '#2456d3');
   const ink = token('--ink', '#101828');
   const muted = token('--ink-3', '#667085');
-  const colours: Record<Mark | 'empty', string> = {
+  const colors: Record<Mark | 'empty', string> = {
     hit: token('--hit', '#067647'),
     near: token('--near', '#b88a00'),
     miss: token('--miss', '#667085'),
@@ -144,7 +144,7 @@ export async function drawShareCard(card: ShareCard, size = 1080): Promise<HTMLC
   ctx.fillStyle = won ? '#ecfdf3' : '#f2f4f7';
   roundRect(ctx, sx, sy, sw, sw, 32 * s);
   ctx.fill();
-  ctx.strokeStyle = won ? colours.hit : colours.miss;
+  ctx.strokeStyle = won ? colors.hit : colors.miss;
   ctx.lineWidth = 6 * s;
   roundRect(ctx, sx, sy, sw, sw, 32 * s);
   ctx.stroke();
@@ -159,7 +159,7 @@ export async function drawShareCard(card: ShareCard, size = 1080): Promise<HTMLC
   ctx.fillStyle = ink;
   ctx.font = `800 ${150 * s}px ${font}`;
   ctx.fillText(`${won ? card.guesses.length : 'X'}/${MAX_GUESSES}`, tx, sy + 150 * s);
-  ctx.fillStyle = won ? colours.hit : muted;
+  ctx.fillStyle = won ? colors.hit : muted;
   ctx.font = `700 ${38 * s}px ${font}`;
   ctx.fillText(won ? `Solved in ${NUMBER_WORDS[card.guesses.length]}` : 'Out of guesses', tx, sy + 202 * s);
   ctx.fillStyle = muted;
@@ -175,7 +175,7 @@ export async function drawShareCard(card: ShareCard, size = 1080): Promise<HTMLC
   for (let r = 0; r < MAX_GUESSES; r++) {
     const marks = card.guesses[r] ? scoreGuess(card.guesses[r], card.answer) : undefined;
     for (let c = 0; c < WORD_LENGTH; c++) {
-      ctx.fillStyle = marks ? colours[marks[c]] : colours.empty;
+      ctx.fillStyle = marks ? colors[marks[c]] : colors.empty;
       roundRect(ctx, gx + c * (tile + gap), gy + r * (tile + gap), tile, tile, 11 * s);
       ctx.fill();
     }

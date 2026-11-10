@@ -59,7 +59,7 @@ describe('letterStats', () => {
 });
 
 describe('pickWord', () => {
-  it('favours words with weak letters', () => {
+  it('favors words with weak letters', () => {
     const stats = letterStats([attempt('Q', false, 'P'), attempt('Q', false, 'P')]);
     let quiz = 0;
     let i = 0;
@@ -136,7 +136,7 @@ describe('spellingSummary', () => {
     ]);
     expect(s.total).toBe(5);
     expect(s.read).toMatchObject({ count: 2, accuracy: 50, wpm: 24 });
-    // Only clean spellings count towards signing speed.
+    // Only clean spellings count toward signing speed.
     expect(s.spell).toMatchObject({ count: 3, clean: 67, lettersPerSecond: 2 });
   });
 

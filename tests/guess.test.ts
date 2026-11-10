@@ -158,7 +158,7 @@ describe('sharing results', () => {
     expect(shareTitle(false)).toBe('Sign Five practice');
   });
 
-  it('shows coloured squares and no letters', () => {
+  it('shows colored squares and no letters', () => {
     const text = shareText({ title: 'Sign Five Nov 10', guesses: ['CRANE', 'TRUCE'], answer: 'TRUCE', signed: 7, url: 'https://x.test/#/fingerspelling/sign-five' });
     expect(text).toBe(
       ['Sign Five Nov 10 2/6', '', '🟨🟩⬜⬜🟩', '🟩🟩🟩🟩🟩', '', '🤟 7 of 10 letters fingerspelled', 'https://x.test/#/fingerspelling/sign-five'].join('\n'),

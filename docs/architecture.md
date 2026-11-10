@@ -71,7 +71,7 @@ to …" until you leave the dashboard.
 ```
 app/src/
   App.svelte            navigation and routing
-  app.css               design tokens (colours, radii) and shared classes
+  app.css               design tokens (colors, radii) and shared classes
   views/                one file per page (table above)
   components/           reusable UI: sign pictures, camera checks, list picker, grade buttons…
   lib/                  logic with no UI
@@ -106,7 +106,7 @@ app/src/
 | `lib/engine/gestures.ts` | The command gestures for typing by camera: thumbs up (enter) and thumbs down (delete) |
 
 Rules that keep this tidy: pages don't import other pages; `lib/` doesn't import components;
-`lib/engine/` doesn't import Svelte; colours come from tokens in `app.css`.
+`lib/engine/` doesn't import Svelte; colors come from tokens in `app.css`.
 
 ## Camera engine
 
@@ -145,9 +145,9 @@ Every camera feature uses the same pipeline:
    are held like a letter, take priority over letters, and still work when the row is full.
 
 9. **Showing the fix** (`guide.ts`, `camera.ts`): the finger a hint is about is drawn in the
-   "fix" colour on the tracked hand. With the Guide on, the sign's model pose is drawn under it
+   "fix" color on the tracked hand. With the Guide on, the sign's model pose is drawn under it
    as a pale hand, scaled by fitting the tracker's 3D points to the picture (so a hand tipped
-   toward the camera keeps its size) and pinned to the wrist, with the same finger in the "match" colour. A hand shown from
+   toward the camera keeps its size) and pinned to the wrist, with the same finger in the "match" color. A hand shown from
    the back gets fingernails. The camera offers the guide after a sign has failed for 4 s.
 
 10's thumb shake isn't checked yet: only its starting handshape is. All thresholds here are
@@ -159,7 +159,7 @@ All learner data is in one IndexedDB database (`asl`):
 
 | Store | Holds |
 | --- | --- |
-| `cards` | One FSRS card per sign and direction (recognise, produce) |
+| `cards` | One FSRS card per sign and direction (recognize, produce) |
 | `reviews` | Every review: grade, time, typed answer, camera match |
 | `attempts` | Every fingerspelling attempt: word, mode, correct, speed, replays |
 | `settings` | Small records: `settings` (preferences, word lists) and `signFive` (game in progress, stats) |

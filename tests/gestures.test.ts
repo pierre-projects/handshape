@@ -139,7 +139,7 @@ describe('CameraTyper with commands', () => {
     expect(held).toBe('enter');
   });
 
-  it('ignores the gesture while the hand is travelling', () => {
+  it('ignores the gesture while the hand is traveling', () => {
     const typer = new CameraTyper();
     const frame = buildHand(UP);
     const out: string[] = [];

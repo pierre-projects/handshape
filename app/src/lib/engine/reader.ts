@@ -35,7 +35,7 @@ export const READER_DEFAULTS: ReaderOptions = { holdMs: 900, releaseMs: 300, gra
 export interface ReaderState {
   /** The letter being held right now, if any. */
   letter?: string;
-  /** 0 to 1 towards typing it. */
+  /** 0 to 1 toward typing it. */
   progress: number;
   /** True after a letter typed, until the hand changes. */
   waitingForRelease: boolean;
@@ -172,7 +172,7 @@ export class CameraTyper {
 
   /**
    * One camera frame. `frame` and `features` are undefined when no hand is in
-   * view. `moving` is true while the whole hand is travelling fast. With
+   * view. `moving` is true while the whole hand is traveling fast. With
    * `letters` false only the command gestures are read, for when there is no
    * room for another letter but the word still has to be entered or fixed.
    */

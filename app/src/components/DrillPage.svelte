@@ -1,7 +1,7 @@
 <script lang="ts">
   import { routes } from '../lib/routes';
   // The frame the fingerspelling drills share: back link, title with the
-  // drill's own colour and icon, a link to the other drill, the word-list
+  // drill's own color and icon, a link to the other drill, the word-list
   // picker, and the card the drill itself fills. A reading level uses it
   // without the picker, since a level brings its own words.
   import type { Snippet } from 'svelte';
@@ -69,7 +69,7 @@
 </div>
 
 <style>
-  /* Each drill has its own colour so the two never look alike. */
+  /* Each drill has its own color so the two never look alike. */
   .read { --m: var(--accent); --m-soft: var(--accent-soft); }
   .spell { --m: var(--spell); --m-soft: var(--spell-soft); }
   .drill-head { margin: 0 0 16px; }

@@ -59,14 +59,14 @@ export function lettersPerSecondToWpm(lps: number): number {
   return Math.round((lps * 60) / 5);
 }
 
-export function normaliseWord(s: string): string {
+export function normalizeWord(s: string): string {
   return s.toUpperCase().replace(/[^A-Z]/g, '');
 }
 
 export const MAX_WORD_LETTERS = 20;
 
 export interface WordSort {
-  /** New words to add, in order, normalised to A–Z. */
+  /** New words to add, in order, normalized to A–Z. */
   added: string[];
   /** Already in the list, or typed twice. */
   duplicates: string[];
@@ -86,7 +86,7 @@ export function sortWords(text: string, existing: string[] = [], exact?: number)
   const out: WordSort = { added: [], duplicates: [], invalid: [], tooLong: [] };
   for (const raw of text.split(/[\s,;]+/)) {
     if (!raw) continue;
-    const w = normaliseWord(raw);
+    const w = normalizeWord(raw);
     if (!w) out.invalid.push(raw);
     else if (exact ? w.length !== exact : w.length > MAX_WORD_LETTERS) out.tooLong.push(w);
     else if (seen.has(w)) out.duplicates.push(w);
@@ -99,7 +99,7 @@ export function sortWords(text: string, existing: string[] = [], exact?: number)
 }
 
 export function checkWord(expected: string, typed: string): boolean {
-  return normaliseWord(expected) === normaliseWord(typed);
+  return normalizeWord(expected) === normalizeWord(typed);
 }
 
 export interface LetterStat {
@@ -118,8 +118,8 @@ export function letterStats(attempts: SpellingAttempt[]): Map<string, LetterStat
   for (const a of attempts) {
     // Single letters picked from choices count too; numbers have no letters.
     if (a.mode !== 'receptive' || a.drill === 'number') continue;
-    const expected = normaliseWord(a.word);
-    const typed = normaliseWord(a.typed ?? '');
+    const expected = normalizeWord(a.word);
+    const typed = normalizeWord(a.typed ?? '');
     for (let i = 0; i < expected.length; i++) {
       const letter = expected[i];
       const s = stats.get(letter) ?? { seen: 0, missed: 0, rate: 0 };
@@ -137,7 +137,7 @@ export function spellableWords(words: string[], available: Set<string>): string[
   return words.filter((w) => w.split('').every((l) => available.has(l)));
 }
 
-/** How much to favour a word: 1 for a word of letters never missed, up to 5 when every letter always is. */
+/** How much to favor a word: 1 for a word of letters never missed, up to 5 when every letter always is. */
 export function wordWeight(word: string, stats: Map<string, LetterStat>): number {
   const letters = new Set(word.split(''));
   let weakness = 0;
@@ -151,7 +151,7 @@ export function isWordRead(a: SpellingAttempt): boolean {
 }
 
 /**
- * Picks the next word, favouring words containing letters the learner misses
+ * Picks the next word, favoring words containing letters the learner misses
  * and avoiding the last few words shown.
  */
 export function pickWord(

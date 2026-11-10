@@ -9,7 +9,7 @@
   import { plural, readingMaterial } from '../lib/fingerspell';
   import {
     buildSession, compare, confusions, isRight, LEVELS, levelById, levelState, lockedReason, MIXUPS_LEVEL,
-    mixUpLetterCount, normalise, PASS, recordResult, scoreSession, SESSION_SIZE, TRACKS, type Answer, type SessionItem,
+    mixUpLetterCount, normalize, PASS, recordResult, scoreSession, SESSION_SIZE, TRACKS, type Answer, type SessionItem,
   } from '../lib/receptive';
   import { loadSettings, mirrored, prefs, updateSettings } from '../lib/settings.svelte';
   import type { SpellingAttempt } from '../lib/types';
@@ -119,7 +119,7 @@
 
   async function answer(given: string) {
     if (!item || phase !== 'answer') return;
-    const tidy = normalise(item, given);
+    const tidy = normalize(item, given);
     if (!tidy) return;
     const a: Answer = { item, given: tidy, correct: isRight(item, tidy), replays };
     answers = [...answers, a];
@@ -327,7 +327,7 @@
               placeholder={level.kind === 'number' ? 'Type the digits' : 'Type the word'} aria-label="What was spelled?" />
             <button type="button" onclick={() => replay(false)}><Icon name="play" size={14} />Replay</button>
             <button type="button" onclick={() => replay(true)}>Slower</button>
-            <button class="primary" type="submit" disabled={!normalise(item, typed)}>Check</button>
+            <button class="primary" type="submit" disabled={!normalize(item, typed)}>Check</button>
           </form>
         {/if}
       {:else if phase === 'feedback' && last}

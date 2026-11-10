@@ -83,7 +83,7 @@ describe('guide hand', () => {
   it('shows P tipped down: the middle finger below the wrist, the index pointing at the camera', () => {
     const g = guideHand('p', onCamera(buildHand(POSES.a)))!;
     expect(g.points[LM.MIDDLE_TIP].y).toBeGreaterThan(g.points[LM.WRIST].y);
-    // The index points forward (nearer the camera than the wrist, by centimetres) and across, not up.
+    // The index points forward (nearer the camera than the wrist, by centimeters) and across, not up.
     expect(g.points[LM.INDEX_TIP].z).toBeLessThan(g.points[LM.WRIST].z - 0.03);
     expect(Math.abs(g.points[LM.INDEX_TIP].x - g.points[LM.INDEX_MCP].x) * (4 / 3)).toBeGreaterThan(
       Math.abs(g.points[LM.INDEX_TIP].y - g.points[LM.INDEX_MCP].y),

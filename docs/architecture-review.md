@@ -16,7 +16,7 @@ describes the app as built. Where each recommendation stands:
 | Parameter checking instead of whole-sign classification | Done for handshape and palm direction; location, movement and non-manuals not yet |
 | Pick one UI framework | Done: Svelte 5 |
 | Tracking: Hand + Pose + Face from phase 1 | Hand only so far; location checks (and so first vocabulary) need pose or face |
-| Normalisation, handedness, smoothing | Done (hand-relative measurements, signing-hand setting, smoothing); segmentation not needed yet |
+| Normalization, handedness, smoothing | Done (hand-relative measurements, signing-hand setting, smoothing); segmentation not needed yet |
 | Engine as its own UI-free package, tested in Node | Done, at `app/src/lib/engine/` rather than `app/engine/`; tested with synthetic hands |
 | Run tracking in a Web Worker | Not yet |
 | IndexedDB with JSON export/import | Done |
@@ -34,7 +34,7 @@ privacy").
 
 ## Verdict
 
-The architecture is sound for what it describes: a static, privacy-preserving, browser-only app with a swappable recognizer and lessons-as-data. The main problem is that it is organised around the hardest, slowest part (camera sign recognition) while the parts that make a learner faster (receptive practice, spaced repetition, self-recording, vocabulary scale) are either missing or sitting in a side module. As written, you would spend months on the recognizer before the app teaches you anything you could not get from a flashcard deck.
+The architecture is sound for what it describes: a static, privacy-preserving, browser-only app with a swappable recognizer and lessons-as-data. The main problem is that it is organized around the hardest, slowest part (camera sign recognition) while the parts that make a learner faster (receptive practice, spaced repetition, self-recording, vocabulary scale) are either missing or sitting in a side module. As written, you would spend months on the recognizer before the app teaches you anything you could not get from a flashcard deck.
 
 The fix is not a rewrite. It is three changes of emphasis:
 
@@ -118,12 +118,12 @@ The four modules are reasonable but the table reveals the imbalance: Lessons and
 
 **Tracking: "Holistic or Hand Landmarker"** is also undecided, and the choice matters earlier than the doc implies. Location is a core sign parameter from day one (the same handshape at the chin, chest or forehead is three different signs), and checking location requires a reference frame from the face or shoulders. So you need face and pose landmarks in Phase 1, not Phase 5. Plan for Hand Landmarker plus Pose Landmarker (upper body) plus a face landmarker, running as separate MediaPipe tasks if a combined holistic task is not available or stable on the web. Budget for frame rate accordingly.
 
-**Recognizer, phase 1 and phase 2+.** The two-phase plan (rules for static letters, then a trained sequence model) is the biggest risk in the document. The phase 2 model needs labelled landmark sequences across many signers to generalise; every large ASL video dataset is research-licensed or non-commercial, and self-recorded data generalises to one person. See section 3 for the alternative: a parameter-based checker that scales with content rather than data.
+**Recognizer, phase 1 and phase 2+.** The two-phase plan (rules for static letters, then a trained sequence model) is the biggest risk in the document. The phase 2 model needs labeled landmark sequences across many signers to generalize; every large ASL video dataset is research-licensed or non-commercial, and self-recorded data generalizes to one person. See section 3 for the alternative: a parameter-based checker that scales with content rather than data.
 
 **Missing engine stages.** The doc has "landmarks in, scores out" but no description of what happens between. These are needed regardless of model choice:
 
-- **Normalisation**: translate to a body-relative origin (shoulder midpoint), scale by shoulder width, optionally rotate so shoulders are horizontal. Without this, nothing works across distances and camera angles.
-- **Handedness**: a dominant-hand setting that mirrors landmarks for left-handed signers, and consistent dominant/non-dominant labelling across frames.
+- **Normalization**: translate to a body-relative origin (shoulder midpoint), scale by shoulder width, optionally rotate so shoulders are horizontal. Without this, nothing works across distances and camera angles.
+- **Handedness**: a dominant-hand setting that mirrors landmarks for left-handed signers, and consistent dominant/non-dominant labeling across frames.
 - **Temporal segmentation**: deciding when a sign starts and ends. Simple heuristics are enough to begin: hands at rest below the chest or out of frame mark boundaries; a "hold to begin" pose works too.
 - **Smoothing**: a short exponential moving average on landmarks removes jitter that otherwise breaks handshape rules.
 
@@ -202,7 +202,7 @@ The engine becomes a set of small, independently testable checkers:
 
 | Checker | Input | Phase 1 implementation | Later |
 | --- | --- | --- | --- |
-| Handshape | Normalised hand landmarks | Rule-based finger extension and contact tests, or nearest-neighbour against a small per-handshape template set | Small classifier over ~50 handshapes, trainable from self-recorded data because handshapes are far more uniform across signers than whole signs |
+| Handshape | Normalized hand landmarks | Rule-based finger extension and contact tests, or nearest-neighbor against a small per-handshape template set | Small classifier over ~50 handshapes, trainable from self-recorded data because handshapes are far more uniform across signers than whole signs |
 | Location | Hand position relative to face and body landmarks | Zone test (forehead, temple, cheek, chin, neck, chest, neutral space, non-dominant hand) | Finer zones |
 | Orientation | Palm normal from three hand landmarks | Angle test against expected direction | Tolerance tuned from data |
 | Movement | Wrist trajectory over the segmented sign | Templates for tap, straight, arc, circle, wiggle, with repeat count | Dynamic time warping against a reference trajectory |
@@ -216,13 +216,13 @@ A sign passes when all checkers pass. When one fails, the feedback names it. Thi
 - **Scales with content.** A contributor adding a sign adds a spec, not training data.
 - **Feedback is explainable** and aligned with how ASL is actually taught.
 - **Graceful coverage.** A sign with an unusual movement can mark that checker "unsupported" and still get handshape, location and orientation feedback, with self-grading for the rest.
-- **Whole-sign models still fit.** The recognizer interface can run a sequence model as an additional checker later, and fingerspelling sequence recognition (where self-recorded data does generalise reasonably because letters are constrained) is a good first use of it.
+- **Whole-sign models still fit.** The recognizer interface can run a sequence model as an additional checker later, and fingerspelling sequence recognition (where self-recorded data does generalize reasonably because letters are constrained) is a good first use of it.
 
 ### 3.4 Interface
 
 ```ts
 interface Recognizer {
-  evaluate(sign: SignSpec, frames: NormalisedFrame[]): Evaluation;
+  evaluate(sign: SignSpec, frames: NormalizedFrame[]): Evaluation;
 }
 
 interface Evaluation {
@@ -262,7 +262,7 @@ Each phase should leave you using the app daily.
 
 1. **Week 1: Review spine and receptive fingerspelling.** FSRS queue, IndexedDB, alphabet and numbers with clips, receptive fingerspelling drill with speed control and WPM tracking. No camera yet. You start learning on day one.
 2. **Weeks 2 to 3: Camera, mirror, self-record.** Mirrored camera view, record and compare side by side with the model clip, self-grading into the review queue. Still no recognizer.
-3. **Weeks 3 to 5: Static handshape checker.** Hand Landmarker, normalisation, rule-based handshapes for the alphabet and numbers. Fixtures and tests. First real automated feedback.
+3. **Weeks 3 to 5: Static handshape checker.** Hand Landmarker, normalization, rule-based handshapes for the alphabet and numbers. Fixtures and tests. First real automated feedback.
 4. **Weeks 5 to 8: First 150 signs and the location and orientation checkers.** Greetings, introductions, questions. Pose and face landmarks, zone and orientation tests. Embedded clips allowed; Deaf-recorded clips begin replacing them.
 5. **Months 3 to 4: Movement checker and motion letters.** Trajectory templates; J and Z; the vocabulary grows to 500 with family, food, everyday verbs.
 6. **Month 4+: Non-manual markers and conversation mode.** Eyebrow checks for question types; guided dialogues built from existing clips, with self-grading first and recognizer scoring where supported.
@@ -275,7 +275,7 @@ The original roadmap's phases 1 to 6 all still happen; they are just interleaved
 ## 6. Smaller items
 
 - Pick one framework and one tracking configuration in the doc; remove the "or"s.
-- Add handedness, normalisation, segmentation and smoothing to the engine description.
+- Add handedness, normalization, segmentation and smoothing to the engine description.
 - Add `fixtures/` and `schema/` to the repo layout.
 - Add a privacy page that states exactly what runs where, including the speech caveat.
 - Add a "beyond the app" page for learners.

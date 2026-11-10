@@ -61,9 +61,9 @@ export type Handedness = 'Left' | 'Right';
 
 /** One detected hand in one video frame. */
 export interface HandFrame {
-  /** 21 points, x and y normalised to 0..1 of the video frame. Not mirrored. */
+  /** 21 points, x and y normalized to 0..1 of the video frame. Not mirrored. */
   image: Point[];
-  /** 21 points in metres, centred on the hand. Used for shape. */
+  /** 21 points in meters, centered on the hand. Used for shape. */
   world: Point[];
   /** The signer's hand, as reported by the tracker. */
   handedness: Handedness;

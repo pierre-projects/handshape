@@ -1,5 +1,5 @@
 // Turns one hand frame into measurements that sign checks can reason about.
-// Shape measurements use world landmarks (metres); direction and palm facing
+// Shape measurements use world landmarks (meters); direction and palm facing
 // use image landmarks, because they are about how the hand looks to a viewer.
 import { angleBetween, bendAt, cross, dist, dot, lerp, normalize, projectT, sub, type Point } from './geometry';
 import { FINGER_JOINTS, FINGERS, LM, type Finger, type HandFrame } from './hand';
@@ -62,7 +62,7 @@ export interface Features {
   /** Palm facing: +1 straight at the camera, -1 straight away. */
   facingScore: number;
   facing: Facing;
-  /** Wrist to middle knuckle, in metres. */
+  /** Wrist to middle knuckle, in meters. */
   palmSize: number;
 }
 
