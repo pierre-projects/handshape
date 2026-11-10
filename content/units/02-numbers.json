@@ -40,7 +40,8 @@
       "handshape": "Index finger straight up; other fingers and thumb closed.",
       "palm": "toward you",
       "tips": [
-        "For counting 1 to 5 the palm faces you."
+        "For counting 1 to 5 the palm faces you, so the camera sees the back of your hand.",
+        "Your thumb rests over your folded fingers."
       ],
       "confusable_with": [
         "d"
@@ -62,7 +63,8 @@
       "handshape": "Index and middle fingers up and spread; thumb holds the other fingers.",
       "palm": "toward you",
       "tips": [
-        "Same handshape as V, but the palm faces you."
+        "Same handshape as V, turned round so the palm faces you.",
+        "Your thumb holds down your ring and pinky fingers."
       ],
       "confusable_with": [
         "v"
@@ -84,7 +86,8 @@
       "handshape": "Thumb, index and middle fingers extended; ring and pinky closed.",
       "palm": "toward you",
       "tips": [
-        "ASL 3 uses the thumb, not the ring finger."
+        "ASL 3 uses the thumb, not the ring finger.",
+        "Three fingers up without the thumb is 6 or W."
       ],
       "media": [
         {
@@ -102,6 +105,10 @@
       "kind": "number",
       "handshape": "Four fingers up and spread; thumb folded across the palm.",
       "palm": "toward you",
+      "tips": [
+        "Tuck your thumb across your palm. With the thumb out it is a 5.",
+        "Palm faces you, fingers a little apart."
+      ],
       "confusable_with": [
         "b"
       ],
@@ -121,6 +128,10 @@
       "kind": "number",
       "handshape": "All five fingers extended and spread.",
       "palm": "toward you",
+      "tips": [
+        "Open hand, thumb out to the side. With the thumb tucked in it is a 4.",
+        "Palm faces you."
+      ],
       "media": [
         {
           "src": "media/numbers/5.jpg",
@@ -161,6 +172,9 @@
       "kind": "number",
       "handshape": "Ring fingertip touches the thumb tip; the other fingers up and spread.",
       "palm": "out",
+      "tips": [
+        "Your ring fingertip meets your thumb; keep the other three fingers up."
+      ],
       "confusable_with": [
         "6",
         "8"
@@ -181,6 +195,9 @@
       "kind": "number",
       "handshape": "Middle fingertip touches the thumb tip; the other fingers up and spread.",
       "palm": "out",
+      "tips": [
+        "Your middle fingertip meets your thumb; keep the other three fingers up."
+      ],
       "confusable_with": [
         "7",
         "9"

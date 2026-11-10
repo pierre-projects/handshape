@@ -39,6 +39,10 @@
   /* Over the camera image */
   --cam-match: #2fbf71;
   --cam-idle: #f2f2f2;
+  /* The finger a camera hint is about, the guide hand, and the guide's edge. */
+  --cam-fix: #ff9f43;
+  --cam-guide: #ffffff;
+  --cam-guide-edge: #101522;
   --rec: #b23a2e;
 
   /* Hand illustrations: black ink line art on white, in both themes */

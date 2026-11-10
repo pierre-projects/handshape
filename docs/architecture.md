@@ -95,6 +95,8 @@ app/src/
 | `lib/engine/features.ts` | Turns 21 hand points into measurements: finger curl, spread, thumb position, hand and palm direction |
 | `lib/engine/handshapes.ts` | One readable rule list per letter and number, each rule with the fix to suggest |
 | `lib/engine/tracker.ts` | Smoothing across frames, and "held long enough" timing |
+| `lib/engine/modelHand.ts`, `poses.ts` | A model hand built from joint angles, and one pose per sign. Used by the guide and by the tests |
+| `lib/engine/guide.ts` | The guide hand: a sign's pose sized to the learner's hand and pinned to their wrist |
 | `lib/engine/movement.ts` | Letters drawn in the air (J, Z): follows a fingertip, finds the stroke, matches its shape |
 | `lib/engine/reader.ts` | Reads *which* letter is being made (for Sign Five): still letters and drawn J/Z, with safeguards against stray letters |
 
@@ -110,12 +112,18 @@ Every camera feature uses the same pipeline:
 2. **Smoothing** (`tracker.ts`): a moving average removes jitter.
 3. **Measurements** (`features.ts`): curl per finger, spread, thumb placement, which way the
    hand points and the palm faces, all relative to the hand's own size.
-4. **Rules** (`handshapes.ts`): each sign is a list of checks. Thumb positions the camera often
-   can't see are marked *unsure*: they show as advice but never block a match.
+4. **Rules** (`handshapes.ts`): each sign is a list of checks. Each check has a hint, which may
+   depend on what was measured, and names the part of the hand it is about. Things the camera
+   often can't see (tucked thumbs, P's index pointing at the lens) are marked *unsure*: they show
+   as advice but never block a match. A finger can be *extended* (little total bend) or just
+   *straight* (its own two joints straight, at any knuckle angle): K and P's middle finger is
+   straight but leans far forward, so it is checked as straight.
 5. **Judging** (`judge()`): a loose match doesn't count if the hand fully matches a different
-   sign, so one fist can't pass for A, E, M, N, S and T alike. T and X are separated by one
-   shared test, whether the index finger stands up off the fist (`indexStandsUp`): X requires
-   it and T forbids it, so no hand can be both.
+   sign, so one fist can't pass for A, E, M, N, S and T alike. Look-alikes are separated by one
+   shared test that one sign requires and the other forbids, so no hand can be both: T and X by
+   whether the index stands up off the fist (`indexStandsUp`); 2 and 3, and 4 and 5, by whether
+   the thumb sticks out to the side (`thumbSticksOut`, which a thumb laid across the palm never
+   does); K and C against P by whether the middle finger points at the floor.
 6. **Timing:** a target sign counts once held for 0.6 s (`HoldTimer`). Sign Five's open reader
    (`LetterReader`) needs 0.9 s, ignores fast movement, and won't type the same letter again
    until the hand changes or drops, so a long hold types one letter.
@@ -127,6 +135,12 @@ Every camera feature uses the same pipeline:
    needs its three strokes) so a plain line or a dropping hand can't pass. A correct shape drawn
    mirrored counts, with a tip. In Sign Five (`CameraTyper`) a drawn J or Z types that letter
    and replaces an I or D typed just before from the same handshape.
+
+8. **Showing the fix** (`guide.ts`, `camera.ts`): the finger a hint is about is drawn in the
+   "fix" colour on the tracked hand. With the Guide on, the sign's model pose is drawn under it
+   as a pale hand, scaled by fitting the tracker's 3D points to the picture (so a hand tipped
+   toward the camera keeps its size) and pinned to the wrist, with the same finger in the "match" colour. A hand shown from
+   the back gets fingernails. The camera offers the guide after a sign has failed for 4 s.
 
 10's thumb shake isn't checked yet: only its starting handshape is. All thresholds here are
 first estimates on a model hand; `fixtures/handshapes/` holds real recordings to tune them.
@@ -199,11 +213,13 @@ Done:
    camera scoring.
 5. Sign Five word game, named word lists, dashboard.
 6. Movement checks for J and Z (drawn letters), in target checks and in Sign Five.
+7. Guide hand and finger highlight in the camera view; looser, clearer checks for K, P and 1–5.
 
 Next:
 
 1. **Real recorded samples** in `fixtures/handshapes/` to tune the rules against real hands,
-   T, X, J and Z first (the folder and the Save sample button are set up; no samples yet).
+   P, K, 1, 2, 4 and 5 first, then T, X, J and Z (the folder and the Save sample button are set
+   up; no samples yet).
 2. **Movement check for 10** (thumb shake), and J/Z words as Sign Five answers once tuned.
 3. **First vocabulary unit** (greetings, introductions) with location checks, which need face
    or body landmarks as a reference.

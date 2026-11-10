@@ -3,7 +3,7 @@
 // frame, and drawing the tracked hand. Each component keeps only what's its
 // own (checking one target sign, reading any letter, recording a take).
 import type { HandLandmarker } from '@mediapipe/tasks-vision';
-import { HAND_CONNECTIONS, type HandFrame, type Handedness } from './hand';
+import { HAND_CONNECTIONS, PALM_OUTLINE, PART_POINTS, type HandFrame, type HandPart, type Handedness } from './hand';
 
 export const cameraSupported = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
@@ -111,28 +111,50 @@ function resolveColor(el: Element, color: string): string {
   return getComputedStyle(el).getPropertyValue(m[1]).trim() || '#ffffff';
 }
 
+/** Sizes the canvas to the video and wipes it. Returns the context to draw on. */
+export function clearOverlay(
+  canvas: HTMLCanvasElement | undefined,
+  video: HTMLVideoElement | undefined,
+): CanvasRenderingContext2D | undefined {
+  if (!canvas || !video) return undefined;
+  const w = video.videoWidth;
+  const h = video.videoHeight;
+  if (canvas.width !== w) canvas.width = w;
+  if (canvas.height !== h) canvas.height = h;
+  const ctx = canvas.getContext('2d') ?? undefined;
+  ctx?.clearRect(0, 0, w, h);
+  return ctx;
+}
+
+/** Traces a line through the given points of a hand, as pixels. `close` joins the end back to the start. */
+function tracePath(ctx: CanvasRenderingContext2D, pts: { x: number; y: number }[], ids: number[], w: number, h: number, close = false): void {
+  ctx.beginPath();
+  ids.forEach((id, i) => (i ? ctx.lineTo(pts[id].x * w, pts[id].y * h) : ctx.moveTo(pts[id].x * w, pts[id].y * h)));
+  if (close) ctx.closePath();
+}
+
 /**
- * Draws the hand over the video, sized to match it. Clears the canvas when
- * there's no hand. `color` may be a CSS colour or `var(--token)`.
+ * Draws the hand over the video, sized to match it. Clears the canvas first
+ * unless `clear` is false (something was drawn under it), and leaves it clear
+ * when there's no hand. `highlight` picks out the parts feedback is about, in
+ * the "fix this" colour. Colours may be CSS colours or `var(--token)`.
  */
 export function drawHand(
   canvas: HTMLCanvasElement | undefined,
   video: HTMLVideoElement | undefined,
   frame: HandFrame | undefined,
   color: string,
-  { joints = true }: { joints?: boolean } = {},
+  { joints = true, clear = true, highlight = [] }: { joints?: boolean; clear?: boolean; highlight?: HandPart[] } = {},
 ): void {
   if (!canvas || !video) return;
+  const ctx = clear ? clearOverlay(canvas, video) : (canvas.getContext('2d') ?? undefined);
+  if (!ctx || !frame) return;
   const w = video.videoWidth;
   const h = video.videoHeight;
-  if (canvas.width !== w) canvas.width = w;
-  if (canvas.height !== h) canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  ctx.clearRect(0, 0, w, h);
-  if (!frame) return;
   const paint = resolveColor(canvas, color);
-  ctx.lineWidth = Math.max(2, w / 200);
+  const line = Math.max(2, w / 200);
+  const dot = Math.max(3, w / 140);
+  ctx.lineWidth = line;
   ctx.strokeStyle = paint;
   ctx.fillStyle = paint;
   for (const [a, b] of HAND_CONNECTIONS) {
@@ -141,12 +163,117 @@ export function drawHand(
     ctx.lineTo(frame.image[b].x * w, frame.image[b].y * h);
     ctx.stroke();
   }
-  if (!joints) return;
-  for (const p of frame.image) {
-    ctx.beginPath();
-    ctx.arc(p.x * w, p.y * h, Math.max(3, w / 140), 0, Math.PI * 2);
-    ctx.fill();
+  if (joints) {
+    for (const p of frame.image) {
+      ctx.beginPath();
+      ctx.arc(p.x * w, p.y * h, dot, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
+  if (!highlight.length) return;
+  const fix = resolveColor(canvas, 'var(--cam-fix)');
+  ctx.save();
+  ctx.strokeStyle = fix;
+  ctx.fillStyle = fix;
+  ctx.lineWidth = line * 2.4;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (const part of highlight) {
+    if (part === 'hand') {
+      tracePath(ctx, frame.image, PALM_OUTLINE, w, h, true);
+      ctx.stroke();
+      continue;
+    }
+    tracePath(ctx, frame.image, PART_POINTS[part], w, h);
+    ctx.stroke();
+    for (const id of PART_POINTS[part]) {
+      ctx.beginPath();
+      ctx.arc(frame.image[id].x * w, frame.image[id].y * h, dot * 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+let guideLayer: HTMLCanvasElement | undefined;
+
+/**
+ * Draws the guide hand (see guide.ts): the target sign as a pale, solid hand
+ * with a dark edge, see-through so the learner's own hand shows under it. Nearer
+ * fingers cover farther ones. `focus` paints the parts feedback is about in the
+ * "match" colour, as the place to move to. Call after clearOverlay and before
+ * drawHand(…, { clear: false }).
+ */
+export function drawGuide(
+  canvas: HTMLCanvasElement | undefined,
+  video: HTMLVideoElement | undefined,
+  guide: { points: { x: number; y: number; z: number }[]; palm: number; back?: boolean },
+  focus: HandPart[] = [],
+): void {
+  if (!canvas || !video) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const w = canvas.width;
+  const h = canvas.height;
+  // Painted solid on a spare canvas, then laid over the video half see-through,
+  // so overlapping fingers don't add up to darker patches.
+  guideLayer ??= document.createElement('canvas');
+  if (guideLayer.width !== w) guideLayer.width = w;
+  if (guideLayer.height !== h) guideLayer.height = h;
+  const g = guideLayer.getContext('2d');
+  if (!g) return;
+  g.clearRect(0, 0, w, h);
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+
+  const skin = resolveColor(canvas, 'var(--cam-guide)');
+  const edge = resolveColor(canvas, 'var(--cam-guide-edge)');
+  const target = resolveColor(canvas, 'var(--cam-match)');
+  const thick = guide.palm * h * 0.2;
+  const rim = Math.max(1.5, thick * 0.12);
+  const depth = (ids: number[]) => ids.reduce((sum, id) => sum + guide.points[id].z, 0) / ids.length;
+
+  type Piece = { ids: number[]; z: number; palm: boolean; width: number; color: string };
+  const pieces: Piece[] = [
+    { ids: PALM_OUTLINE, z: depth(PALM_OUTLINE), palm: true, width: thick * 0.7, color: focus.includes('hand') ? target : skin },
+    ...(Object.keys(PART_POINTS) as (keyof typeof PART_POINTS)[]).map((part) => ({
+      ids: PART_POINTS[part],
+      z: depth(PART_POINTS[part]),
+      palm: false,
+      width: part === 'thumb' ? thick * 1.1 : thick,
+      color: focus.includes(part) ? target : skin,
+    })),
+  ];
+  // Farthest first, so nearer parts are painted over them.
+  pieces.sort((a, b) => b.z - a.z);
+  for (const p of pieces) {
+    tracePath(g, guide.points, p.ids, w, h, p.palm);
+    g.strokeStyle = edge;
+    g.lineWidth = p.width + rim * 2;
+    g.stroke();
+    g.strokeStyle = p.color;
+    g.fillStyle = p.color;
+    g.lineWidth = p.width;
+    if (p.palm) g.fill();
+    g.stroke();
+    if (p.palm || !guide.back) continue;
+    // A fingernail on each finger says "this is the back of the hand" at a glance.
+    const a = guide.points[p.ids[2]];
+    const b = guide.points[p.ids[3]];
+    g.beginPath();
+    g.moveTo((a.x + (b.x - a.x) * 0.5) * w, (a.y + (b.y - a.y) * 0.5) * h);
+    g.lineTo(b.x * w, b.y * h);
+    g.strokeStyle = edge;
+    g.globalAlpha = 0.3;
+    g.lineWidth = p.width * 0.55;
+    g.stroke();
+    g.globalAlpha = 1;
+  }
+
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.drawImage(guideLayer, 0, 0);
+  ctx.restore();
 }
 
 /**

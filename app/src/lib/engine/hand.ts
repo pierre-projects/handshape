@@ -36,6 +36,18 @@ export const FINGER_JOINTS: Record<Finger, [number, number, number, number]> = {
   pinky: [17, 18, 19, 20],
 };
 
+/** A part of the hand that feedback can point at. 'hand' means the whole hand: how it is turned or tipped. */
+export type HandPart = Finger | 'thumb' | 'hand';
+
+/** The landmarks along each finger and the thumb, base to tip. */
+export const PART_POINTS: Record<Exclude<HandPart, 'hand'>, number[]> = {
+  thumb: [1, 2, 3, 4],
+  ...FINGER_JOINTS,
+};
+
+/** The outline of the palm, wrist round to the pinky knuckle. */
+export const PALM_OUTLINE = [0, 1, 5, 9, 13, 17];
+
 /** Pairs of landmarks to draw as the hand skeleton. */
 export const HAND_CONNECTIONS: [number, number][] = [
   [0, 1], [1, 2], [2, 3], [3, 4],

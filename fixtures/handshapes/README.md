@@ -24,8 +24,16 @@ keeping the other tests passing.
 Samples from different people, hands, cameras and lighting make the checks fairer. Only add
 samples of signs made correctly, ideally confirmed by a fluent signer.
 
+Details also shows what the camera measured (bend per finger, the bend in each finger's own
+joints, spread, thumb position, palm and tilt), which is the quickest way to see which threshold
+a correct sign is missing.
+
 ### Most wanted
 
+- **P and K.** The middle finger leans far forward, and in P the camera sees the hand from
+  above. Thresholds: `straightTipMax`, `foldedMin`, `tippedDownMin`.
+- **1, 2, 4 and 5**, palm toward you. Thresholds: `extendedMax` (ring and pinky), `fanMin`, and
+  the thumb test `thumbSticksOut` (`thumbAsideMax`).
 - **T and X.** They are told apart by whether the index finger stands up off the fist
   (`indexStandsUp`, thresholds `raiseKnuckleMin` and `raiseTipMin`). Details shows the two numbers
   live as "index raise". Samples of both letters set the boundary.

@@ -235,6 +235,9 @@
       "kind": "letter",
       "handshape": "Index finger up and middle finger angled forward in a V; thumb tip touches the middle of the middle finger.",
       "palm": "out",
+      "tips": [
+        "Your middle finger stays straight and leans forward; only its knuckle bends."
+      ],
       "confusable_with": [
         "v",
         "p"
@@ -342,7 +345,9 @@
       "handshape": "K handshape pointed downward: index points forward, middle finger points down, thumb touches the middle finger.",
       "palm": "down",
       "tips": [
-        "P is K tipped down."
+        "P is K tipped down.",
+        "Bend your wrist until your middle finger points at the floor. Your index finger then points forward.",
+        "Keep your middle finger straight; your thumb rests on its middle."
       ],
       "confusable_with": [
         "k",

@@ -1,12 +1,15 @@
 <script lang="ts">
   // Live camera check of one sign: its handshape and, for J and Z, the letter
-  // drawn in the air. Video is processed on this device and never stored,
-  // except a sample you choose to save yourself.
+  // drawn in the air. The finger a hint is about is picked out on the tracked
+  // hand, and an optional guide hand shows the target shape over your own.
+  // Video is processed on this device and never stored, except a sample you
+  // choose to save yourself.
   import { onDestroy } from 'svelte';
   import { computeFeatures, type Features } from '../lib/engine/features';
   import { judge, looksLike, SPECS, type Evaluation } from '../lib/engine/handshapes';
-  import type { HandFrame, Handedness } from '../lib/engine/hand';
-  import { cameraSupported, drawHand, drawTrail, HandTracker, problemMessage } from '../lib/engine/camera';
+  import type { HandFrame, HandPart, Handedness } from '../lib/engine/hand';
+  import { cameraSupported, clearOverlay, drawGuide, drawHand, drawTrail, HandTracker, problemMessage } from '../lib/engine/camera';
+  import { guideHand, hasGuide } from '../lib/engine/guide';
   import { imagePalm, imagePoint, isMoveId, MOVES, StrokeTracker, thumbSide, type Pt } from '../lib/engine/movement';
   import { HoldTimer, Smoother } from '../lib/engine/tracker';
   import { content } from '../lib/content';
@@ -44,6 +47,35 @@
   let showDetails = $state(false);
   let saved = $state('');
 
+  // The guide hand: the target sign drawn over your own hand. Remembered on this device.
+  const GUIDE_KEY = 'asl.camera.guide';
+  /** How long a sign must keep failing before the camera offers the guide. */
+  const OFFER_GUIDE_MS = 4000;
+  let guideOn = $state(readGuide());
+  let offerGuide = $state(false);
+  let failingSince: number | undefined;
+  /** The parts of the hand the current hint is about. */
+  let focus: HandPart[] = [];
+  const canGuide = $derived(hasGuide(target));
+
+  function readGuide(): boolean {
+    try {
+      return localStorage.getItem(GUIDE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  function setGuide(on: boolean) {
+    guideOn = on;
+    offerGuide = false;
+    try {
+      localStorage.setItem(GUIDE_KEY, on ? '1' : '0');
+    } catch {
+      /* storage unavailable: keep the in-memory value */
+    }
+  }
+
   // J and Z: after the starting handshape is held, a fingertip is followed as it draws the letter.
   const move = $derived(isMoveId(target) ? MOVES[target] : undefined);
   let stroke: StrokeTracker | undefined;
@@ -70,6 +102,9 @@
     progress = 0;
     similar = [];
     saved = '';
+    failingSince = undefined;
+    offerGuide = false;
+    focus = [];
     resetStroke();
   });
 
@@ -118,6 +153,11 @@
     features = computeFeatures(smooth);
     const j = judge(target, features, candidates);
     evaluation = j;
+    focus = j.pass ? [] : j.focus;
+    // Offer the guide once the same sign has kept failing for a while.
+    if (j.pass || matched) failingSince = undefined;
+    else failingSince ??= now;
+    offerGuide = !guideOn && canGuide && failingSince !== undefined && now - failingSince >= OFFER_GUIDE_MS;
     if (j.rivals.length) similar = j.rivals.slice(0, 2);
     else if (!evaluation.pass && ++frameCount % 5 === 0) similar = looksLike(features, candidates, target).slice(0, 2);
     if (evaluation.pass) similar = [];
@@ -152,7 +192,14 @@
   }
 
   function draw(frame: HandFrame | undefined, ok: boolean) {
-    drawHand(canvas, video, frame, ok ? 'var(--cam-match)' : 'var(--cam-idle)');
+    const fix = frame && !ok && !matched ? focus : [];
+    // The guide steps aside while a letter is being drawn and once the sign is made.
+    const guide = guideOn && frame && !matched && movePhase !== 'drawing' ? guideHand(target, frame) : undefined;
+    if (guide) {
+      clearOverlay(canvas, video);
+      drawGuide(canvas, video, guide, fix);
+    }
+    drawHand(canvas, video, frame, ok ? 'var(--cam-match)' : 'var(--cam-idle)', { clear: !guide, highlight: fix });
     if (move && (movePhase === 'drawing' || matched)) drawTrail(canvas, video, trail, matched ? 'var(--cam-match)' : 'var(--spell-glow)');
   }
 
@@ -161,6 +208,8 @@
     status = 'off';
     handSeen = false;
     evaluation = undefined;
+    failingSince = undefined;
+    offerGuide = false;
     smoother.reset();
     hold.reset();
   }
@@ -251,29 +300,31 @@
         <div class="overlay">Loading hand tracking… The first time downloads about 22 MB, then it works offline.</div>
       {/if}
       <div class="cam-tools">
+        {#if canGuide}
+          <button
+            class="small"
+            class:on={guideOn}
+            onclick={() => setGuide(!guideOn)}
+            aria-pressed={guideOn}
+            title="Draw the handshape over your hand"
+          >Guide</button>
+        {/if}
         <button class="small" onclick={() => (showDetails = !showDetails)} aria-expanded={showDetails}>Details</button>
         <button class="small" onclick={stop}>Camera off</button>
       </div>
+      {#if guideOn && canGuide && handSeen && !matched}
+        <p class="legend small"><i class="key fix"></i>move this <i class="key goal"></i>to here</p>
+      {/if}
       <div class="meter" style="--p: {progress}" class:done={matched} aria-hidden="true"></div>
-      <p class="msg {message.tone}" aria-live="polite">{message.text}</p>
+      <div class="msg {message.tone}">
+        <span aria-live="polite">{message.text}</span>
+        {#if offerGuide && message.tone === 'bad'}
+          <button class="small show-me" onclick={() => setGuide(true)}>Show me</button>
+        {/if}
+      </div>
 
       {#if showDetails && evaluation && fill}
-        <div class="details small floating">
-          <ul>
-            {#each evaluation.results as r}
-              <li class:pass={r.pass} class:fail={!r.pass && r.reliable} class:unsure={!r.pass && !r.reliable}>
-                <span class="mark">{r.pass ? '✓' : r.reliable ? '✗' : '?'}</span>
-                {r.pass ? r.id.replaceAll('-', ' ') : r.hint}
-              </li>
-            {/each}
-          </ul>
-          <p class="muted">? marks thumb positions the camera often can't see. They never block a match.</p>
-          <div class="row">
-            <button class="small" onclick={saveSample}>Save sample</button>
-            <span class="muted">{move ? `Draw a correct ${gloss(target)}, then save.` : `Hold a correct ${gloss(target)}, then save.`}</span>
-          </div>
-          {#if saved}<p role="status">{saved}</p>{/if}
-        </div>
+        {@render details(true)}
       {/if}
     </div>
 
@@ -286,38 +337,48 @@
     {/if}
 
     {#if showDetails && evaluation && !fill}
-      <div class="details small">
-        <ul>
-          {#each evaluation.results as r}
-            <li class:pass={r.pass} class:fail={!r.pass && r.reliable} class:unsure={!r.pass && !r.reliable}>
-              <span class="mark">{r.pass ? '✓' : r.reliable ? '✗' : '?'}</span>
-              {r.pass ? r.id.replaceAll('-', ' ') : r.hint}
-            </li>
-          {/each}
-        </ul>
-        {#if features}
-          <p class="muted mono">
-            curl {Object.values(features.curl).map(Math.round).join('/')} · spread
-            {Object.values(features.spread).map(Math.round).join('/')} · thumb across {r2(features.thumbAcross)} front
-            {r2(features.thumbFront)} · palm {features.facing} · points {features.handDirection} · index raise
-            {Math.round(features.mcpBend.middle - features.mcpBend.index)}° / {r2(features.tipHeight.index - features.tipHeight.middle)}
-          </p>
-        {/if}
-        <p class="muted">? marks thumb positions the camera often can't see. They never block a match.</p>
-        <div class="row">
-          <button class="small" onclick={saveSample}>Save sample</button>
-          <span class="muted">Help tune the checks: {move ? `draw a correct ${gloss(target)}, then save.` : `save a sample of a correct ${gloss(target)}.`}</span>
-        </div>
-        {#if saved}<p role="status">{saved}</p>{/if}
-      </div>
+      {@render details(false)}
     {/if}
   </div>
 {/if}
+
+{#snippet details(floating: boolean)}
+  {#if evaluation}
+    <div class="details small" class:floating>
+      <ul>
+        {#each evaluation.results as r}
+          <li class:pass={r.pass} class:fail={!r.pass && r.reliable} class:unsure={!r.pass && !r.reliable}>
+            <span class="mark">{r.pass ? '✓' : r.reliable ? '✗' : '?'}</span>
+            {r.pass ? r.id.replaceAll('-', ' ') : r.hint}
+          </li>
+        {/each}
+      </ul>
+      <p class="muted">? marks things the camera often can't see. They never block a match.</p>
+      {#if features}
+        <!-- What the camera measured, for tuning the checks against real hands. -->
+        <p class="muted mono">
+          bend {Object.values(features.curl).map(Math.round).join('/')} · joints
+          {Object.values(features.tipBend).map(Math.round).join('/')} · spread
+          {Object.values(features.spread).map(Math.round).join('/')} · thumb bend {Math.round(features.thumbBend)}° out
+          {Math.round(features.thumbOut)}° across {r2(features.thumbAcross)} front {r2(features.thumbFront)} · palm
+          {features.facing} · points {features.handDirection} · middle tilt {Math.round(features.middleAngle)}° · index raise
+          {Math.round(features.mcpBend.middle - features.mcpBend.index)}° / {r2(features.tipHeight.index - features.tipHeight.middle)}
+        </p>
+      {/if}
+      <div class="row">
+        <button class="small" onclick={saveSample}>Save sample</button>
+        <span class="muted">Help tune the checks: {move ? `draw a correct ${gloss(target)}, then save.` : `hold a correct ${gloss(target)}, then save.`} It doesn't have to pass.</span>
+      </div>
+      {#if saved}<p role="status">{saved}</p>{/if}
+    </div>
+  {/if}
+{/snippet}
 
 <style>
   .check > * + * { margin-top: 10px; }
   .check.fill { height: 100%; }
   .view {
+    container-type: inline-size;
     position: relative; border-radius: var(--radius); overflow: hidden; background: #000;
     aspect-ratio: 4 / 3; max-height: 380px; margin: 0 auto;
     outline: 4px solid transparent; outline-offset: -4px; transition: outline-color 0.2s;
@@ -327,6 +388,17 @@
   .cam-tools { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; z-index: 2; }
   .cam-tools button { background: rgb(0 0 0 / 0.55); color: #fff; border-color: rgb(255 255 255 / 0.25); backdrop-filter: blur(6px); }
   .cam-tools button:hover { background: rgb(0 0 0 / 0.75); }
+  .cam-tools button.on { background: #fff; color: #111; border-color: #fff; }
+  .legend {
+    position: absolute; top: 10px; left: 10px; z-index: 2; margin: 0; padding: 5px 10px;
+    display: flex; align-items: center; gap: 6px; border-radius: var(--radius-sm);
+    background: rgb(0 0 0 / 0.55); color: #fff; backdrop-filter: blur(6px);
+  }
+  .key { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .key.fix { background: var(--cam-fix); }
+  .key.goal { background: var(--cam-match); margin-left: 6px; }
+  /* On a narrow camera view the buttons need the whole top row. */
+  @container (max-width: 460px) { .legend { top: 50px; } }
   .placeholder {
     height: 100%; min-height: 260px; border-radius: var(--radius); border: 1px dashed var(--line-strong);
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
@@ -353,10 +425,12 @@
   .meter.done { height: 8px; }
   .msg {
     position: absolute; left: 10px; right: 10px; bottom: 16px; z-index: 2;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px;
     margin: 0; padding: 8px 14px; border-radius: var(--radius-sm); font-weight: 600; font-size: 0.925rem; text-align: center;
     backdrop-filter: blur(6px);
   }
-  .msg:empty { display: none; }
+  .msg:has(> span:empty:only-child) { display: none; }
+  .show-me { background: #fff; color: #111; border-color: #fff; font-weight: 700; flex: none; }
   .msg.info { background: rgb(0 0 0 / 0.6); color: #fff; }
   .msg.good { background: rgb(35 130 77 / 0.92); color: #fff; }
   .msg.bad { background: rgb(160 50 36 / 0.9); color: #fff; }

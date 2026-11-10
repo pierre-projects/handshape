@@ -3,16 +3,25 @@
 // A failed check names what to fix. Thresholds are first estimates and are
 // meant to be tuned against recorded samples (see fixtures/handshapes).
 import type { Features } from './features';
-import type { Finger } from './hand';
+import type { Finger, HandPart } from './hand';
 
 export type Parameter = 'handshape' | 'orientation' | 'movement';
+
+/** The part of the hand a check is about, so the camera view can point at it. */
+export type Part = HandPart;
 
 export interface Check {
   id: string;
   param: Parameter;
   test: (f: Features) => boolean;
-  /** What to tell the learner when the check fails. */
-  hint: string;
+  /**
+   * What to tell the learner when the check fails. A function when the right
+   * advice depends on what the camera sees, e.g. a finger that is straight but
+   * leaning forward should not be told to straighten.
+   */
+  hint: string | ((f: Features) => string);
+  /** Which fingers the check is about. */
+  parts: Part[];
   /**
    * False for checks the camera often gets wrong, mostly thumb positions
    * hidden behind the fingers. They are reported but never block a match.
@@ -32,8 +41,13 @@ export interface SignSpec {
 
 /** Tunable thresholds, in degrees or palm lengths. */
 export const T = {
-  extendedMax: 65,
+  /** Most total bend a finger held up may have. Ring and pinky curve naturally, so they get more room. */
+  extendedMax: { index: 65, middle: 65, ring: 75, pinky: 85 } as Record<Finger, number>,
+  /** Most bend in the finger's own two joints for it to count as straight, whatever its knuckle does. */
+  straightTipMax: 55,
   curledMin: 120,
+  /** A looser fold, for fingers the camera can barely see (P's ring and pinky). */
+  foldedMin: 90,
   bentMin: 35,
   bentMax: 200,
   hookTipMin: 70,
@@ -48,6 +62,14 @@ export const T = {
   closedMcpMin: 55,
   thumbStraightMax: 50,
   thumbOutMin: 50,
+  /**
+   * A thumb stuck out has its tip outside the index knuckle: below this on the
+   * knuckle line (0 index knuckle, 1 pinky knuckle). A thumb laid across the
+   * palm is just as far from the hand's long axis, but on the other side.
+   */
+  thumbAsideMax: -0.25,
+  /** Least total spread across the four fingers (degrees) for an open, fanned hand. */
+  fanMin: 20,
   thumbParallelMax: 40,
   crossMin: 0.05,
   /** Degrees from straight up; 100 is just below horizontal. */
@@ -73,6 +95,16 @@ export function indexStandsUp(f: Features): boolean {
   );
 }
 
+/**
+ * True when the thumb sticks out to the side, as in L, Y, 3 and 5: straight,
+ * angled away from the hand, and with its tip outside the index knuckle. Signs
+ * with the thumb out require this and signs with it tucked forbid it, so a thumb
+ * folded across the palm is never read as stuck out.
+ */
+export function thumbSticksOut(f: Features): boolean {
+  return f.thumbBend <= T.thumbStraightMax && f.thumbOut >= T.thumbOutMin && f.thumbAcross <= T.thumbAsideMax;
+}
+
 const NAMES: Record<Finger, string> = { index: 'index', middle: 'middle', ring: 'ring', pinky: 'pinky' };
 
 // ---- Check builders ----
@@ -80,8 +112,33 @@ const NAMES: Record<Finger, string> = { index: 'index', middle: 'middle', ring: 
 const extended = (finger: Finger): Check => ({
   id: `${finger}-extended`,
   param: 'handshape',
-  test: (f) => f.curl[finger] <= T.extendedMax,
-  hint: `Straighten your ${NAMES[finger]} finger.`,
+  test: (f) => f.curl[finger] <= T.extendedMax[finger],
+  // A finger that is straight in itself but bent at the knuckle isn't "bent" to the learner.
+  hint: (f) =>
+    f.tipBend[finger] <= T.straightTipMax
+      ? `Your ${NAMES[finger]} finger is leaning forward at the knuckle. Lift it up in line with your palm.`
+      : `Straighten your ${NAMES[finger]} finger.`,
+  parts: [finger],
+  reliable: true,
+});
+
+/** Straight from the middle joint to the tip, at any knuckle angle: K and P's middle finger. */
+const straight = (finger: Finger): Check => ({
+  id: `${finger}-straight`,
+  param: 'handshape',
+  test: (f) => f.tipBend[finger] <= T.straightTipMax,
+  hint: `Keep your ${NAMES[finger]} finger straight; bend it only where it meets your hand.`,
+  parts: [finger],
+  reliable: true,
+});
+
+/** Folded down, without needing a tight curl. For fingers hidden from the camera. */
+const tucked = (finger: Finger): Check => ({
+  id: `${finger}-tucked`,
+  param: 'handshape',
+  test: (f) => f.curl[finger] >= T.foldedMin,
+  hint: `Fold your ${NAMES[finger]} finger down.`,
+  parts: [finger],
   reliable: true,
 });
 
@@ -90,6 +147,7 @@ const curled = (finger: Finger): Check => ({
   param: 'handshape',
   test: (f) => f.curl[finger] >= T.curledMin,
   hint: `Fold your ${NAMES[finger]} finger down.`,
+  parts: [finger],
   reliable: true,
 });
 
@@ -98,6 +156,7 @@ const bent = (finger: Finger): Check => ({
   param: 'handshape',
   test: (f) => f.curl[finger] >= T.bentMin && f.curl[finger] <= T.bentMax,
   hint: `Curve your ${NAMES[finger]} finger, neither straight nor in a fist.`,
+  parts: [finger],
   reliable: true,
 });
 
@@ -107,6 +166,7 @@ const closed = (finger: Finger): Check => ({
   param: 'handshape',
   test: (f) => f.curl[finger] >= T.tightCurlMin && f.mcpBend[finger] >= T.closedMcpMin,
   hint: `Close your ${NAMES[finger]} finger into a fist.`,
+  parts: [finger],
   reliable: true,
 });
 
@@ -116,6 +176,7 @@ const tight = (finger: Finger): Check => ({
   param: 'handshape',
   test: (f) => f.curl[finger] >= T.tightCurlMin,
   hint: `Bend your ${NAMES[finger]} finger more tightly.`,
+  parts: [finger],
   reliable: true,
 });
 
@@ -124,6 +185,7 @@ const hooked = (finger: Finger): Check => ({
   param: 'handshape',
   test: (f) => f.tipBend[finger] >= T.hookTipMin && f.mcpBend[finger] <= T.hookMcpMax,
   hint: `Raise your ${NAMES[finger]} finger and bend just the tip into a hook.`,
+  parts: [finger],
   reliable: true,
 });
 
@@ -132,6 +194,7 @@ const indexRaised: Check = {
   param: 'handshape',
   test: indexStandsUp,
   hint: 'Raise your index finger off your fist, then hook it.',
+  parts: ['index'],
   reliable: true,
 };
 
@@ -140,24 +203,35 @@ const indexFolded: Check = {
   param: 'handshape',
   test: (f) => !indexStandsUp(f),
   hint: 'Fold your index finger down over your thumb, not up in a hook.',
+  parts: ['index'],
   reliable: true,
 };
 
 type ThumbTarget = keyof Features['thumbTo'];
 const TARGET_NAMES: Record<ThumbTarget, string> = {
-  indexTip: 'index fingertip',
-  middleTip: 'middle fingertip',
-  ringTip: 'ring fingertip',
-  pinkyTip: 'pinky fingertip',
-  indexPip: 'index finger',
-  middlePip: 'middle of your middle finger',
+  indexTip: 'your index fingertip',
+  middleTip: 'your middle fingertip',
+  ringTip: 'your ring fingertip',
+  pinkyTip: 'your pinky fingertip',
+  indexPip: 'the side of your index finger',
+  middlePip: 'the middle of your middle finger',
+};
+
+const TARGET_FINGER: Record<ThumbTarget, Finger> = {
+  indexTip: 'index',
+  middleTip: 'middle',
+  ringTip: 'ring',
+  pinkyTip: 'pinky',
+  indexPip: 'index',
+  middlePip: 'middle',
 };
 
 const thumbTouches = (target: ThumbTarget, reliable = true): Check => ({
   id: `thumb-touches-${target}`,
   param: 'handshape',
   test: (f) => f.thumbTo[target] <= T.touch,
-  hint: `Touch your thumb to your ${TARGET_NAMES[target]}.`,
+  hint: `Touch your thumb to ${TARGET_NAMES[target]}.`,
+  parts: ['thumb', TARGET_FINGER[target]],
   reliable,
 });
 
@@ -166,30 +240,37 @@ const thumbApartFrom = (target: ThumbTarget, hint: string): Check => ({
   param: 'handshape',
   test: (f) => f.thumbTo[target] >= T.apart,
   hint,
+  parts: ['thumb'],
   reliable: true,
 });
 
 const thumbOut: Check = {
   id: 'thumb-out',
   param: 'handshape',
-  test: (f) => f.thumbBend <= T.thumbStraightMax && f.thumbOut >= T.thumbOutMin,
+  test: thumbSticksOut,
   hint: 'Stick your thumb straight out to the side.',
+  parts: ['thumb'],
   reliable: true,
 };
 
 const thumbIn: Check = {
   id: 'thumb-in',
   param: 'handshape',
-  test: (f) => !(f.thumbBend <= T.thumbStraightMax && f.thumbOut >= T.thumbOutMin),
+  test: (f) => !thumbSticksOut(f),
   hint: 'Fold your thumb over your fingers instead of sticking it out.',
+  parts: ['thumb'],
   reliable: true,
 };
+
+/** 4: the thumb must not stick out, or it is a 5. */
+const thumbTuckedIn: Check = { ...thumbIn, id: 'thumb-tucked', hint: 'Fold your thumb across your palm.' };
 
 const thumbParallel: Check = {
   id: 'thumb-parallel',
   param: 'handshape',
   test: (f) => f.thumbIndexAngle <= T.thumbParallelMax && f.thumbTo.indexTip >= 0.25,
   hint: 'Hold your thumb straight, parallel to your index finger, with a small gap.',
+  parts: ['thumb'],
   reliable: true,
 };
 
@@ -198,6 +279,7 @@ const thumbFolded: Check = {
   param: 'handshape',
   test: (f) => f.thumbAcross >= 0.15 && f.thumbAlong <= 1.0,
   hint: 'Fold your thumb across your palm.',
+  parts: ['thumb'],
   reliable: false,
 };
 
@@ -206,6 +288,7 @@ const thumbOverFingers: Check = {
   param: 'handshape',
   test: (f) => f.thumbFront >= 0,
   hint: 'Your thumb should wrap over the front of your fingers, not tuck under them.',
+  parts: ['thumb'],
   reliable: false,
 };
 
@@ -214,6 +297,7 @@ const thumbUnderFingers: Check = {
   param: 'handshape',
   test: (f) => f.thumbFront < 0.05,
   hint: 'Tuck your thumb under your fingers instead of over them.',
+  parts: ['thumb'],
   reliable: false,
 };
 
@@ -222,14 +306,22 @@ const thumbAcross = (lo: number, hi: number, hint: string, id: string): Check =>
   param: 'handshape',
   test: (f) => f.thumbAcross >= lo && f.thumbAcross <= hi,
   hint,
+  parts: ['thumb'],
   reliable: false,
 });
+
+const PAIR_FINGERS: Record<keyof Features['spread'], Finger[]> = {
+  im: ['index', 'middle'],
+  mr: ['middle', 'ring'],
+  rp: ['ring', 'pinky'],
+};
 
 const together = (pair: keyof Features['spread'], hint: string): Check => ({
   id: `together-${pair}`,
   param: 'handshape',
   test: (f) => f.spread[pair] <= T.togetherMax,
   hint,
+  parts: PAIR_FINGERS[pair],
   reliable: true,
 });
 
@@ -238,6 +330,17 @@ const apart = (pair: keyof Features['spread'], hint: string): Check => ({
   param: 'handshape',
   test: (f) => f.spread[pair] >= T.spreadMin,
   hint,
+  parts: PAIR_FINGERS[pair],
+  reliable: true,
+});
+
+/** An open hand with the fingers fanned, judged across all four rather than pair by pair. */
+const fanned = (hint: string): Check => ({
+  id: 'fanned',
+  param: 'handshape',
+  test: (f) => f.spread.im + f.spread.mr + f.spread.rp >= T.fanMin,
+  hint,
+  parts: ['index', 'middle', 'ring', 'pinky'],
   reliable: true,
 });
 
@@ -246,6 +349,7 @@ const crossed: Check = {
   param: 'handshape',
   test: (f) => f.crossIM >= T.crossMin,
   hint: 'Cross your middle finger over your index finger.',
+  parts: ['index', 'middle'],
   reliable: true,
 };
 
@@ -254,6 +358,7 @@ const notCrossed: Check = {
   param: 'handshape',
   test: (f) => f.crossIM < T.crossMin,
   hint: 'Uncross your fingers.',
+  parts: ['index', 'middle'],
   reliable: true,
 };
 
@@ -262,6 +367,7 @@ const claw: Check = {
   param: 'handshape',
   test: (f) => f.mcpBend.index <= T.clawMcpMax && f.mcpBend.middle <= T.clawMcpMax,
   hint: 'Bend your fingers at the middle joints so the tips rest on your thumb, not into a fist.',
+  parts: ['index', 'middle'],
   reliable: false,
 };
 
@@ -270,6 +376,7 @@ const fist: Check = {
   param: 'handshape',
   test: (f) => f.mcpBend.index >= T.fistMcpMin && f.mcpBend.middle >= T.fistMcpMin,
   hint: 'Close your fingers into a fist.',
+  parts: ['index', 'middle'],
   reliable: false,
 };
 
@@ -278,6 +385,7 @@ const pointsUp: Check = {
   param: 'orientation',
   test: (f) => f.handDirection === 'up',
   hint: 'Point your fingers up.',
+  parts: ['hand'],
   reliable: true,
 };
 
@@ -286,6 +394,7 @@ const indexSideways: Check = {
   param: 'orientation',
   test: (f) => f.indexDirection === 'side',
   hint: 'Turn your hand so your index finger points sideways.',
+  parts: ['hand', 'index'],
   reliable: true,
 };
 
@@ -294,6 +403,7 @@ const indexDown: Check = {
   param: 'orientation',
   test: (f) => f.indexDirection === 'down',
   hint: 'Tip your hand so your index finger points down.',
+  parts: ['hand', 'index'],
   reliable: true,
 };
 
@@ -303,6 +413,20 @@ const middleTippedDown: Check = {
   param: 'orientation',
   test: (f) => f.middleAngle >= T.tippedDownMin,
   hint: 'Tip your hand down so your middle finger points toward the floor.',
+  parts: ['hand', 'middle'],
+  reliable: true,
+};
+
+/**
+ * The opposite of P's tip: the middle finger is not pointing at the floor. K and
+ * C require it, so a hand tipped down for P can never also be read as one of them.
+ */
+const middleNotDown: Check = {
+  id: 'middle-not-down',
+  param: 'orientation',
+  test: (f) => f.middleAngle < T.tippedDownMin,
+  hint: 'Hold your hand upright, not tipped down.',
+  parts: ['hand'],
   reliable: true,
 };
 
@@ -311,6 +435,7 @@ const palmOut: Check = {
   param: 'orientation',
   test: (f) => f.facing === 'out',
   hint: 'Turn your palm to face out, toward the camera.',
+  parts: ['hand'],
   reliable: true,
 };
 
@@ -318,12 +443,15 @@ const palmIn: Check = {
   id: 'palm-in',
   param: 'orientation',
   test: (f) => f.facing === 'in',
-  hint: 'Turn your palm to face you.',
+  hint: 'Turn your palm to face you, so the camera sees the back of your hand.',
+  parts: ['hand'],
   reliable: true,
 };
 
 const curledAll = (...fs: Finger[]) => fs.map(curled);
 const extendedAll = (...fs: Finger[]) => fs.map(extended);
+/** The same check as advice only: reported, never blocking. */
+const advice = (c: Check): Check => ({ ...c, reliable: false });
 
 // ---- Specs ----
 
@@ -353,6 +481,7 @@ const S: SignSpec[] = [
     checks: [
       ...(['index', 'middle', 'ring', 'pinky'] as Finger[]).map(bent),
       thumbApartFrom('indexTip', 'Open a gap between your thumb and fingers, like holding a cup.'),
+      middleNotDown,
     ],
   },
   {
@@ -401,11 +530,14 @@ const S: SignSpec[] = [
   {
     id: 'k',
     checks: [
-      ...extendedAll('index', 'middle'),
+      extended('index'),
+      // Straight, but angled well forward at the knuckle, so its total bend is large.
+      straight('middle'),
       apart('im', 'Angle your middle finger forward, away from your index finger.'),
       thumbTouches('middlePip'),
       ...curledAll('ring', 'pinky'),
       pointsUp,
+      middleNotDown,
       palmOut,
     ],
   },
@@ -442,12 +574,17 @@ const S: SignSpec[] = [
   {
     id: 'p',
     checks: [
-      ...extendedAll('index', 'middle'),
-      apart('im', 'Angle your middle finger away from your index finger.'),
-      // Tipped down, the thumb is usually hidden behind the fingers.
-      thumbTouches('middlePip', false),
-      ...curledAll('ring', 'pinky'),
+      // The tip of the hand comes first: nothing else can be right until it is.
       middleTippedDown,
+      straight('middle'),
+      apart('im', 'Angle your middle finger away from your index finger.'),
+      // Tipped down, the camera sees the hand from above. The index points at
+      // it (so its bend is a guess), the thumb hides behind the fingers, and
+      // the ring and pinky are tucked out of sight.
+      advice(extended('index')),
+      thumbTouches('middlePip', false),
+      tucked('ring'),
+      tucked('pinky'),
     ],
   },
   {
@@ -538,55 +675,57 @@ const S: SignSpec[] = [
   {
     id: '1',
     checks: [
+      // For 1 to 5 the palm comes first: it is the usual mistake, and the rest is hard to read until it is right.
+      palmIn,
+      pointsUp,
       extended('index'),
       ...curledAll('middle', 'ring', 'pinky'),
-      thumbApartFrom('middleTip', 'Rest your thumb on your folded fingers.'),
-      pointsUp,
-      palmIn,
+      // D is the palm-out look-alike; here the thumb only has to stay tucked.
+      thumbIn,
     ],
   },
   {
     id: '2',
     checks: [
+      palmIn,
+      pointsUp,
       ...extendedAll('index', 'middle'),
       apart('im', 'Spread your index and middle fingers apart.'),
       notCrossed,
       thumbIn,
       ...curledAll('ring', 'pinky'),
-      pointsUp,
-      palmIn,
     ],
   },
   {
     id: '3',
     checks: [
+      palmIn,
+      pointsUp,
       ...extendedAll('index', 'middle'),
       apart('im', 'Spread your index and middle fingers apart.'),
       thumbOut,
       ...curledAll('ring', 'pinky'),
-      pointsUp,
-      palmIn,
     ],
   },
   {
     id: '4',
     checks: [
-      ...extendedAll('index', 'middle', 'ring', 'pinky'),
-      apart('im', 'Spread your fingers apart.'),
-      thumbFolded,
-      pointsUp,
       palmIn,
+      pointsUp,
+      ...extendedAll('index', 'middle', 'ring', 'pinky'),
+      fanned('Spread your fingers apart.'),
+      thumbTuckedIn,
+      thumbFolded,
     ],
   },
   {
     id: '5',
     checks: [
-      ...extendedAll('index', 'middle', 'ring', 'pinky'),
-      apart('im', 'Spread all your fingers apart.'),
-      apart('mr', 'Spread all your fingers apart.'),
-      thumbOut,
-      pointsUp,
       palmIn,
+      pointsUp,
+      ...extendedAll('index', 'middle', 'ring', 'pinky'),
+      fanned('Spread all your fingers apart.'),
+      thumbOut,
     ],
   },
   {
@@ -615,6 +754,7 @@ const S: SignSpec[] = [
         param: 'orientation',
         test: (f) => f.thumbBend <= T.thumbStraightMax && f.thumbDirection === 'up' && f.facing !== 'out',
         hint: 'Point your thumb straight up, with your fist turned sideways.',
+        parts: ['thumb', 'hand'],
         reliable: false,
       },
     ],
@@ -632,6 +772,7 @@ export interface CheckResult {
   param: Parameter;
   pass: boolean;
   hint: string;
+  parts: Part[];
   reliable: boolean;
 }
 
@@ -644,6 +785,8 @@ export interface Evaluation {
   results: CheckResult[];
   /** The first reliable failure, which is the most useful single thing to fix. */
   hint?: string;
+  /** The parts of the hand that hint is about. Empty when there is no hint. */
+  focus: Part[];
   /** Unreliable failures, shown as "check this yourself". */
   unsure: string[];
   movement?: string;
@@ -656,7 +799,8 @@ export function evaluate(target: string, features: Features): Evaluation {
     id: c.id,
     param: c.param,
     pass: c.test(features),
-    hint: c.hint,
+    hint: typeof c.hint === 'function' ? c.hint(features) : c.hint,
+    parts: c.parts,
     reliable: c.reliable,
   }));
   const failedReliable = results.filter((r) => r.reliable && !r.pass);
@@ -667,6 +811,7 @@ export function evaluate(target: string, features: Features): Evaluation {
     passAll: failedReliable.length === 0 && unsure.length === 0,
     results,
     hint: failedReliable[0]?.hint,
+    focus: failedReliable[0]?.parts ?? [],
     unsure,
     movement: spec.movement,
   };
@@ -688,7 +833,9 @@ export function judge(target: string, features: Features, candidates: Iterable<s
   if (!e.pass || e.passAll) return { ...e, rivals: [] };
   const rivals = looksLike(features, candidates, target);
   if (!rivals.length) return { ...e, rivals };
-  return { ...e, pass: false, hint: e.unsure[0] ?? e.hint, rivals };
+  // The thumb check that failed is now the thing to fix, so point at it.
+  const doubt = e.results.find((r) => !r.reliable && !r.pass);
+  return { ...e, pass: false, hint: doubt?.hint ?? e.hint, focus: doubt?.parts ?? e.focus, rivals };
 }
 
 /**
