@@ -8,8 +8,8 @@
     pickWord, readingSpeed, sequenceDuration, spellableWords, type Frame,
   } from '../lib/spelling';
   import type { Settings, SpellingAttempt } from '../lib/types';
-  import CameraMirror from '../components/CameraMirror.svelte';
   import HandSign from '../components/HandSign.svelte';
+  import HandCheck from '../components/HandCheck.svelte';
   import SignPicture from '../components/SignPicture.svelte';
   import { hasIllustration } from '../lib/illustrations';
 
@@ -32,7 +32,18 @@
   let input = $state<HTMLInputElement>();
   let timers: ReturnType<typeof setTimeout>[] = [];
 
+  // Spell mode: the camera checks one letter at a time.
+  let pos = $state(0);
+  let results = $state<(boolean | undefined)[]>([]);
+  let round = $state(0);
+  let saved = $state(false);
+  const chars = $derived(normaliseWord(word).split(''));
+  const got = $derived(results.filter(Boolean).length);
+  /** The camera confirmed at least one letter, so its score can be trusted. */
+  const scored = $derived(got > 0);
+
   const letters = letterMap();
+  const currentId = $derived(letters.get(chars[pos] ?? '')?.id);
   // A letter can be shown if it has real media or a drawn illustration.
   const available = new Set(
     [...letters].filter(([, i]) => i.files.length > 0 || hasIllustration(i.id)).map(([l]) => l),
@@ -80,10 +91,35 @@
     replays = 0;
     typed = '';
     if (mode === 'receptive') play();
-    else {
-      phase = 'signing';
-      startedAt = performance.now();
-    }
+    else startSigning();
+  }
+
+  function startSigning() {
+    pos = 0;
+    results = chars.map(() => undefined);
+    saved = false;
+    round++;
+    phase = 'signing';
+    startedAt = performance.now();
+  }
+
+  /** The camera matched the current letter. */
+  function onLetter() {
+    if (phase !== 'signing') return;
+    results[pos] = true;
+    advance();
+  }
+
+  function skipLetter() {
+    if (phase !== 'signing') return;
+    results[pos] = false;
+    advance();
+  }
+
+  function advance() {
+    pos++;
+    round++;
+    if (pos >= chars.length) finishSigning();
   }
 
   /** Plays the word. After feedback, replaying returns to feedback instead of the answer box. */
@@ -137,10 +173,15 @@
 
   function finishSigning() {
     elapsed = (performance.now() - startedAt) / 1000;
+    results = chars.map((_, i) => results[i] ?? false);
     phase = 'feedback';
+    // With a camera score, save it straight away; otherwise the learner grades themself.
+    if (scored) record(got === chars.length);
   }
 
-  async function gradeSigning(clean: boolean) {
+  async function record(clean: boolean) {
+    if (saved) return;
+    saved = true;
     const attempt: SpellingAttempt = {
       word, mode: 'expressive', correct: clean,
       lettersPerSecond: Math.round((word.length / Math.max(elapsed, 0.1)) * 100) / 100,
@@ -148,6 +189,10 @@
     };
     await store.addAttempt(attempt);
     attempts = [...attempts, attempt];
+  }
+
+  async function gradeSigning(clean: boolean) {
+    await record(clean);
     next();
   }
 
@@ -158,8 +203,12 @@
 
   function onKey(e: KeyboardEvent) {
     if (e.target instanceof HTMLInputElement) return;
+    if (phase === 'signing' && (e.key === 's' || e.key === 'S')) {
+      skipLetter();
+      return;
+    }
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    if (phase === 'idle' || (phase === 'feedback' && mode === 'receptive')) {
+    if (phase === 'idle' || (phase === 'feedback' && (mode === 'receptive' || scored))) {
       e.preventDefault();
       next();
     } else if (phase === 'signing') {
@@ -253,39 +302,75 @@
   <section class="card stack">
     <h2>Spell words</h2>
     {#if phase === 'idle'}
-      <p>A word appears. Fingerspell it as smoothly as you can, then press Done. Aim for a steady rhythm, not speed.</p>
+      <p>
+        A word appears. Fingerspell it letter by letter: the camera checks each one and moves on when it matches. At the
+        end you'll see how many letters you got.
+      </p>
       <button class="primary" onclick={next}>Start <kbd>Enter</kbd></button>
-    {:else if phase === 'signing'}
-      <div class="center stack">
-        <div class="big-gloss">{word}</div>
-        {#if hints}
-          <div class="hint-strip" aria-label="Handshapes for {word}">
-            {#each word.toUpperCase().split('') as l}
-              {@const id = letters.get(l)?.id}
-              <div class="hint-letter">
-                {#if id}<SignPicture {id} size={52} mirror={settings?.dominantHand === 'Left'} />{/if}
-                <span>{l}</span>
-              </div>
+    {:else}
+      <div class="spell-stage">
+        <div class="spell-side stack">
+          <div class="word-boxes" aria-label="Letters of {word}">
+            {#each chars as c, i}
+              <span
+                class="box"
+                class:now={phase === 'signing' && i === pos}
+                class:ok={results[i] === true}
+                class:miss={results[i] === false}
+              >{c}</span>
             {/each}
           </div>
-        {/if}
-        <div class="row center">
-          <button class="ghost" onclick={() => (hints = !hints)} aria-pressed={hints}>{hints ? 'Hide' : 'Show'} handshapes</button>
-          <button class="primary lg" onclick={finishSigning}>Done <kbd>Enter</kbd></button>
+
+          {#if phase === 'signing'}
+            <p class="muted small center">
+              Sign <b class="now-letter">{chars[pos]}</b> · letter {pos + 1} of {chars.length}
+            </p>
+            {#if hints}
+              {#if currentId}
+                <div class="hint-now">
+                  <SignPicture id={currentId} size={120} mirror={settings?.dominantHand === 'Left'} label="How to sign {chars[pos]}" />
+                </div>
+              {/if}
+            {/if}
+            <div class="row center">
+              <button onclick={skipLetter}>Skip letter <kbd>S</kbd></button>
+              <button class="ghost" onclick={() => (hints = !hints)} aria-pressed={hints}>{hints ? 'Hide' : 'Show'} handshape</button>
+              <button class="primary" onclick={finishSigning}>Done <kbd>Enter</kbd></button>
+            </div>
+          {:else if scored}
+            <div class="result" class:good={got === chars.length} class:bad={got < chars.length}>
+              {got} of {chars.length} letters right{got === chars.length ? ' · clean spelling!' : ''}
+            </div>
+            <p class="muted small center">
+              {elapsed.toFixed(1)} s · {(chars.length / Math.max(elapsed, 0.1)).toFixed(1)} letters/s
+              {#if got < chars.length}· missed {chars.filter((_, i) => !results[i]).join(', ')}{/if}
+            </p>
+            <div class="row center">
+              <button onclick={startSigning}>Try again</button>
+              <button class="primary" onclick={next}>Next word <kbd>Enter</kbd></button>
+            </div>
+          {:else}
+            <p class="muted small center">
+              The camera didn't confirm any letters (is it on?). {elapsed.toFixed(1)} s. Was every letter clear?
+            </p>
+            <div class="row center">
+              <button onclick={() => gradeSigning(false)}>Stumbled</button>
+              <button class="primary" onclick={() => gradeSigning(true)}>Clean</button>
+            </div>
+          {/if}
         </div>
-      </div>
-    {:else}
-      <div class="center stack">
-        <div class="big-gloss">{word}</div>
-        <p class="muted">{elapsed.toFixed(1)} s · {(word.length / Math.max(elapsed, 0.1)).toFixed(1)} letters/s</p>
-        <p>Was every letter clear, with no restarts?</p>
-        <div class="row" style="justify-content:center">
-          <button onclick={() => gradeSigning(false)}>Stumbled</button>
-          <button class="primary" onclick={() => gradeSigning(true)}>Clean</button>
+
+        <div class="spell-camera">
+          <HandCheck
+            target={currentId ?? 'a'}
+            {round}
+            autostart={settings?.showCameraByDefault ?? false}
+            dominantHand={settings?.dominantHand}
+            onMatch={onLetter}
+          />
         </div>
       </div>
     {/if}
-    <CameraMirror autostart={settings?.showCameraByDefault ?? false} />
   </section>
 {/if}
 
@@ -317,16 +402,41 @@
 <style>
   .head { margin: 4px 0 16px; }
   .head h1 { margin: 0; }
-  .hint-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
-  .hint-letter {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+  /* Spell mode: word on the left, camera on the right. */
+  .spell-stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 20px; align-items: start; }
+  .spell-side { align-self: center; }
+  .word-boxes { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .box {
+    width: 52px;
+    height: 60px;
+    display: grid;
+    place-items: center;
+    font-size: 1.9rem;
+    font-weight: 700;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--ink-3);
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .box.now { border: 2px solid var(--accent); color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .box.ok { background: var(--good-soft); border-color: var(--good); color: var(--good); }
+  .box.miss { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+  .now-letter { color: var(--accent); font-size: 1.1rem; }
+  .hint-now {
+    width: 140px;
+    margin: 0 auto;
+    display: grid;
+    place-items: center;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
     background: var(--paper);
-    color: #18181b;
-    border-radius: 12px;
-    padding: 6px 6px 4px;
-    font-weight: 600;
+  }
+  .spell-side .result { justify-content: center; }
+  @media (max-width: 760px) {
+    .spell-stage { grid-template-columns: 1fr; }
+    .box { width: 42px; height: 50px; font-size: 1.5rem; }
   }
   .mono { font-variant-numeric: tabular-nums; }
   .stage {

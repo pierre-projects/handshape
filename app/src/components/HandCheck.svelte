@@ -15,6 +15,7 @@
     dominantHand = 'Right',
     onMatch,
     fill = false,
+    round = 0,
   }: {
     target: string;
     autostart?: boolean;
@@ -22,6 +23,8 @@
     onMatch?: () => void;
     /** Fill the parent's height, for full-screen practice. */
     fill?: boolean;
+    /** Bump to ask for the same sign again (a doubled letter in a word). */
+    round?: number;
   } = $props();
 
   type Status = 'off' | 'loading' | 'running' | 'error';
@@ -55,6 +58,7 @@
   // Start fresh whenever the target sign changes.
   $effect(() => {
     void target;
+    void round;
     hold.reset();
     matched = false;
     progress = 0;
