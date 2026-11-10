@@ -97,9 +97,15 @@ export interface Settings {
   mirrorMedia: boolean;
   /** Which hand to check when both are in view. */
   dominantHand: 'Right' | 'Left';
+  /** The learner's own fingerspelling words, normalised to A–Z. */
+  customWords: string[];
+  /** Which words the fingerspelling drills draw from. */
+  wordList: 'builtin' | 'custom';
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  customWords: [],
+  wordList: 'builtin',
   newItemsPerDay: 6,
   receptiveSpeed: 1.5,
   showCameraByDefault: false,

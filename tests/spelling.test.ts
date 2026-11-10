@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildSequence, checkWord, letterStats, lettersPerSecondToWpm, MAX_SPEED, MIN_SPEED, nextSpeed, pickWord,
-  readingSpeed, sequenceDuration, spellableWords,
+  parseWords, readingSpeed, sequenceDuration, spellableWords,
 } from '../app/src/lib/spelling';
 import type { SpellingAttempt } from '../app/src/lib/types';
 
@@ -85,5 +85,18 @@ describe('readingSpeed', () => {
     ];
     expect(readingSpeed(xs)).toBe(2);
     expect(readingSpeed([])).toBeUndefined();
+  });
+});
+
+describe('parseWords', () => {
+  it('splits on anything that is not a letter and uppercases', () => {
+    expect(parseWords('cat, dog\nMom  pie;tea')).toEqual(['CAT', 'DOG', 'MOM', 'PIE', 'TEA']);
+  });
+  it('drops duplicates, existing words and over-long words', () => {
+    expect(parseWords('cat Cat dog', ['DOG'])).toEqual(['CAT']);
+    expect(parseWords('a'.repeat(21) + ' ok')).toEqual(['OK']);
+  });
+  it('returns nothing for blank or symbol-only input', () => {
+    expect(parseWords('  , 123 !! ')).toEqual([]);
   });
 });

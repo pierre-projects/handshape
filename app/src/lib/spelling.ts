@@ -59,6 +59,25 @@ export function normaliseWord(s: string): string {
   return s.toUpperCase().replace(/[^A-Z]/g, '');
 }
 
+export const MAX_WORD_LETTERS = 20;
+
+/**
+ * Turns typed text ("cat, dog\nMom") into words for a custom list: split on
+ * anything that isn't a letter, uppercase, drop duplicates (also ones already
+ * in `existing`) and anything too long to fingerspell comfortably.
+ */
+export function parseWords(text: string, existing: string[] = []): string[] {
+  const seen = new Set(existing);
+  const out: string[] = [];
+  for (const raw of text.split(/[^A-Za-z]+/)) {
+    const w = normaliseWord(raw);
+    if (!w || w.length > MAX_WORD_LETTERS || seen.has(w)) continue;
+    seen.add(w);
+    out.push(w);
+  }
+  return out;
+}
+
 export function checkWord(expected: string, typed: string): boolean {
   return normaliseWord(expected) === normaliseWord(typed);
 }
