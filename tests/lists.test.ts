@@ -29,6 +29,18 @@ describe('migrateSettings', () => {
     expect(s.spellListId).toBe(s.lists[0].id);
   });
 
+  it('gives settings saved before reading levels existed an empty record and the picture display', () => {
+    const old = { newItemsPerDay: 4, receptiveSpeed: 2.2, lists: [], spellListId: '', fiveListId: '' };
+    const s = migrateSettings(old);
+    expect(s.readLevels).toEqual({});
+    expect(s.readDisplay).toBe('pictures');
+    expect(s.receptiveSpeed).toBe(2.2);
+    // And keeps them once they are there.
+    const played = migrateSettings({ ...old, readLevels: { 'words-1': { best: 9, plays: 2, passedAt: '2026-11-10T00:00:00.000Z' } }, readDisplay: 'hand' });
+    expect(played.readLevels['words-1'].best).toBe(9);
+    expect(played.readDisplay).toBe('hand');
+  });
+
   it('does not migrate twice', () => {
     const once = migrateSettings({ customWords: ['MOM'], wordList: 'custom' });
     const twice = migrateSettings({ ...once, customWords: ['MOM'] });

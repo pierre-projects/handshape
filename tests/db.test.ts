@@ -36,6 +36,20 @@ describe('Store', () => {
     expect((await b.settings()).newItemsPerDay).toBe(9);
   });
 
+  it('keeps what kind of read an attempt was, and still imports attempts saved without it', async () => {
+    const a = await Store.open(`drill-${Date.now()}`);
+    const at = new Date('2026-11-10T10:00:00Z');
+    await a.addAttempt({ word: 'A', mode: 'receptive', drill: 'letter', correct: false, typed: 'S', lettersPerSecond: 0, replays: 0, at });
+    await a.addAttempt({ word: 'CAT', mode: 'receptive', correct: true, typed: 'CAT', lettersPerSecond: 2, replays: 0, at });
+    const json = JSON.parse(JSON.stringify(await a.exportAll()));
+    const b = await Store.open(`drill-b-${Date.now()}`);
+    await b.importAll(parseExport(json));
+    const back = await b.attempts();
+    expect(back.map((x) => x.drill)).toEqual(['letter', undefined]);
+    expect(back[0]).toMatchObject({ word: 'A', typed: 'S', correct: false });
+    expect(back[0].at).toEqual(at);
+  });
+
   it('clears everything', async () => {
     const s = await fresh();
     const now = new Date();

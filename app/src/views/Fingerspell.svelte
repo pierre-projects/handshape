@@ -1,8 +1,9 @@
 <script lang="ts">
   import { routes } from '../lib/routes';
-  // Fingerspelling landing (#/fingerspell): pick a drill or the word game.
-  // The drills are their own pages: ReadDrill (#/fingerspell/read),
-  // SpellDrill (#/fingerspell/spell) and SignFive (#/fingerspell/game).
+  // Fingerspelling landing (#/fingerspelling): pick reading practice, the
+  // spelling drill or the word game. Each is its own page: ReadHome and its
+  // levels (#/fingerspelling/read), SpellDrill (#/fingerspelling/spell) and
+  // SignFive (#/fingerspelling/sign-five).
   import { onMount } from 'svelte';
   import { getStore } from '../lib/app';
   import { spellingSummary } from '../lib/spelling';
@@ -10,6 +11,7 @@
   import { loadSettings, prefs, updateSettings } from '../lib/settings.svelte';
   import type { SpellingAttempt } from '../lib/types';
   import { dailyStatus, describeDaily } from '../lib/guess';
+  import { confusions, LEVELS, mixUpLetterCount, nextLevel, passedCount } from '../lib/receptive';
   import ListPicker from '../components/ListPicker.svelte';
   import Icon from '../components/Icon.svelte';
 
@@ -17,6 +19,8 @@
   let fiveToday = $state('');
   const summary = $derived(spellingSummary(attempts));
   const chosen = $derived(drillWords(prefs.value).list);
+  const levels = $derived(prefs.value?.readLevels ?? {});
+  const nextRead = $derived(nextLevel(levels, mixUpLetterCount(confusions(attempts))));
 
   onMount(async () => {
     const store = await getStore();
@@ -40,14 +44,15 @@
     <div class="mode-body">
       <span class="kicker"><Icon name="eye" size={15} />Receptive</span>
       <h2>Read</h2>
-      <p>Watch a word flash by one letter at a time, then type what you saw. Speed adapts to you.</p>
+      <p>Levels for letters, words and numbers, a drill on the letters you mix up, and free practice at a speed that adapts to you.</p>
       <div class="mode-meta">
+        <span><b>{passedCount(levels)}</b> of {LEVELS.length} levels</span>
         {#if summary.read.wpm}<span><b>{summary.read.wpm}</b> wpm reading</span>{/if}
         <span><b>{summary.read.count}</b> {summary.read.count === 1 ? 'word' : 'words'} read</span>
         {#if summary.read.accuracy !== undefined}<span><b>{summary.read.accuracy}%</b> right</span>{/if}
       </div>
     </div>
-    <span class="go">{canRead ? 'Start reading' : 'Needs letter images'}<Icon name="arrow-right" size={18} /></span>
+    <span class="go">{!canRead ? 'Needs letter images' : nextRead && passedCount(levels) ? `Next: ${nextRead.title}` : 'Start reading'}<Icon name="arrow-right" size={18} /></span>
   </a>
 
   <a class="mode-card spell" href={routes.spell}>
@@ -93,7 +98,7 @@
     <p class="small">
       <b>Letters you misread most:</b>
       {#each summary.weakLetters as [l, s], i}<a href={routes.sign(l.toLowerCase())}>{l}</a> ({Math.round(s.rate * 100)}%){i < summary.weakLetters.length - 1 ? ', ' : ''}{/each}.
-      Read mode shows words with these letters more often.
+      Reading practice shows these letters more often.
     </p>
   </section>
 {/if}

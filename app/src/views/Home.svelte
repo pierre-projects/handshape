@@ -9,6 +9,7 @@
   import { activityDates, streak } from '../lib/stats';
   import { spellingSummary, type SpellingSummary } from '../lib/spelling';
   import { dailyStatus, describeDaily, type DailyState } from '../lib/guess';
+  import { confusions, LEVELS, mixUpLetterCount, nextLevel, passedCount } from '../lib/receptive';
   import { routes } from '../lib/routes';
   import HandSign from '../components/HandSign.svelte';
   import Icon from '../components/Icon.svelte';
@@ -21,6 +22,8 @@
   let started = $state(false);
   let learned = $state(0);
   let spelling = $state<SpellingSummary>();
+  /** Where reading practice stands: "3 of 10 levels · next: Four letters". */
+  let reading = $state('');
   let five = $state<{ state: DailyState; guesses: number }>({ state: 'unplayed', guesses: 0 });
 
   const drafts = content.units.filter((u) => u.review.status === 'draft').length;
@@ -42,6 +45,12 @@
     newRemaining = q.newRemaining;
     days = streak(activityDates(reviews, attempts), new Date());
     spelling = spellingSummary(attempts);
+    const levels = settings.readLevels ?? {};
+    const nextRead = nextLevel(levels, mixUpLetterCount(confusions(attempts)));
+    const passed = passedCount(levels);
+    reading = passed || nextRead?.id !== LEVELS[0].id || levels[LEVELS[0].id]
+      ? `${passed} of ${LEVELS.length} levels${nextRead ? ` · next: ${nextRead.title}` : ''}`
+      : '';
     started = cards.size > 0;
     learned = new Set([...cards.values()].map((c) => c.itemId)).size;
     five = dailyStatus(signFive);
@@ -127,7 +136,7 @@
     <span class="hub-icon"><Icon name="eye" size={22} /></span>
     <span class="hub-text">
       <b>Read fingerspelling</b>
-      <span>{spelling?.read.wpm ? `${spelling.read.wpm} wpm reading` : 'Watch words, type what you see'}</span>
+      <span>{reading || 'Levels for letters, words and numbers'}</span>
     </span>
   </a>
   <a class="hub-card" href={routes.spell} style="--c: var(--spell); --s: var(--spell-soft)">

@@ -12,8 +12,15 @@ It runs entirely in your browser: no accounts, and camera video never leaves you
 - **Camera checks.** Sign a letter or number to your camera and get told what to fix, such as
   "Straighten your index finger" or "Turn your palm to face out". The Camera page works through the
   alphabet or numbers with a sign list you can jump around in. Hand tracking runs on your device.
-- **Read fingerspelling.** Watch a word spelled letter by letter and type it. The speed rises after clean
-  reads and drops after misses, and words with your weakest letters come up more often.
+- **Read fingerspelling.** Reading is the hard part, so it has its own module. Levels in three
+  tracks, each played as ten quick reads: **Letters** (pick the letter you saw, then look-alikes
+  flashed briefly, then a drill built from the letters *you* mix up), **Words** (short words up to
+  names and places at four letters a second, with a hint such as "a name" as you'd have in
+  conversation) and **Numbers** (0 to 10, then digit strings like phone numbers). A miss shows the
+  word letter by letter with what you got wrong, and each session ends with a summary and a way
+  to go over the ones you missed. **Free practice** reads word after word from the built-in words
+  or your lists, at a speed that rises after clean reads and drops after misses. Words can be
+  shown as letter pictures or, as an experiment, a drawn hand that moves from letter to letter.
 - **Spell fingerspelling.** Fingerspell a word to the camera; each letter turns green as it matches,
   and you get a score for the word.
 - **Sign Five.** A word game: guess the five-letter word in six tries by fingerspelling each guess
@@ -49,7 +56,7 @@ Then open the address it prints. The camera needs `localhost` or https.
 | Folder | Holds |
 | --- | --- |
 | `app/` | The web app: pages in `app/src/views`, components, and logic in `app/src/lib` |
-| `app/src/lib/engine/` | Camera and hand tracking: hand measurements, per-sign rules, letter reading |
+| `app/src/lib/engine/` | Camera and hand tracking: hand measurements, per-sign rules, letter reading; the model hand and its animation |
 | `content/` | Lesson units (JSON), media, word lists, and their schemas |
 | `functions/` | Cloudflare Pages Function that relays the daily Wordle word |
 | `models/` | The bundled hand-tracking model |

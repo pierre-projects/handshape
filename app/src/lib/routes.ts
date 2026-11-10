@@ -12,7 +12,11 @@ export const routes = {
   camera: '#/camera',
   cameraSign: (id: string) => `#/camera/${encodeURIComponent(id)}`,
   fingerspelling: '#/fingerspelling',
+  /** Reading practice: the levels. */
   read: '#/fingerspelling/read',
+  readLevel: (id: string) => `#/fingerspelling/read/${encodeURIComponent(id)}`,
+  /** The open-ended reading drill, with your own word lists. */
+  readFree: '#/fingerspelling/read/free',
   spell: '#/fingerspelling/spell',
   signFive: '#/fingerspelling/sign-five',
   dashboard: '#/dashboard',
@@ -62,9 +66,10 @@ export function toHash({ name, param, sub }: Route): string {
 
 /** Short page names, for "Back to …" links. */
 export function pageTitle(hash: string): string {
-  const { name, param } = parseRoute(hash);
+  const { name, param, sub } = parseRoute(hash);
   if (name === 'fingerspelling') {
-    return { read: 'Read drill', spell: 'Spell drill', 'sign-five': 'Sign Five' }[param ?? ''] ?? 'Fingerspelling';
+    if (param === 'read') return sub === 'free' ? 'Free reading practice' : 'Reading';
+    return { spell: 'Spell drill', 'sign-five': 'Sign Five' }[param ?? ''] ?? 'Fingerspelling';
   }
   return (
     { '': 'Today', review: 'Review', signs: 'Signs', camera: 'Camera practice', dashboard: 'Dashboard' }[name] ?? 'Today'

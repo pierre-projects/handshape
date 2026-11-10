@@ -56,7 +56,9 @@ Dashboard. Camera practice belongs with Signs (and is linked from Today and ever
 | Signs | `#/signs`, `#/signs/<id>` | Browses every sign: picture, handshape, palm, movement, tips, look-alikes |
 | Camera practice | `#/camera`, `#/camera/<id>` | Signs each letter or number to the camera; a sign list shows progress, and the next sign comes on Next (or automatically, if turned on) |
 | Fingerspelling | `#/fingerspelling` | Chooses between the two drills and the word game |
-| Read drill | `#/fingerspelling/read` | Watches a word spelled letter by letter and types it; speed adapts |
+| Read | `#/fingerspelling/read` | Sees the reading levels (Letters, Words, Numbers), what's passed and what's next, free practice, and their own mix-ups |
+| Reading level | `#/fingerspelling/read/<level>` | Plays ten reads: picks a letter or number from four, or types a word or digit string; then a summary of what was missed |
+| Free reading | `#/fingerspelling/read/free` | Watches word after word from the built-in words or a list and types it; speed adapts |
 | Spell drill | `#/fingerspelling/spell` | Fingerspells a word; the camera checks each letter and scores the word |
 | Sign Five | `#/fingerspelling/sign-five` | Guesses a five-letter word in six tries by fingerspelling it (daily word or practice) |
 | Dashboard | `#/dashboard` | Signs and fingerspelling progress, activity, word lists (`/lists`, `/lists/<id>`), settings and data (`/settings`) |
@@ -87,6 +89,7 @@ app/src/
 | `lib/srs.ts` | FSRS scheduling (ts-fsrs), the review queue and session, wait times in words |
 | `lib/stats.ts` | Review stats: card counts, retention, streak, activity, weakest signs |
 | `lib/spelling.ts` | Fingerspelling: playback timing, adaptive speed, word picking, `spellingSummary()` |
+| `lib/receptive.ts` | Reading practice: the levels, what goes in a session, choices for a letter, scoring, unlocking, and the learner's mix-ups |
 | `lib/fingerspell.ts` | What the fingerspelling pages share: letters, showable letters, chosen word list |
 | `lib/guess.ts` | Sign Five: scoring guesses, daily word (official or local), saved game |
 | `lib/illustrations.ts` | Drawn hand illustrations used when a sign has no image |
@@ -97,6 +100,7 @@ app/src/
 | `lib/engine/tracker.ts` | Smoothing across frames, and "held long enough" timing |
 | `lib/engine/modelHand.ts`, `poses.ts` | A model hand built from joint angles, and one pose per sign. Used by the guide and by the tests |
 | `lib/engine/guide.ts` | The guide hand: a sign's pose sized to the learner's hand and pinned to their wrist |
+| `lib/engine/handAnimation.ts` | The moving hand in reading practice: where the model hand is at any moment while it spells a word |
 | `lib/engine/movement.ts` | Letters drawn in the air (J, Z): follows a fingertip, finds the stroke, matches its shape |
 | `lib/engine/reader.ts` | Reads *which* letter is being made (for Sign Five): still letters and drawn J/Z, with safeguards against stray letters |
 
@@ -156,6 +160,10 @@ All learner data is in one IndexedDB database (`asl`):
 | `attempts` | Every fingerspelling attempt: word, mode, correct, speed, replays |
 | `settings` | Small records: `settings` (preferences, word lists) and `signFive` (game in progress, stats) |
 
+- **Reading practice** needs no store of its own. Each read is an `attempts` record marked
+  `drill: 'word' | 'letter' | 'number'` (absent on older records, meaning a word), and mix-ups are
+  worked out from those. Level progress (`readLevels`) and the display choice (`readDisplay`) live
+  in settings.
 - **Export / import** is one JSON file with all of the above. Import replaces everything; older
   files without newer fields still import.
 - **Migrations** happen when settings are read: older one-list settings become named lists, and
@@ -166,7 +174,7 @@ All learner data is in one IndexedDB database (`asl`):
 
 | Path | Holds | Checked by |
 | --- | --- | --- |
-| `content/units/*.json` | Lesson units: signs, descriptions, tips, look-alikes, media, review status | `schema/unit.schema.json` + `npm run validate` |
+| `content/units/*.json` | Lesson units: signs, descriptions, tips, look-alikes, media, review status; practice words, some grouped with a hint ("a name") | `schema/unit.schema.json` + `npm run validate` |
 | `content/media/` | Public-domain letter and number images | validator (files exist) |
 | `content/words/*.json` | Word lists, e.g. the Sign Five dictionary | `schema/wordlist.schema.json` + validator (length, repeats) |
 
@@ -214,6 +222,8 @@ Done:
 5. Sign Five word game, named word lists, dashboard.
 6. Movement checks for J and Z (drawn letters), in target checks and in Sign Five.
 7. Guide hand and finger highlight in the camera view; looser, clearer checks for K, P and 1–5.
+8. Reading module: levels for letters, words and numbers, mix-up drill, session summaries, and
+   an optional moving hand.
 
 Next:
 
@@ -221,6 +231,7 @@ Next:
    P, K, 1, 2, 4 and 5 first, then T, X, J and Z (the folder and the Save sample button are set
    up; no samples yet).
 2. **Movement check for 10** (thumb shake), and J/Z words as Sign Five answers once tuned.
+   **Numbers above 10** (and so years and prices) for reading practice.
 3. **First vocabulary unit** (greetings, introductions) with location checks, which need face
    or body landmarks as a reference.
 4. **Run tracking in a Web Worker** so the page stays smooth on slower phones.

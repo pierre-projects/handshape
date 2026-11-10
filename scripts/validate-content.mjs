@@ -46,6 +46,20 @@ export function validateContent(contentDir = root) {
     }
   }
 
+  // A practice word belongs to one group at most, so its hint is never ambiguous.
+  const groupIds = new Map();
+  const grouped = new Map();
+  for (const { file, unit } of units) {
+    for (const g of unit.practice_groups ?? []) {
+      if (groupIds.has(g.id)) errors.push(`${file}: word group "${g.id}" also used in ${groupIds.get(g.id)}`);
+      groupIds.set(g.id, file);
+      for (const w of g.words) {
+        if (grouped.has(w)) errors.push(`${file}: word "${w}" is in groups "${grouped.get(w)}" and "${g.id}"`);
+        grouped.set(w, g.id);
+      }
+    }
+  }
+
   for (const { file, unit } of units) {
     for (const item of unit.items) {
       for (const other of item.confusable_with ?? []) {

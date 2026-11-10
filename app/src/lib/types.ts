@@ -40,6 +40,15 @@ export interface Unit {
   review: { status: 'draft' | 'reviewed'; reviewed_by: string[]; notes?: string };
   items: Item[];
   practice_words?: string[];
+  /** More practice words, grouped by what they are, so a drill can give a hint ("a name"). */
+  practice_groups?: WordGroup[];
+}
+
+export interface WordGroup {
+  id: string;
+  /** Shown before the word is spelled, e.g. "a name". */
+  hint: string;
+  words: string[];
 }
 
 /** An item with its unit, plus media resolved to URLs the browser can load. */
@@ -82,6 +91,12 @@ export interface SpellingAttempt {
   id?: number;
   word: string;
   mode: 'receptive' | 'expressive';
+  /**
+   * Receptive only: what was read. A whole word (the default, and every attempt
+   * saved before levels existed), one letter picked from choices, or a number
+   * or digit string. `word` holds what was shown and `typed` the answer.
+   */
+  drill?: 'word' | 'letter' | 'number';
   correct: boolean;
   typed?: string;
   /** Receptive: playback speed. Expressive: measured signing speed. Letters per second. */
@@ -114,9 +129,22 @@ export const DEFAULT_SIGN_FIVE: SignFiveSave = {
   stats: { played: 0, won: 0, streak: 0, best: 0, dist: [0, 0, 0, 0, 0, 0] },
 };
 
+/** How a reading level has gone so far. */
+export interface LevelProgress {
+  /** Best score, out of the session size. */
+  best: number;
+  plays: number;
+  /** When it was first passed, as an ISO date. */
+  passedAt?: string;
+}
+
 export interface Settings {
   newItemsPerDay: number;
   receptiveSpeed: number;
+  /** Reading levels played, by level id. */
+  readLevels: Record<string, LevelProgress>;
+  /** How spelled words are shown: letter pictures, or the moving drawn hand. */
+  readDisplay: 'pictures' | 'hand';
   showCameraByDefault: boolean;
   mirrorMedia: boolean;
   /** Which hand to check when both are in view. */
@@ -135,6 +163,8 @@ export const DEFAULT_SETTINGS: Settings = {
   fiveListId: '',
   newItemsPerDay: 6,
   receptiveSpeed: 1.5,
+  readLevels: {},
+  readDisplay: 'pictures',
   showCameraByDefault: false,
   mirrorMedia: false,
   dominantHand: 'Right',

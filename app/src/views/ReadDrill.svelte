@@ -1,19 +1,24 @@
 <script lang="ts">
-  // Read drill (#/fingerspell/read): watch a word spelled one letter at a
-  // time, then type it. Speed adapts: clean reads speed up, misses slow down.
-  import { onDestroy, onMount, tick } from 'svelte';
+  // Free reading practice (#/fingerspelling/read/free): watch a word spelled one
+  // letter at a time, then type it, word after word. Speed adapts: clean reads
+  // speed up, misses slow down. Uses the built-in words or one of your lists.
+  import { onMount, tick } from 'svelte';
   import { getStore } from '../lib/app';
   import type { Store } from '../lib/db';
+  import { content } from '../lib/content';
+  import { routes } from '../lib/routes';
   import {
-    buildSequence, checkWord, letterStats, lettersPerSecondToWpm, MAX_SPEED, MIN_SPEED, nextSpeed, normaliseWord,
-    pickWord, sequenceDuration, spellableWords, spellingSummary, type Frame,
+    checkWord, letterStats, lettersPerSecondToWpm, MAX_SPEED, MIN_SPEED, nextSpeed, normaliseWord, pickWord,
+    spellableWords, spellingSummary,
   } from '../lib/spelling';
-  import { canRead, drillWords, letters, plural, showableLetters } from '../lib/fingerspell';
+  import { canRead, drillWords, plural, showableLetters } from '../lib/fingerspell';
   import { loadSettings, mirrored, prefs, updateSettings } from '../lib/settings.svelte';
   import type { SpellingAttempt } from '../lib/types';
+  import DisplaySwitch from '../components/DisplaySwitch.svelte';
   import DrillPage from '../components/DrillPage.svelte';
-  import HandSign from '../components/HandSign.svelte';
   import Icon from '../components/Icon.svelte';
+  import LetterStrip from '../components/LetterStrip.svelte';
+  import SpellPlayer from '../components/SpellPlayer.svelte';
 
   let store: Store;
   const settings = $derived(prefs.value);
@@ -21,21 +26,26 @@
   let phase = $state<'idle' | 'playing' | 'answer' | 'feedback'>('idle');
   let word = $state('');
   let recent: string[] = [];
-  let frame = $state<Frame>();
+  /** Bumped to play the word again. */
+  let run = $state(0);
+  let slow = $state(false);
+  let after: 'answer' | 'feedback' = 'answer';
   let replays = $state(0);
   let typed = $state('');
   let lastCorrect = $state(false);
   let speedBefore = $state(0);
   let input = $state<HTMLInputElement>();
-  let timers: ReturnType<typeof setTimeout>[] = [];
 
   const chars = $derived(normaliseWord(word).split(''));
-  const words = $derived(spellableWords(drillWords(settings).words, showableLetters));
+  const chosen = $derived(drillWords(settings));
+  const words = $derived(spellableWords(chosen.words, showableLetters));
   const stats = $derived(letterStats(attempts));
   const summary = $derived(spellingSummary(attempts));
   const speed = $derived(settings?.receptiveSpeed ?? 1.5);
   /** Feedback: each letter of the word, and whether it was typed in that place. */
   const compare = $derived(chars.map((c, i) => ({ c, ok: normaliseWord(typed)[i] === c })));
+  /** What kind of word is coming ("a name"), for the built-in words that say. */
+  const hint = $derived(chosen.list ? undefined : content.wordHints.get(word));
 
   onMount(async () => {
     store = await getStore();
@@ -43,16 +53,8 @@
     attempts = await store.attempts();
   });
 
-  onDestroy(clearTimers);
-
-  function clearTimers() {
-    timers.forEach(clearTimeout);
-    timers = [];
-  }
-
   /** Starts the next word (favouring letters often misread), or a word picked from the list. */
   function next(pick?: string) {
-    clearTimers();
     word = pick ?? pickWord(words, stats, recent) ?? words[0];
     recent = [...recent.slice(-9), word];
     replays = 0;
@@ -61,37 +63,28 @@
   }
 
   function stop() {
-    clearTimers();
-    frame = undefined;
     phase = 'idle';
   }
 
   /** Plays the word. After feedback, replaying returns to feedback instead of the answer box. */
-  function play(after: 'answer' | 'feedback' = 'answer') {
-    clearTimers();
+  function play(then: 'answer' | 'feedback' = 'answer', slower = false) {
+    after = then;
+    slow = slower;
     phase = 'playing';
-    frame = undefined;
-    const frames = buildSequence(word, speed);
-    const lead = 400;
-    for (const f of frames) {
-      timers.push(setTimeout(() => (frame = f), lead + f.startMs));
-      timers.push(setTimeout(() => { if (frame === f) frame = undefined; }, lead + f.startMs + f.durationMs));
-    }
-    timers.push(
-      setTimeout(async () => {
-        frame = undefined;
-        phase = after;
-        if (after === 'answer') {
-          await tick();
-          input?.focus();
-        }
-      }, lead + sequenceDuration(frames) + 150),
-    );
+    run++;
   }
 
-  function replay() {
+  async function played() {
+    phase = after;
+    if (phase === 'answer') {
+      await tick();
+      input?.focus();
+    }
+  }
+
+  function replay(slower: boolean) {
     replays++;
-    play();
+    play('answer', slower);
   }
 
   async function submit(e: Event) {
@@ -100,7 +93,7 @@
     lastCorrect = checkWord(word, typed);
     speedBefore = speed;
     const attempt: SpellingAttempt = {
-      word, mode: 'receptive', correct: lastCorrect, typed: normaliseWord(typed),
+      word, mode: 'receptive', drill: 'word', correct: lastCorrect, typed: normaliseWord(typed),
       lettersPerSecond: speed, replays, at: new Date(),
     };
     await store.addAttempt(attempt);
@@ -120,18 +113,17 @@
       next();
     }
   }
-
-  const media = (l: string) => letters.get(l)?.files[0];
 </script>
 
 <svelte:window onkeydown={onKey} />
 
 <DrillPage
   kind="read"
-  title="Read fingerspelling"
+  title="Free reading practice"
   subtitle="{summary.read.wpm ? `${summary.read.wpm} wpm reading` : 'No reading speed yet'} · {plural(summary.read.count, 'word')} read"
   activeWord={phase !== 'idle' ? word : undefined}
   onPlay={canRead ? next : undefined}
+  back={{ href: routes.read, label: 'Reading levels' }}
 >
   {#if !canRead}
     <h2>Not available yet</h2>
@@ -144,6 +136,7 @@
       <span class="small muted">
         {phase === 'idle' ? 'Ready' : phase === 'playing' ? 'Watch closely' : phase === 'answer' ? 'Your turn' : 'Result'}{#if replays && phase !== 'idle'} · {plural(replays, 'replay')}{/if}
       </span>
+      <DisplaySwitch />
       <div class="speed" role="group" aria-label="Playback speed">
         <span class="small muted">Speed</span>
         <button class="small" onclick={() => adjust(0.9)} aria-label="Slower">−</button>
@@ -153,30 +146,22 @@
     </div>
 
     <div class="screen" aria-live="off">
+      {#if hint && (phase === 'playing' || phase === 'answer')}<span class="hint">Hint: {hint}</span>{/if}
       {#if phase === 'playing'}
-        {#if frame}
-          {@const m = media(frame.letter)}
-          {@const id = letters.get(frame.letter)?.id}
-          <div class="letter" class:shift={frame.repeat}>
-            {#if m?.type === 'video'}
-              <video src={m.url} autoplay muted playsinline></video>
-            {:else if m}
-              <img src={m.url} alt="" />
-            {:else if id}
-              <HandSign {id} size={200} label="" animate={false} mirror={mirrored(settings)} />
-            {/if}
-          </div>
-        {:else}
-          <div class="ready muted small">Watch…</div>
-        {/if}
-        <div class="ticks" aria-hidden="true">
-          {#each chars as _, i}<span class:seen={frame ? i <= frame.index : false}></span>{/each}
-        </div>
+        {#key run}
+          <SpellPlayer
+            ids={chars.map((c) => c.toLowerCase())}
+            speed={slow ? speed / 2 : speed}
+            display={settings?.readDisplay ?? 'pictures'}
+            mirror={mirrored(settings)}
+            onDone={played}
+          />
+        {/key}
       {:else if phase === 'idle'}
         <div class="intro">
           <ol class="steps">
             <li><span>1</span>Watch a word spelled one letter at a time.</li>
-            <li><span>2</span>Type the word you saw. Replay if you need to.</li>
+            <li><span>2</span>Type the word you saw. Replay if you need to, slower if it helps.</li>
             <li><span>3</span>Read cleanly and it speeds up; miss and it slows down.</li>
           </ol>
           <button class="primary lg" onclick={() => next()}><Icon name="play" size={16} />Start <kbd>Enter</kbd></button>
@@ -200,7 +185,8 @@
       <form class="answer" onsubmit={submit}>
         <input bind:this={input} bind:value={typed} class="answer-input" type="text" autocomplete="off"
           autocapitalize="characters" spellcheck="false" placeholder="Type the word" aria-label="What word was spelled?" />
-        <button type="button" onclick={replay}><Icon name="play" size={14} />Replay</button>
+        <button type="button" onclick={() => replay(false)}><Icon name="play" size={14} />Replay</button>
+        <button type="button" onclick={() => replay(true)}>Slower</button>
         <button class="primary" type="submit" disabled={!normaliseWord(typed)}>Check</button>
       </form>
     {:else if phase === 'feedback'}
@@ -215,8 +201,11 @@
           {#if speed > speedBefore} Speeding up to {speed.toFixed(1)} letters/s.{:else if speed < speedBefore} Slowing down to {speed.toFixed(1)} letters/s.{/if}
         </span>
       </div>
+      {#if !lastCorrect}
+        <LetterStrip parts={compare.map((l) => ({ id: l.c.toLowerCase(), label: l.c, ok: l.ok }))} mirror={mirrored(settings)} />
+      {/if}
       <div class="button-row">
-        <button onclick={() => play('feedback')}><Icon name="play" size={14} />Watch again</button>
+        <button onclick={() => play('feedback', true)}><Icon name="play" size={14} />Watch again, slowly</button>
         <button class="primary" onclick={() => next()}>Next word <kbd>Enter</kbd></button>
       </div>
     {:else if phase === 'playing'}
@@ -232,15 +221,13 @@
   .mono { font-variant-numeric: tabular-nums; }
 
   .screen {
-    position: relative; min-height: 300px; display: grid; place-items: center; overflow: hidden;
+    position: relative; min-height: 300px; display: grid; place-items: center; overflow: hidden; padding: 8px 8px 24px;
     background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
   }
-  .letter { width: 100%; height: 260px; display: grid; place-items: center; }
-  .letter img, .letter video { max-width: 100%; max-height: 260px; object-fit: contain; }
-  .letter.shift { transform: translateX(14%); }
-  .ticks { position: absolute; bottom: 14px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; }
-  .ticks span { width: 22px; height: 4px; border-radius: 2px; background: var(--surface-3); transition: background 0.1s; }
-  .ticks span.seen { background: var(--m); }
+  .hint {
+    position: absolute; top: 10px; left: 10px; z-index: 1; padding: 3px 10px; border-radius: 999px;
+    background: var(--m-soft); color: var(--m); font-size: 0.8rem; font-weight: 600;
+  }
   .intro { display: grid; justify-items: center; gap: 18px; padding: 16px; }
   .ready { display: grid; justify-items: center; gap: 10px; text-align: center; }
   .ready p { margin: 0; }

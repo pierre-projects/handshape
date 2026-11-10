@@ -1,4 +1,4 @@
-import type { Unit, ResolvedItem, FileMedia, EmbedMedia } from './types';
+import type { Unit, ResolvedItem, FileMedia, EmbedMedia, WordGroup } from './types';
 
 const unitModules = import.meta.glob<Unit>('../../../content/units/*.json', {
   eager: true,
@@ -21,7 +21,12 @@ export interface Content {
   units: Unit[];
   items: ResolvedItem[];
   byId: Map<string, ResolvedItem>;
+  /** Every practice word, grouped or not. */
   practiceWords: string[];
+  /** Practice words grouped by what they are (names, places, …). */
+  wordGroups: WordGroup[];
+  /** The hint for a grouped word, e.g. AMY → "a name". */
+  wordHints: Map<string, string>;
 }
 
 export function resolveContent(units: Unit[], urls: Map<string, string> = mediaUrls): Content {
@@ -43,12 +48,25 @@ export function resolveContent(units: Unit[], urls: Map<string, string> = mediaU
     }
   }
   const words = new Set<string>();
-  for (const unit of sorted) for (const w of unit.practice_words ?? []) words.add(w);
+  const wordGroups: WordGroup[] = [];
+  const wordHints = new Map<string, string>();
+  for (const unit of sorted) {
+    for (const w of unit.practice_words ?? []) words.add(w);
+    for (const g of unit.practice_groups ?? []) {
+      wordGroups.push(g);
+      for (const w of g.words) {
+        words.add(w);
+        if (!wordHints.has(w)) wordHints.set(w, g.hint);
+      }
+    }
+  }
   return {
     units: sorted,
     items,
     byId: new Map(items.map((i) => [i.id, i])),
     practiceWords: [...words],
+    wordGroups,
+    wordHints,
   };
 }
 

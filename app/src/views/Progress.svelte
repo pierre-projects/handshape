@@ -10,6 +10,7 @@
   import { content } from '../lib/content';
   import { activityDates, cardCounts, dailyActivity, MATURE_DAYS, retention, streak, weakestItems } from '../lib/stats';
   import { spellingSummary } from '../lib/spelling';
+  import { confusions, LEVELS, mixUpLetterCount, nextLevel, passedCount, topMixUps } from '../lib/receptive';
   import type { ReviewEntry, Settings, SignFiveSave, SpellingAttempt, StoredCard } from '../lib/types';
   import { prefs, reloadSettings, updateSettings } from '../lib/settings.svelte';
   import ActivityChart from '../components/ActivityChart.svelte';
@@ -41,6 +42,10 @@
   const activity = $derived(dailyActivity(activityDates(reviews, attempts), now, 14));
   const weak = $derived(weakestItems(reviews).slice(0, 6));
   const spelling = $derived(spellingSummary(attempts));
+  const mixed = $derived(confusions(attempts));
+  const mixUps = $derived(topMixUps(mixed, 4));
+  const readLevels = $derived(prefs.value?.readLevels ?? {});
+  const nextRead = $derived(nextLevel(readLevels, mixUpLetterCount(mixed)));
   const learnedItems = $derived(new Set(cards.map((c) => c.itemId)).size);
 
   onMount(load);
@@ -199,6 +204,13 @@
         <span class="m-foot">{settings?.lists.length ? settings.lists.slice(0, 2).map((l) => l.name).join(', ') : 'make your own'}</span>
       </a>
     </div>
+    <p class="small reading-line">
+      <a href={routes.read}><b>Reading levels:</b> {passedCount(readLevels)} of {LEVELS.length} passed</a>{#if nextRead}{' · '}next: <a href={routes.readLevel(nextRead.id)}>{nextRead.title}</a>{/if}.
+      {#if mixUps.length}
+        <b>Mixed up most:</b>
+        {#each mixUps as m, i}{m.shown} read as {m.answered} ({m.count}×){i < mixUps.length - 1 ? ', ' : ''}{/each}.
+      {/if}
+    </p>
   </section>
 
   <section class="card panel">
@@ -285,6 +297,7 @@
   }
   .spellpanel { --m: var(--spell); --m-soft: var(--spell-soft); }
   .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .reading-line { margin: 12px 0 0; color: var(--ink-2); }
   .metric {
     display: grid; align-content: start; gap: 2px; padding: 12px 14px; border-radius: var(--radius-sm);
     background: var(--surface-2); color: var(--ink); text-decoration: none;

@@ -223,15 +223,42 @@ export function drawGuide(
   const g = guideLayer.getContext('2d');
   if (!g) return;
   g.clearRect(0, 0, w, h);
+  paintHand(g, guide.points.map((p) => ({ x: p.x * w, y: p.y * h, z: p.z })), guide.palm * h, {
+    back: guide.back,
+    focus,
+    skin: resolveColor(canvas, 'var(--cam-guide)'),
+    edge: resolveColor(canvas, 'var(--cam-guide-edge)'),
+    target: resolveColor(canvas, 'var(--cam-match)'),
+  });
+
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.drawImage(guideLayer, 0, 0);
+  ctx.restore();
+}
+
+/** Looks up a colour token (`var(--name)`) on an element, for painting on a canvas. */
+export const canvasColor = resolveColor;
+
+/**
+ * Paints a model hand as a solid drawn hand: a filled palm and thick rounded
+ * fingers with a dark edge, nearer parts over farther ones. Points are in
+ * canvas pixels, with z as depth (smaller is nearer). `palm` is the palm's
+ * length in pixels, which sets how thick the fingers are. Used by the camera
+ * guide and by the moving hand in the reading drill.
+ */
+export function paintHand(
+  g: CanvasRenderingContext2D,
+  points: { x: number; y: number; z: number }[],
+  palm: number,
+  { back = false, focus = [], skin, edge, target = skin }: { back?: boolean; focus?: HandPart[]; skin: string; edge: string; target?: string },
+): void {
+  g.save();
   g.lineCap = 'round';
   g.lineJoin = 'round';
-
-  const skin = resolveColor(canvas, 'var(--cam-guide)');
-  const edge = resolveColor(canvas, 'var(--cam-guide-edge)');
-  const target = resolveColor(canvas, 'var(--cam-match)');
-  const thick = guide.palm * h * 0.2;
+  const thick = palm * 0.2;
   const rim = Math.max(1.5, thick * 0.12);
-  const depth = (ids: number[]) => ids.reduce((sum, id) => sum + guide.points[id].z, 0) / ids.length;
+  const depth = (ids: number[]) => ids.reduce((sum, id) => sum + points[id].z, 0) / ids.length;
 
   type Piece = { ids: number[]; z: number; palm: boolean; width: number; color: string };
   const pieces: Piece[] = [
@@ -247,7 +274,7 @@ export function drawGuide(
   // Farthest first, so nearer parts are painted over them.
   pieces.sort((a, b) => b.z - a.z);
   for (const p of pieces) {
-    tracePath(g, guide.points, p.ids, w, h, p.palm);
+    tracePath(g, points, p.ids, 1, 1, p.palm);
     g.strokeStyle = edge;
     g.lineWidth = p.width + rim * 2;
     g.stroke();
@@ -256,24 +283,20 @@ export function drawGuide(
     g.lineWidth = p.width;
     if (p.palm) g.fill();
     g.stroke();
-    if (p.palm || !guide.back) continue;
+    if (p.palm || !back) continue;
     // A fingernail on each finger says "this is the back of the hand" at a glance.
-    const a = guide.points[p.ids[2]];
-    const b = guide.points[p.ids[3]];
+    const a = points[p.ids[2]];
+    const b = points[p.ids[3]];
     g.beginPath();
-    g.moveTo((a.x + (b.x - a.x) * 0.5) * w, (a.y + (b.y - a.y) * 0.5) * h);
-    g.lineTo(b.x * w, b.y * h);
+    g.moveTo(a.x + (b.x - a.x) * 0.5, a.y + (b.y - a.y) * 0.5);
+    g.lineTo(b.x, b.y);
     g.strokeStyle = edge;
     g.globalAlpha = 0.3;
     g.lineWidth = p.width * 0.55;
     g.stroke();
     g.globalAlpha = 1;
   }
-
-  ctx.save();
-  ctx.globalAlpha = 0.5;
-  ctx.drawImage(guideLayer, 0, 0);
-  ctx.restore();
+  g.restore();
 }
 
 /**

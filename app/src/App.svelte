@@ -6,6 +6,8 @@
   import Learn from './views/Learn.svelte';
   import Fingerspell from './views/Fingerspell.svelte';
   import ReadDrill from './views/ReadDrill.svelte';
+  import ReadHome from './views/ReadHome.svelte';
+  import ReadSession from './views/ReadSession.svelte';
   import SpellDrill from './views/SpellDrill.svelte';
   import SignFive from './views/SignFive.svelte';
   import Progress from './views/Progress.svelte';
@@ -70,8 +72,12 @@
         <Learn itemId={route.param} />
       {:else if route.name === 'camera'}
         <Practice startId={route.param} />
-      {:else if route.name === 'fingerspelling' && route.param === 'read'}
+      {:else if route.name === 'fingerspelling' && route.param === 'read' && route.sub === 'free'}
         <ReadDrill />
+      {:else if route.name === 'fingerspelling' && route.param === 'read' && route.sub}
+        <ReadSession levelId={route.sub} />
+      {:else if route.name === 'fingerspelling' && route.param === 'read'}
+        <ReadHome />
       {:else if route.name === 'fingerspelling' && route.param === 'spell'}
         <SpellDrill />
       {:else if route.name === 'fingerspelling' && route.param === 'sign-five'}

@@ -6,6 +6,9 @@ describe('parseRoute', () => {
     expect(parseRoute('#/')).toEqual({ name: '', param: undefined, sub: undefined });
     expect(parseRoute(routes.list('l1'))).toEqual({ name: 'dashboard', param: 'lists', sub: 'l1' });
     expect(parseRoute(routes.signFive)).toEqual({ name: 'fingerspelling', param: 'sign-five', sub: undefined });
+    expect(parseRoute(routes.read)).toEqual({ name: 'fingerspelling', param: 'read', sub: undefined });
+    expect(parseRoute(routes.readFree)).toEqual({ name: 'fingerspelling', param: 'read', sub: 'free' });
+    expect(parseRoute(routes.readLevel('numbers-2'))).toEqual({ name: 'fingerspelling', param: 'read', sub: 'numbers-2' });
   });
 
   it('redirects addresses from older versions', () => {
@@ -17,7 +20,7 @@ describe('parseRoute', () => {
   });
 
   it('round-trips every route', () => {
-    for (const r of [routes.review, routes.reviewMore, routes.sign('a'), routes.cameraSign('10'), routes.read, routes.settings]) {
+    for (const r of [routes.review, routes.reviewMore, routes.sign('a'), routes.cameraSign('10'), routes.read, routes.readFree, routes.readLevel('words-2'), routes.settings]) {
       expect(toHash(parseRoute(r))).toBe(r);
     }
   });
@@ -25,7 +28,9 @@ describe('parseRoute', () => {
 
 describe('pageTitle', () => {
   it('names pages for "Back to …" links', () => {
-    expect(pageTitle(routes.read)).toBe('Read drill');
+    expect(pageTitle(routes.read)).toBe('Reading');
+    expect(pageTitle(routes.readLevel('letters-1'))).toBe('Reading');
+    expect(pageTitle(routes.readFree)).toBe('Free reading practice');
     expect(pageTitle(routes.signFive)).toBe('Sign Five');
     expect(pageTitle('#/fingerspell/spell')).toBe('Spell drill');
     expect(pageTitle(routes.fingerspelling)).toBe('Fingerspelling');

@@ -4,6 +4,7 @@ import { content, letterMap } from './content';
 import { hasIllustration } from './illustrations';
 import { spellableWords } from './spelling';
 import { selectedList } from './lists';
+import type { Material } from './receptive';
 import type { Settings, WordListDef } from './types';
 
 /** Letter items keyed by upper-case letter. */
@@ -26,3 +27,27 @@ export function drillWords(settings: Settings | undefined): { list?: WordListDef
 }
 
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+const showable = (i: { id: string; files: unknown[] }) => i.files.length > 0 || hasIllustration(i.id);
+
+/** Everything the reading levels can show, read once from the content. */
+export const readingMaterial: Material = (() => {
+  const signs = content.items.filter((i) => (i.kind === 'letter' || i.kind === 'number') && showable(i));
+  const lookAlikes = new Map<string, string[]>();
+  for (const i of signs) {
+    // Only look-alikes of the same kind: a letter's choices are letters, a number's are numbers.
+    const same = (i.confusable_with ?? [])
+      .map((id) => content.byId.get(id))
+      .filter((o) => o && o.kind === i.kind && showable(o))
+      .map((o) => o!.answer.toUpperCase());
+    lookAlikes.set(i.answer.toUpperCase(), same);
+  }
+  return {
+    letters: signs.filter((i) => i.kind === 'letter').map((i) => i.answer.toUpperCase()),
+    numbers: signs.filter((i) => i.kind === 'number').map((i) => i.answer),
+    lookAlikes,
+    words: spellableWords(builtInWords, showableLetters),
+    groups: content.wordGroups,
+    hints: content.wordHints,
+  };
+})();

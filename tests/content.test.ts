@@ -17,6 +17,57 @@ describe('bundled content', () => {
   it('only uses practice words the alphabet covers', () => {
     for (const w of content.practiceWords) expect(w).toMatch(/^[A-Z]+$/);
   });
+
+  it('groups some practice words, with a hint for each', () => {
+    expect(content.wordGroups.map((g) => g.id)).toEqual(expect.arrayContaining(['names', 'places']));
+    for (const g of content.wordGroups) {
+      expect(g.hint.length, g.id).toBeGreaterThan(0);
+      for (const w of g.words) {
+        expect(content.practiceWords, w).toContain(w);
+        expect(content.wordHints.get(w), w).toBe(g.hint);
+      }
+    }
+    expect(new Set(content.practiceWords).size).toBe(content.practiceWords.length);
+  });
+});
+
+describe('word groups', () => {
+  const unit = (id: string, order: number, extra: Partial<Unit>): Unit => ({
+    id, order, title: id, description: id, review: { status: 'draft', reviewed_by: [] }, items: [], ...extra,
+  });
+
+  it('join the plain practice words, each word once, keeping its group’s hint', () => {
+    const c = resolveContent([
+      unit('one', 1, { practice_words: ['CAT', 'AMY'], practice_groups: [{ id: 'names', hint: 'a name', words: ['AMY', 'BOB'] }] }),
+      unit('two', 2, { practice_groups: [{ id: 'places', hint: 'a place', words: ['ROME'] }] }),
+    ]);
+    expect(c.practiceWords).toEqual(['CAT', 'AMY', 'BOB', 'ROME']);
+    expect(c.wordHints.get('BOB')).toBe('a name');
+    expect(c.wordHints.get('ROME')).toBe('a place');
+    expect(c.wordHints.has('CAT')).toBe(false);
+    expect(c.wordGroups).toHaveLength(2);
+  });
+
+  it('are rejected when a word is in two groups or a group id repeats', async () => {
+    const { mkdtempSync, mkdirSync, copyFileSync, writeFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(join(tmpdir(), 'asl-groups-'));
+    for (const d of ['schema', 'units']) mkdirSync(join(dir, d));
+    copyFileSync(join('content/schema', 'unit.schema.json'), join(dir, 'schema', 'unit.schema.json'));
+    const item = { id: 'a', gloss: 'A', answer: 'A', kind: 'letter', handshape: 'Fist.' };
+    writeFileSync(join(dir, 'units', '01.json'), JSON.stringify({
+      id: 'u', order: 1, title: 't', description: 'd', review: { status: 'draft', reviewed_by: [] }, items: [item],
+      practice_groups: [
+        { id: 'names', hint: 'a name', words: ['PARIS', 'AMY'] },
+        { id: 'places', hint: 'a place', words: ['PARIS'] },
+        { id: 'names', hint: 'a name', words: ['BOB'] },
+      ],
+    }));
+    const { errors } = validateContent(dir);
+    expect(errors.some((e: string) => e.includes('"PARIS" is in groups "names" and "places"'))).toBe(true);
+    expect(errors.some((e: string) => e.includes('word group "names" also used'))).toBe(true);
+  });
 });
 
 describe('resolveContent', () => {

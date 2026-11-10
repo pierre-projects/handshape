@@ -32,7 +32,7 @@ const PALM_BONES: [number, number][] = [
 const palmLength = (world: Point[]) => dist(world[LM.WRIST], world[LM.MIDDLE_MCP]) || 1;
 
 /** Whether the back of the hand, not the palm, is turned toward the camera. */
-function backFacesCamera(world: Point[], hand: Handedness): boolean {
+export function backFacesCamera(world: Point[], hand: Handedness): boolean {
   // Out of the palm of a right hand; the other way for a left hand (as in features.ts).
   const n = cross(sub(world[LM.INDEX_MCP], world[LM.WRIST]), sub(world[LM.PINKY_MCP], world[LM.WRIST]));
   const palmSideZ = hand === 'Right' ? n.z : -n.z;

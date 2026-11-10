@@ -17,10 +17,14 @@ export interface Frame {
   repeat: boolean;
 }
 
-/** Splits a word into timed frames at the given letters per second. */
-export function buildSequence(word: string, lettersPerSecond: number): Frame[] {
+/**
+ * Splits a word into timed frames at the given letters per second. A list is
+ * taken as it is, one frame each, for things that aren't single characters
+ * (the number 10).
+ */
+export function buildSequence(word: string | string[], lettersPerSecond: number): Frame[] {
   const slot = 1000 / lettersPerSecond;
-  const letters = word.toUpperCase().split('');
+  const letters = Array.isArray(word) ? word : word.toUpperCase().split('');
   const frames: Frame[] = [];
   let t = 0;
   letters.forEach((letter, index) => {
@@ -112,7 +116,8 @@ export interface LetterStat {
 export function letterStats(attempts: SpellingAttempt[]): Map<string, LetterStat> {
   const stats = new Map<string, LetterStat>();
   for (const a of attempts) {
-    if (a.mode !== 'receptive') continue;
+    // Single letters picked from choices count too; numbers have no letters.
+    if (a.mode !== 'receptive' || a.drill === 'number') continue;
     const expected = normaliseWord(a.word);
     const typed = normaliseWord(a.typed ?? '');
     for (let i = 0; i < expected.length; i++) {
@@ -132,6 +137,19 @@ export function spellableWords(words: string[], available: Set<string>): string[
   return words.filter((w) => w.split('').every((l) => available.has(l)));
 }
 
+/** How much to favour a word: 1 for a word of letters never missed, up to 5 when every letter always is. */
+export function wordWeight(word: string, stats: Map<string, LetterStat>): number {
+  const letters = new Set(word.split(''));
+  let weakness = 0;
+  for (const l of letters) weakness += stats.get(l)?.rate ?? 0;
+  return 1 + 4 * (weakness / letters.size);
+}
+
+/** A whole word read in a drill: not a single letter or a number. */
+export function isWordRead(a: SpellingAttempt): boolean {
+  return a.mode === 'receptive' && (a.drill ?? 'word') === 'word';
+}
+
 /**
  * Picks the next word, favouring words containing letters the learner misses
  * and avoiding the last few words shown.
@@ -146,12 +164,7 @@ export function pickWord(
   const pool = words.filter((w) => !avoid.has(w));
   const candidates = pool.length > 0 ? pool : words;
   if (candidates.length === 0) return undefined;
-  const weights = candidates.map((w) => {
-    const letters = new Set(w.split(''));
-    let weakness = 0;
-    for (const l of letters) weakness += stats.get(l)?.rate ?? 0;
-    return 1 + 4 * (weakness / letters.size);
-  });
+  const weights = candidates.map((w) => wordWeight(w, stats));
   const total = weights.reduce((a, b) => a + b, 0);
   let r = random() * total;
   for (let i = 0; i < candidates.length; i++) {
@@ -164,7 +177,7 @@ export function pickWord(
 /** Median speed of the most recent correct receptive reads with no replays. */
 export function readingSpeed(attempts: SpellingAttempt[], window = 20): number | undefined {
   const speeds = attempts
-    .filter((a) => a.mode === 'receptive' && a.correct && a.replays === 0)
+    .filter((a) => isWordRead(a) && a.correct && a.replays === 0)
     .sort((a, b) => a.at.getTime() - b.at.getTime())
     .slice(-window)
     .map((a) => a.lettersPerSecond)
@@ -192,7 +205,8 @@ export interface SpellingSummary {
 
 /** Everything the app shows about fingerspelling progress, worked out in one place. */
 export function spellingSummary(attempts: SpellingAttempt[]): SpellingSummary {
-  const read = attempts.filter((a) => a.mode === 'receptive');
+  // Words only: letters and numbers picked in the reading levels aren't "words read".
+  const read = attempts.filter(isWordRead);
   const spell = attempts.filter((a) => a.mode === 'expressive');
   const clean = spell.filter((a) => a.correct).slice(-10).map((a) => a.lettersPerSecond);
   const reading = readingSpeed(attempts);

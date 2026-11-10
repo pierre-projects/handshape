@@ -67,7 +67,8 @@
         "Your thumb holds down your ring and pinky fingers."
       ],
       "confusable_with": [
-        "v"
+        "v",
+        "3"
       ],
       "media": [
         {
@@ -88,6 +89,10 @@
       "tips": [
         "ASL 3 uses the thumb, not the ring finger.",
         "Three fingers up without the thumb is 6 or W."
+      ],
+      "confusable_with": [
+        "2",
+        "6"
       ],
       "media": [
         {
@@ -110,7 +115,8 @@
         "Palm faces you, fingers a little apart."
       ],
       "confusable_with": [
-        "b"
+        "b",
+        "5"
       ],
       "media": [
         {
@@ -131,6 +137,9 @@
       "tips": [
         "Open hand, thumb out to the side. With the thumb tucked in it is a 4.",
         "Palm faces you."
+      ],
+      "confusable_with": [
+        "4"
       ],
       "media": [
         {
@@ -154,7 +163,8 @@
       ],
       "confusable_with": [
         "w",
-        "7"
+        "7",
+        "3"
       ],
       "media": [
         {

@@ -1,8 +1,9 @@
 <script lang="ts">
   import { routes } from '../lib/routes';
-  // The frame both fingerspelling drills share: back link, title with the
+  // The frame the fingerspelling drills share: back link, title with the
   // drill's own colour and icon, a link to the other drill, the word-list
-  // picker, and the card the drill itself fills.
+  // picker, and the card the drill itself fills. A reading level uses it
+  // without the picker, since a level brings its own words.
   import type { Snippet } from 'svelte';
   import { builtInWords, drillWords } from '../lib/fingerspell';
   import { prefs, updateSettings } from '../lib/settings.svelte';
@@ -15,6 +16,8 @@
     subtitle,
     activeWord,
     onPlay,
+    back = { href: routes.fingerspelling, label: 'Fingerspelling' },
+    lists = true,
     children,
   }: {
     kind: 'read' | 'spell';
@@ -23,34 +26,42 @@
     /** The word on screen, highlighted in the list. */
     activeWord?: string;
     onPlay?: (word: string) => void;
+    /** Where the back link goes. */
+    back?: { href: string; label: string };
+    /** Show the word-list picker and the link to the other drill. */
+    lists?: boolean;
     children: Snippet;
   } = $props();
 
-  const other = $derived(kind === 'read' ? { href: routes.spell, label: 'Spell', icon: 'camera' as const } : { href: routes.read, label: 'Read', icon: 'eye' as const });
+  const other = $derived(kind === 'read' ? { href: routes.spell, label: 'Spell', icon: 'camera' as const } : { href: routes.readFree, label: 'Read', icon: 'eye' as const });
   const chosen = $derived(drillWords(prefs.value).list);
 </script>
 
 <div class="drill {kind}">
   <header class="drill-head">
-    <a class="back-link small" href={routes.fingerspelling}><Icon name="arrow-left" size={16} />Fingerspelling</a>
+    <a class="back-link small" href={back.href}><Icon name="arrow-left" size={16} />{back.label}</a>
     <div class="title-row">
       <span class="drill-icon"><Icon name={kind === 'read' ? 'eye' : 'camera'} size={22} /></span>
       <div class="titles">
         <h1>{title}</h1>
         <p class="small muted">{subtitle}</p>
       </div>
-      <a class="btn ghost small switch" href={other.href}><Icon name={other.icon} size={16} />Switch to {other.label}</a>
+      {#if lists}
+        <a class="btn ghost small switch" href={other.href}><Icon name={other.icon} size={16} />Switch to {other.label}</a>
+      {/if}
     </div>
   </header>
 
-  <ListPicker
-    lists={prefs.value?.lists ?? []}
-    selectedId={chosen?.id ?? ''}
-    builtInCount={builtInWords.length}
-    {activeWord}
-    onSelect={(id) => updateSettings({ spellListId: id })}
-    {onPlay}
-  />
+  {#if lists}
+    <ListPicker
+      lists={prefs.value?.lists ?? []}
+      selectedId={chosen?.id ?? ''}
+      builtInCount={builtInWords.length}
+      {activeWord}
+      onSelect={(id) => updateSettings({ spellListId: id })}
+      {onPlay}
+    />
+  {/if}
 
   <section class="card drill-card">
     {@render children()}

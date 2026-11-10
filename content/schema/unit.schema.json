@@ -23,6 +23,25 @@
       "type": "array",
       "items": { "type": "string", "pattern": "^[A-Z]{2,12}$" },
       "uniqueItems": true
+    },
+    "practice_groups": {
+      "description": "More practice words, grouped by what they are, so the reading drill can give a hint before a word.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "hint", "words"],
+        "properties": {
+          "id": { "$ref": "#/$defs/slug" },
+          "hint": { "description": "Shown before the word, e.g. \"a name\".", "type": "string", "minLength": 1 },
+          "words": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "pattern": "^[A-Z]{2,12}$" },
+            "uniqueItems": true
+          }
+        }
+      }
     }
   },
   "$defs": {
