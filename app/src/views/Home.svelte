@@ -6,7 +6,6 @@
   import { activityDates, streak } from '../lib/stats';
   import { lettersPerSecondToWpm, readingSpeed } from '../lib/spelling';
   import HandSign from '../components/HandSign.svelte';
-  import SignPicture from '../components/SignPicture.svelte';
   import Icon from '../components/Icon.svelte';
 
   let loaded = $state(false);
@@ -43,13 +42,6 @@
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const todo = $derived(due + fresh);
-
-  const ways = [
-    { href: '#/review', icon: 'review', title: 'Daily review', text: 'Short spaced-repetition sessions. Sign each prompt, then grade yourself.', sign: 'b' },
-    { href: '#/fingerspell', icon: 'spell', title: 'Fingerspelling', text: 'Read words spelled letter by letter, or spell them yourself against the clock.', sign: 'v' },
-    { href: '#/practice', icon: 'camera', title: 'Camera coach', text: 'Sign to your camera and get told exactly what to fix.', sign: 'l' },
-    { href: '#/learn', icon: 'signs', title: 'All signs', text: 'Browse every letter and number with drawings and tips.', sign: 'y' },
-  ] as const;
 </script>
 
 <section class="hero card">
@@ -106,19 +98,6 @@
   </div>
 {/if}
 
-<h2 class="section-title">Ways to practise</h2>
-<div class="ways">
-  {#each ways as w}
-    <a class="way card" href={w.href}>
-      <div class="way-art"><SignPicture id={w.sign} size={56} /></div>
-      <div>
-        <h3><Icon name={w.icon} size={18} /> {w.title}</h3>
-        <p class="small muted">{w.text}</p>
-      </div>
-    </a>
-  {/each}
-</div>
-
 {#if drafts > 0}
   <p class="small muted footnote">
     Sign descriptions and drawings are drafts until a Deaf signer reviews them. Check with a fluent signer when you can.
@@ -151,39 +130,10 @@
   .stats { margin-bottom: 24px; }
   .stat .unit { font-size: 0.95rem; font-weight: 600; color: var(--ink-3); }
   .stat .progress { margin-top: 8px; height: 6px; }
-  .section-title { margin: 8px 0 12px; }
-  .ways { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .way {
-    display: flex;
-    gap: 16px;
-    align-items: center;
-    margin: 0;
-    padding: 16px 18px;
-    text-decoration: none;
-    color: var(--ink);
-    transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
-  }
-  .way:hover { box-shadow: var(--shadow-lift); border-color: var(--line-strong); }
-  .way h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
-  .way h3 :global(svg) { color: var(--accent); }
-  .way p { margin: 0; }
-  .way-art {
-    flex: none;
-    width: 64px;
-    height: 64px;
-    border-radius: var(--radius-sm);
-    background: var(--paper);
-    border: 1px solid var(--line);
-    display: grid;
-    place-items: center;
-    padding-top: 6px;
-    overflow: hidden;
-  }
   .footnote { margin-top: 20px; text-align: center; }
   @media (max-width: 640px) {
     .hero { grid-template-columns: 1fr; padding: 24px 20px; text-align: left; }
     .hero-art { display: none; }
     .hero h1 { font-size: 1.45rem; }
-    .ways { grid-template-columns: 1fr; }
   }
 </style>
