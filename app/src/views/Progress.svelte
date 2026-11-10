@@ -1,8 +1,9 @@
 <script lang="ts">
+  import { routes } from '../lib/routes';
   // Dashboard: your progress at a glance, your word lists, and settings.
-  //   #/progress           Overview
-  //   #/progress/lists     Word lists (fingerspelling and Sign Five)
-  //   #/progress/settings  Settings and your data
+  //   #/dashboard                Overview: signs, fingerspelling, activity
+  //   #/dashboard/lists[/<id>]   Word lists
+  //   #/dashboard/settings       Settings and your data
   import { onMount } from 'svelte';
   import { getStore } from '../lib/app';
   import type { Store } from '../lib/db';
@@ -18,9 +19,9 @@
   let { section, listId }: { section?: string; listId?: string } = $props();
   const tab = $derived(section === 'lists' || section === 'settings' ? section : 'overview');
   const TABS = [
-    { id: 'overview', label: 'Overview', href: '#/progress', icon: 'progress' },
-    { id: 'lists', label: 'Word lists', href: '#/progress/lists', icon: 'spell' },
-    { id: 'settings', label: 'Settings', href: '#/progress/settings', icon: 'edit' },
+    { id: 'overview', label: 'Overview', href: routes.dashboard, icon: 'progress' },
+    { id: 'lists', label: 'Word lists', href: routes.lists, icon: 'spell' },
+    { id: 'settings', label: 'Settings', href: routes.settings, icon: 'edit' },
   ] as const;
 
   let store: Store;
@@ -114,60 +115,99 @@
 {#if !loaded}
   <p class="muted">Loading…</p>
 {:else if tab === 'overview'}
-  <div class="tiles">
-    <a class="tile" href="#/review">
-      <span class="t-label">Due today</span>
-      <span class="t-value">{counts.dueToday}</span>
-      <span class="t-foot">{counts.dueToday ? 'Start review' : 'All caught up'}<Icon name="arrow-right" size={14} /></span>
-    </a>
-    <div class="tile">
-      <span class="t-label">Day streak</span>
-      <span class="t-value">{days}</span>
-      <span class="t-foot">{days === 1 ? 'day' : 'days'} in a row</span>
+  <section class="card panel">
+    <header class="panel-head">
+      <h2><span class="p-ico"><Icon name="review" size={18} /></span>Signs</h2>
+      <a class="btn small" class:primary={counts.dueToday > 0} href={routes.review}>
+        {counts.dueToday ? `Review ${counts.dueToday} due` : 'Open review'}<Icon name="arrow-right" size={16} />
+      </a>
+    </header>
+    <div class="metrics">
+      <div class="metric">
+        <span class="m-label">Due today</span>
+        <span class="m-value">{counts.dueToday}</span>
+        <span class="m-foot">{counts.dueToday ? 'ready to review' : 'all caught up'}</span>
+      </div>
+      <div class="metric">
+        <span class="m-label">Started</span>
+        <span class="m-value">{learnedItems}<small>/{content.items.length}</small></span>
+        <span class="bar-track" aria-hidden="true"><span style="width:{(learnedItems / content.items.length) * 100}%"></span></span>
+      </div>
+      <div class="metric">
+        <span class="m-label">Known well</span>
+        <span class="m-value">{counts.mature}</span>
+        <span class="m-foot">remembered {MATURE_DAYS}+ days</span>
+      </div>
+      <div class="metric">
+        <span class="m-label">Recall, 30 days</span>
+        {#if kept === undefined}
+          <span class="m-value empty">–</span>
+          <span class="m-foot">shows after a few reviews</span>
+        {:else}
+          <span class="m-value">{Math.round(kept * 100)}<small>%</small></span>
+          <span class="m-foot">of reviews remembered</span>
+        {/if}
+      </div>
     </div>
-    <div class="tile">
-      <span class="t-label">Signs started</span>
-      <span class="t-value">{learnedItems}<small>/{content.items.length}</small></span>
-      <span class="t-foot">{counts.mature} known for {MATURE_DAYS}+ days</span>
-    </div>
-    <div class="tile">
-      <span class="t-label">Remembered</span>
-      <span class="t-value">{kept === undefined ? '–' : `${Math.round(kept * 100)}%`}</span>
-      <span class="t-foot">last 30 days</span>
-    </div>
-    <a class="tile" href="#/fingerspell/read">
-      <span class="t-label">Fingerspelling read</span>
-      <span class="t-value">{spelling.read.wpm ?? '–'}<small> wpm</small></span>
-      <span class="t-foot">{spelling.total} words practised<Icon name="arrow-right" size={14} /></span>
-    </a>
-    <a class="tile" href="#/fingerspell/game">
-      <span class="t-label">Sign Five</span>
-      <span class="t-value">{five?.streak ?? 0}<small> streak</small></span>
-      <span class="t-foot">{five?.played ? `${five.won} of ${five.played} won` : 'Play today\'s word'}<Icon name="arrow-right" size={14} /></span>
-    </a>
-  </div>
-
-  <section class="card stack">
-    <h2>Activity, last 14 days</h2>
-    <ActivityChart data={activity} />
     {#if weak.length}
-      <h2>Signs you misread most</h2>
-      <p class="small">
-        {#each weak as w, i}<a href="#/learn/{w.itemId}">{gloss(w.itemId)}</a> ({Math.round(w.rate * 100)}% missed){i < weak.length - 1 ? ', ' : ''}{/each}
+      <p class="small weak">
+        <b>Misread most:</b>
+        {#each weak as w, i}<a href={routes.sign(w.itemId)}>{gloss(w.itemId)}</a> ({Math.round(w.rate * 100)}%){i < weak.length - 1 ? ', ' : ''}{/each}
       </p>
     {/if}
   </section>
 
-  <a class="card lists-link" href="#/progress/lists">
-    <span class="ll-ico"><Icon name="spell" size={20} /></span>
-    <span class="ll-text">
-      <b>Your word lists</b>
-      <span class="small muted">
-        {settings?.lists.length ?? 0} {settings?.lists.length === 1 ? 'list' : 'lists'}{settings?.lists.length ? ': ' + settings.lists.slice(0, 3).map((l) => l.name).join(', ') + (settings.lists.length > 3 ? '…' : '') : '. Make one to practise your own words.'}
-      </span>
-    </span>
-    <Icon name="arrow-right" size={18} />
-  </a>
+  <section class="card panel spellpanel">
+    <header class="panel-head">
+      <h2><span class="p-ico"><Icon name="spell" size={18} /></span>Fingerspelling</h2>
+      <a class="btn small" href={routes.fingerspelling}>Practise<Icon name="arrow-right" size={16} /></a>
+    </header>
+    <div class="metrics">
+      <a class="metric link" href={routes.read}>
+        <span class="m-label">Reading speed</span>
+        {#if spelling.read.wpm}
+          <span class="m-value">{spelling.read.wpm}<small> wpm</small></span>
+          <span class="m-foot">{spelling.read.accuracy}% right lately</span>
+        {:else}
+          <span class="m-value empty">–</span>
+          <span class="m-foot">read a few words to measure</span>
+        {/if}
+      </a>
+      <a class="metric link" href={routes.spell}>
+        <span class="m-label">Clean spelling</span>
+        {#if spelling.spell.clean !== undefined}
+          <span class="m-value">{spelling.spell.clean}<small>%</small></span>
+          <span class="m-foot">{spelling.spell.count} {spelling.spell.count === 1 ? 'word' : 'words'} spelled</span>
+        {:else}
+          <span class="m-value empty">–</span>
+          <span class="m-foot">spell a word to the camera</span>
+        {/if}
+      </a>
+      <a class="metric link" href={routes.signFive}>
+        <span class="m-label">Sign Five</span>
+        {#if five?.played}
+          <span class="m-value">{five.streak}<small> streak</small></span>
+          <span class="m-foot">{five.won} of {five.played} won</span>
+        {:else}
+          <span class="m-value empty">–</span>
+          <span class="m-foot">play today's word</span>
+        {/if}
+      </a>
+      <a class="metric link" href={routes.lists}>
+        <span class="m-label">Word lists</span>
+        <span class="m-value">{settings?.lists.length ?? 0}</span>
+        <span class="m-foot">{settings?.lists.length ? settings.lists.slice(0, 2).map((l) => l.name).join(', ') : 'make your own'}</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="card panel">
+    <header class="panel-head">
+      <h2><span class="p-ico"><Icon name="progress" size={18} /></span>Activity</h2>
+      <span class="streak"><b>{days}</b> {days === 1 ? 'day' : 'days'} in a row</span>
+    </header>
+    <ActivityChart data={activity} />
+  </section>
 {:else if tab === 'lists' && settings}
   <ListsManager {settings} {listId} onSave={patch} />
 {:else if tab === 'settings' && settings}
@@ -236,23 +276,31 @@
   .tabs a:hover { color: var(--ink); }
   .tabs a[aria-current='page'] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgb(16 24 40 / 0.1); }
 
-  .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .tile {
-    display: grid; gap: 2px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius);
-    background: var(--surface); color: var(--ink); text-decoration: none; box-shadow: var(--shadow);
+  .panel { display: grid; gap: 14px; margin-bottom: 16px; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .panel-head h2 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 1.1rem; }
+  .p-ico {
+    display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px;
+    background: var(--m-soft, var(--accent-soft)); color: var(--m, var(--accent));
   }
-  a.tile:hover { border-color: var(--accent); box-shadow: var(--shadow-lift); }
-  .t-label { font-size: 0.8rem; font-weight: 600; color: var(--ink-3); }
-  .t-value { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
-  .t-value small { font-size: 0.9rem; color: var(--ink-3); font-weight: 600; letter-spacing: 0; margin-left: 3px; }
-  .t-foot { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; color: var(--ink-2); }
-  a.tile .t-foot { color: var(--accent); font-weight: 600; }
-
-  .lists-link { display: flex; align-items: center; gap: 12px; margin-top: 16px; text-decoration: none; color: var(--ink); }
-  .lists-link:hover { border-color: var(--accent); }
-  .ll-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
-  .ll-text { flex: 1; display: grid; }
-
+  .spellpanel { --m: var(--spell); --m-soft: var(--spell-soft); }
+  .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .metric {
+    display: grid; align-content: start; gap: 2px; padding: 12px 14px; border-radius: var(--radius-sm);
+    background: var(--surface-2); color: var(--ink); text-decoration: none;
+  }
+  .metric.link { border: 1px solid transparent; transition: border-color 0.15s, background 0.15s; }
+  .metric.link:hover { border-color: var(--m, var(--accent)); background: var(--surface); }
+  .m-label { font-size: 0.78rem; font-weight: 650; color: var(--ink-3); }
+  .m-value { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .m-value small { font-size: 0.85rem; color: var(--ink-3); font-weight: 600; letter-spacing: 0; margin-left: 2px; }
+  .m-value.empty { color: var(--ink-3); }
+  .m-foot { font-size: 0.78rem; color: var(--ink-2); }
+  .bar-track { display: block; height: 6px; margin-top: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+  .bar-track span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .weak { margin: 0; color: var(--ink-2); }
+  .streak { font-size: 0.9rem; color: var(--ink-2); }
+  .streak b { color: var(--ink); }
 
   .field { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .field input { width: 90px; }
@@ -260,11 +308,11 @@
   .check input { margin-top: 4px; width: 18px; height: 18px; flex-shrink: 0; }
 
   @media (max-width: 820px) {
-    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 480px) {
     .tabs { width: 100%; }
     .tabs a { flex: 1; justify-content: center; padding: 6px 4px; font-size: 0.82rem; }
-    .t-value { font-size: 1.5rem; }
+    .m-value { font-size: 1.35rem; }
   }
 </style>
