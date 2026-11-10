@@ -12,6 +12,7 @@
     activeWord,
     onSave,
     onPlay,
+    playable = true,
   }: {
     /** The learner's own words. */
     words: string[];
@@ -22,6 +23,8 @@
     activeWord?: string;
     onSave: (patch: { customWords?: string[]; wordList?: 'builtin' | 'custom' }) => void;
     onPlay: (word: string) => void;
+    /** False where no drill is open, so chips are labels rather than play buttons. */
+    playable?: boolean;
   } = $props();
 
   const EXAMPLES = ['MOM', 'DAD', 'HOME', 'PIZZA', 'COFFEE'];
@@ -160,7 +163,7 @@
 
       {#if words.length}
         <div class="list-head">
-          <span class="small muted">{words.length} {words.length === 1 ? 'word' : 'words'} · tap one to practise it</span>
+          <span class="small muted">{words.length} {words.length === 1 ? 'word' : 'words'}{playable ? ' · tap one to practise it' : ''}</span>
           <button class="ghost small" class:danger={confirmClear} onclick={clearAll}>
             {confirmClear ? 'Tap again to clear all' : 'Clear all'}
           </button>
@@ -168,9 +171,11 @@
         <ul class="chips">
           {#each words as w (w)}
             <li class="chip" class:active={w === activeWord}>
+              {#if playable}
               <button class="play" onclick={() => onPlay(w)} title="Practise {w}">
                 <span class="tri"><Icon name="play" size={11} /></span>{w}
               </button>
+              {:else}<span class="play static">{w}</span>{/if}
               <button class="remove" onclick={() => remove(w)} aria-label="Remove {w}" title="Remove"><Icon name="x" size={14} /></button>
             </li>
           {/each}
@@ -183,12 +188,14 @@
       {/if}
     </div>
   {:else if useCustom && words.length}
-    <ul class="chips compact" aria-label="My words. Tap one to practise it.">
+    <ul class="chips compact" aria-label={playable ? "My words. Tap one to practise it." : "My words"}>
       {#each words as w (w)}
         <li class="chip" class:active={w === activeWord}>
+          {#if playable}
           <button class="play" onclick={() => onPlay(w)} title="Practise {w}">
             <span class="tri"><Icon name="play" size={11} /></span>{w}
           </button>
+          {:else}<span class="play static">{w}</span>{/if}
         </li>
       {/each}
     </ul>
@@ -250,6 +257,8 @@
   .chip button { border: 0; border-radius: 0; box-shadow: none; background: transparent; min-height: 36px; }
   .play { gap: 6px; padding: 4px 14px 4px 10px; font-weight: 650; letter-spacing: 0.05em; }
   .chip:has(.remove) .play { padding-right: 6px; }
+  .static { display: inline-flex; align-items: center; min-height: 36px; padding: 4px 14px; }
+  .chip:has(.static):not(:has(.remove)):hover { border-color: var(--line-strong); }
   .tri {
     display: grid;
     place-items: center;

@@ -65,7 +65,7 @@
       {:else if route.name === 'learn'}
         <Learn itemId={route.param} />
       {:else if route.name === 'fingerspell'}
-        <Fingerspell />
+        <Fingerspell modeParam={route.param} />
       {:else if route.name === 'practice'}
         <Practice startId={route.param} />
       {:else if route.name === 'progress'}
