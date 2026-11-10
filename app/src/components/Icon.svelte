@@ -1,5 +1,5 @@
 <script lang="ts">
-  type Name = 'home' | 'review' | 'signs' | 'spell' | 'camera' | 'progress' | 'arrow-left' | 'arrow-right' | 'check' | 'x' | 'flip' | 'play';
+  type Name = 'home' | 'review' | 'signs' | 'spell' | 'camera' | 'progress' | 'arrow-left' | 'arrow-right' | 'check' | 'x' | 'flip' | 'play' | 'edit' | 'plus';
   let { name, size = 22 }: { name: Name; size?: number } = $props();
 
   const paths: Record<Name, string> = {
@@ -15,6 +15,8 @@
     x: 'M6 6l12 12M18 6L6 18',
     flip: 'M12 3v18M8 7L3 12l5 5M16 7l5 5-5 5',
     play: 'M7 4l13 8-13 8z',
+    edit: 'M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16zM13.5 6.5l4 4',
+    plus: 'M12 5v14M5 12h14',
   };
 </script>
 

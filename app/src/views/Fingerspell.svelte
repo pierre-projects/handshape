@@ -5,11 +5,12 @@
   import { content, letterMap } from '../lib/content';
   import {
     buildSequence, checkWord, letterStats, lettersPerSecondToWpm, MAX_SPEED, MIN_SPEED, nextSpeed, normaliseWord,
-    parseWords, pickWord, readingSpeed, sequenceDuration, spellableWords, type Frame,
+    pickWord, readingSpeed, sequenceDuration, spellableWords, type Frame,
   } from '../lib/spelling';
   import type { Settings, SpellingAttempt } from '../lib/types';
   import HandSign from '../components/HandSign.svelte';
   import HandCheck from '../components/HandCheck.svelte';
+  import WordList from '../components/WordList.svelte';
   import SignPicture from '../components/SignPicture.svelte';
   import { hasIllustration } from '../lib/illustrations';
 
@@ -57,8 +58,6 @@
   const useCustom = $derived(settings?.wordList === 'custom' && customWords.length > 0);
   const allWords = $derived(useCustom ? customWords : builtIn);
   const receptiveWords = $derived(spellableWords(allWords, available));
-  let newWords = $state('');
-  let addNote = $state('');
 
   const stats = $derived(letterStats(attempts));
   const weakLetters = $derived(
@@ -211,31 +210,6 @@
     await store.saveSettings($state.snapshot(settings));
   }
 
-  function chooseList(list: Settings['wordList']) {
-    saveWordSettings({ wordList: list });
-  }
-
-  function addWords(e: Event) {
-    e.preventDefault();
-    const added = parseWords(newWords, customWords);
-    if (!added.length) {
-      addNote = newWords.trim() ? 'Nothing new to add: words must be letters only, up to 20 long.' : '';
-      return;
-    }
-    addNote = '';
-    newWords = '';
-    saveWordSettings({ customWords: [...customWords, ...added], wordList: 'custom' });
-  }
-
-  function removeWord(w: string) {
-    saveWordSettings({ customWords: customWords.filter((x) => x !== w) });
-  }
-
-  function clearWords() {
-    if (!confirm('Remove all your words?')) return;
-    saveWordSettings({ customWords: [], wordList: 'builtin' });
-  }
-
   /** Plays one chosen word straight away in the current mode. */
   function playWord(w: string) {
     if (mode === 'receptive' && !canRead) return;
@@ -276,48 +250,14 @@
   </div>
 </div>
 
-<section class="card words" aria-label="Word list">
-  <div class="spread">
-    <div class="row">
-      <p class="eyebrow list-label">Words from</p>
-      <div class="segmented">
-        <button aria-pressed={!useCustom} onclick={() => chooseList('builtin')}>Built-in ({builtIn.length})</button>
-        <button
-          aria-pressed={useCustom}
-          disabled={!customWords.length}
-          title={customWords.length ? '' : 'Add some words first'}
-          onclick={() => chooseList('custom')}
-        >My words ({customWords.length})</button>
-      </div>
-    </div>
-    <form class="row add" onsubmit={addWords}>
-      <input
-        type="text"
-        bind:value={newWords}
-        placeholder="Add words: cat, mom, pizza"
-        aria-label="Add your own words, separated by commas or spaces"
-        autocomplete="off"
-        spellcheck="false"
-      />
-      <button type="submit" disabled={!newWords.trim()}>Add</button>
-    </form>
-  </div>
-  {#if addNote}<p class="small muted note">{addNote}</p>{/if}
-
-  {#if customWords.length}
-    <ul class="chips" aria-label="My words. Click one to practise it.">
-      {#each customWords as w (w)}
-        <li class="chip" class:active={w === word && phase !== 'idle'}>
-          <button class="play" onclick={() => playWord(w)} title="Practise {w}">{w}</button>
-          <button class="remove" onclick={() => removeWord(w)} aria-label="Remove {w}">×</button>
-        </li>
-      {/each}
-      <li><button class="ghost small" onclick={clearWords}>Clear all</button></li>
-    </ul>
-  {:else}
-    <p class="small muted note">Add your own words to practise names, places or anything you need. Click a word to play it.</p>
-  {/if}
-</section>
+<WordList
+  words={customWords}
+  {useCustom}
+  builtInCount={builtIn.length}
+  activeWord={phase !== 'idle' ? word : undefined}
+  onSave={saveWordSettings}
+  onPlay={playWord}
+/>
 
 {#if mode === 'receptive'}
   <section class="card stack">
@@ -491,30 +431,6 @@
 <style>
   .head { margin: 4px 0 16px; }
   .head h1 { margin: 0; }
-  /* Word list */
-  .words { padding: 14px 18px; }
-  .list-label { margin: 0; }
-  .add { flex: 1 1 260px; max-width: 420px; flex-wrap: nowrap; }
-  .add input { flex: 1; min-width: 0; min-height: 38px; }
-  .add button { min-height: 38px; }
-  .note { margin: 8px 0 0; }
-  .chips { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  .chip {
-    display: inline-flex;
-    align-items: stretch;
-    border: 1px solid var(--line-strong);
-    border-radius: 999px;
-    background: var(--surface);
-    overflow: hidden;
-  }
-  .chip button { border: 0; border-radius: 0; box-shadow: none; min-height: 32px; background: transparent; }
-  .chip .play { padding: 4px 4px 4px 12px; font-weight: 650; letter-spacing: 0.04em; }
-  .chip .remove { padding: 4px 10px 4px 6px; color: var(--ink-3); font-size: 1.05rem; }
-  .chip .remove:hover { color: var(--bad); }
-  .chip:hover { border-color: var(--accent); }
-  .chip.active { background: var(--accent-soft); border-color: var(--accent); }
-  .chip.active .play { color: var(--accent); }
-
   /* Spell mode: word on the left, camera on the right. */
   .spell-stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 20px; align-items: start; }
   .spell-side { align-self: center; }

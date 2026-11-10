@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildSequence, checkWord, letterStats, lettersPerSecondToWpm, MAX_SPEED, MIN_SPEED, nextSpeed, pickWord,
-  parseWords, readingSpeed, sequenceDuration, spellableWords,
+  parseWords, readingSpeed, sequenceDuration, sortWords, spellableWords,
 } from '../app/src/lib/spelling';
 import type { SpellingAttempt } from '../app/src/lib/types';
 
@@ -98,5 +98,18 @@ describe('parseWords', () => {
   });
   it('returns nothing for blank or symbol-only input', () => {
     expect(parseWords('  , 123 !! ')).toEqual([]);
+  });
+});
+
+describe('sortWords', () => {
+  it('keeps apostrophes and hyphens inside one word', () => {
+    expect(parseWords("O'Neil, x-ray")).toEqual(['ONEIL', 'XRAY']);
+  });
+  it('says why typed pieces were skipped', () => {
+    const s = sortWords('cat cat dog 42 ' + 'b'.repeat(25), ['DOG']);
+    expect(s.added).toEqual(['CAT']);
+    expect(s.duplicates).toEqual(['CAT', 'DOG']);
+    expect(s.invalid).toEqual(['42']);
+    expect(s.tooLong).toEqual(['B'.repeat(25)]);
   });
 });

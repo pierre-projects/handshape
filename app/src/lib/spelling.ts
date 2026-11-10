@@ -61,21 +61,42 @@ export function normaliseWord(s: string): string {
 
 export const MAX_WORD_LETTERS = 20;
 
+export interface WordSort {
+  /** New words to add, in order, normalised to A–Z. */
+  added: string[];
+  /** Already in the list, or typed twice. */
+  duplicates: string[];
+  /** Typed pieces with no letters in them, as typed. */
+  invalid: string[];
+  /** Longer than MAX_WORD_LETTERS. */
+  tooLong: string[];
+}
+
 /**
- * Turns typed text ("cat, dog\nMom") into words for a custom list: split on
- * anything that isn't a letter, uppercase, drop duplicates (also ones already
- * in `existing`) and anything too long to fingerspell comfortably.
+ * Sorts typed text ("cat, dog\nO'Neil") into words for a custom list. Words
+ * are separated by spaces, commas or semicolons; anything that isn't a letter
+ * is dropped inside a word, so "O'Neil" becomes ONEIL.
  */
-export function parseWords(text: string, existing: string[] = []): string[] {
+export function sortWords(text: string, existing: string[] = []): WordSort {
   const seen = new Set(existing);
-  const out: string[] = [];
-  for (const raw of text.split(/[^A-Za-z]+/)) {
+  const out: WordSort = { added: [], duplicates: [], invalid: [], tooLong: [] };
+  for (const raw of text.split(/[\s,;]+/)) {
+    if (!raw) continue;
     const w = normaliseWord(raw);
-    if (!w || w.length > MAX_WORD_LETTERS || seen.has(w)) continue;
-    seen.add(w);
-    out.push(w);
+    if (!w) out.invalid.push(raw);
+    else if (w.length > MAX_WORD_LETTERS) out.tooLong.push(w);
+    else if (seen.has(w)) out.duplicates.push(w);
+    else {
+      seen.add(w);
+      out.added.push(w);
+    }
   }
   return out;
+}
+
+/** The new words from typed text; see sortWords. */
+export function parseWords(text: string, existing: string[] = []): string[] {
+  return sortWords(text, existing).added;
 }
 
 export function checkWord(expected: string, typed: string): boolean {
