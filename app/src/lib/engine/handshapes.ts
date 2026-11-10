@@ -625,6 +625,25 @@ export function evaluate(target: string, features: Features): Evaluation {
   };
 }
 
+export interface Judgement extends Evaluation {
+  /** Other signs the hand matches fully while the target only matches loosely. */
+  rivals: string[];
+}
+
+/**
+ * Decides whether the hand counts as the target sign. Thumb checks the camera
+ * often misreads don't block a match on their own, but if they fail AND the
+ * hand fully matches a different sign, it's that sign, not the target. This
+ * stops one fist passing for A, E, M, N, S and T alike.
+ */
+export function judge(target: string, features: Features, candidates: Iterable<string> = SPECS.keys()): Judgement {
+  const e = evaluate(target, features);
+  if (!e.pass || e.passAll) return { ...e, rivals: [] };
+  const rivals = looksLike(features, candidates, target);
+  if (!rivals.length) return { ...e, rivals };
+  return { ...e, pass: false, hint: e.unsure[0] ?? e.hint, rivals };
+}
+
 /**
  * Other signs the current hand matches fully, so feedback can say
  * "that looks like S". Signs with movement are left out.

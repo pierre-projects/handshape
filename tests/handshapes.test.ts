@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeFeatures } from '../app/src/lib/engine/features';
-import { evaluate, looksLike, SPECS } from '../app/src/lib/engine/handshapes';
+import { evaluate, judge, looksLike, SPECS } from '../app/src/lib/engine/handshapes';
 import { HoldTimer, Smoother } from '../app/src/lib/engine/tracker';
 import { content } from '../app/src/lib/content';
 import { buildHand, type Pose } from './helpers/synthHand';
@@ -99,5 +99,29 @@ describe('Smoother', () => {
     const b = { ...a, image: a.image.map((p) => ({ ...p, x: p.x + 0.1 })) };
     sm.push(a);
     expect(sm.push(b).image[0].x).toBeCloseTo(a.image[0].x + 0.05);
+  });
+});
+
+describe('judge: one held shape cannot pass for another sign', () => {
+  const still = ids.filter((i) => !SPECS.get(i)!.movement);
+  for (const pose of Object.keys(POSES)) {
+    it(`${pose} passes only itself and its twins`, () => {
+      const f = feats(POSES[pose]);
+      expect(judge(pose, f).pass).toBe(true);
+      const leaks = still.filter((t) => t !== pose && !(TWINS[pose] ?? []).includes(t) && judge(t, f).pass);
+      expect(leaks).toEqual([]);
+    });
+  }
+
+  it('rejects M held for A and names the rival', () => {
+    const j = judge('a', feats(POSES.m));
+    expect(j.pass).toBe(false);
+    expect(j.rivals).toContain('m');
+  });
+
+  it('rejects the fist family for each other', () => {
+    for (const [held, target] of [['m', 'n'], ['n', 'm'], ['s', 'a'], ['a', 's'], ['t', 'a'], ['e', 's']]) {
+      expect(judge(target, feats(POSES[held])).pass, `${held} held for ${target}`).toBe(false);
+    }
   });
 });

@@ -4,7 +4,7 @@
   import { onDestroy } from 'svelte';
   import type { HandLandmarker } from '@mediapipe/tasks-vision';
   import { computeFeatures, type Features } from '../lib/engine/features';
-  import { evaluate, looksLike, SPECS, type Evaluation } from '../lib/engine/handshapes';
+  import { judge, looksLike, SPECS, type Evaluation } from '../lib/engine/handshapes';
   import { HAND_CONNECTIONS, type HandFrame, type Handedness } from '../lib/engine/hand';
   import { HoldTimer, Smoother } from '../lib/engine/tracker';
   import { content } from '../lib/content';
@@ -131,9 +131,11 @@
     if (recent.length > 30) recent.shift();
     const smooth = smoother.push(frame);
     features = computeFeatures(smooth);
-    evaluation = evaluate(target, features);
+    const j = judge(target, features, candidates);
+    evaluation = j;
     progress = hold.update(evaluation.pass, now);
-    if (!evaluation.pass && ++frameCount % 5 === 0) similar = looksLike(features, candidates, target).slice(0, 2);
+    if (j.rivals.length) similar = j.rivals.slice(0, 2);
+    else if (!evaluation.pass && ++frameCount % 5 === 0) similar = looksLike(features, candidates, target).slice(0, 2);
     if (evaluation.pass) similar = [];
     if (progress >= 1 && !matched) {
       matched = true;
