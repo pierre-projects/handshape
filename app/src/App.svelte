@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { clearReturn, parseRoute, routes, type Route } from './lib/routes';
   import Home from './views/Home.svelte';
   import Review from './views/Review.svelte';
   import Learn from './views/Learn.svelte';
@@ -11,53 +12,52 @@
   import Practice from './views/Practice.svelte';
   import Icon from './components/Icon.svelte';
 
-  type Route = { name: string; param?: string; sub?: string };
-
-  function parse(hash: string): Route {
-    const [name, param, sub] = hash.replace(/^#\/?/, '').split('/');
-    const dec = (s?: string) => (s ? decodeURIComponent(s) : undefined);
-    return { name: name || 'home', param: dec(param), sub: dec(sub) };
+  /** Reads the address; an address from an older version is swapped for its current name. */
+  function read(): Route {
+    const r = parseRoute(location.hash);
+    if (r.redirect) history.replaceState(null, '', r.redirect);
+    return { name: r.name, param: r.param, sub: r.sub };
   }
 
-  let route = $state<Route>(parse(location.hash));
+  let route = $state<Route>(read());
 
   onMount(() => {
     const onHash = () => {
-      route = parse(location.hash);
+      route = read();
+      // A "Back to …" link only makes sense while you're still on the dashboard.
+      if (route.name !== 'dashboard') clearReturn();
       window.scrollTo(0, 0);
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   });
 
+  // The same five places on every screen size. Camera practice belongs with Signs.
   const links = [
-    { name: 'home', label: 'Today', href: '#/', icon: 'home' },
-    { name: 'review', label: 'Review', href: '#/review', icon: 'review' },
-    { name: 'learn', label: 'Signs', href: '#/learn', icon: 'signs' },
-    { name: 'fingerspell', label: 'Spell', href: '#/fingerspell', icon: 'spell' },
-    { name: 'practice', label: 'Camera', href: '#/practice', icon: 'camera' },
-    { name: 'progress', label: 'Dashboard', href: '#/progress', icon: 'progress' },
+    { label: 'Today', href: routes.home, icon: 'home', pages: [''] },
+    { label: 'Review', href: routes.review, icon: 'review', pages: ['review'] },
+    { label: 'Signs', href: routes.signs, icon: 'signs', pages: ['signs', 'camera'] },
+    { label: 'Spelling', href: routes.fingerspelling, icon: 'spell', pages: ['fingerspelling'] },
+    { label: 'Dashboard', href: routes.dashboard, icon: 'progress', pages: ['dashboard'] },
   ] as const;
+  const current = (pages: readonly string[]) => ((pages as readonly string[]).includes(route.name) ? 'page' : undefined);
 </script>
 
 <a class="skip" href="#main">Skip to content</a>
 
 <header>
   <div class="wrap bar">
-    <a class="brand" href="#/" aria-label="ASL Practice, home">
+    <a class="brand" href={routes.home} aria-label="ASL Practice, home">
       <span class="logo"><Icon name="signs" size={20} /></span>
       <span>ASL <b>Practice</b></span>
     </a>
     <nav class="top" aria-label="Main">
       {#each links as link}
-        <a href={link.href} aria-current={route.name === link.name ? 'page' : undefined}>
+        <a href={link.href} aria-current={current(link.pages)}>
           <Icon name={link.icon} size={18} />{link.label}
         </a>
       {/each}
     </nav>
-    <a class="progress-link" href="#/progress" aria-label="Dashboard" aria-current={route.name === 'progress' ? 'page' : undefined}>
-      <Icon name="progress" />
-    </a>
   </div>
 </header>
 
@@ -65,20 +65,20 @@
   {#key route.name + (route.param ?? '') + (route.sub ?? '')}
     <div class="page">
       {#if route.name === 'review'}
-        <Review />
-      {:else if route.name === 'learn'}
+        <Review more={route.param === 'more'} />
+      {:else if route.name === 'signs'}
         <Learn itemId={route.param} />
-      {:else if route.name === 'fingerspell' && route.param === 'read'}
-        <ReadDrill />
-      {:else if route.name === 'fingerspell' && route.param === 'spell'}
-        <SpellDrill />
-      {:else if route.name === 'fingerspell' && route.param === 'game'}
-        <SignFive />
-      {:else if route.name === 'fingerspell'}
-        <Fingerspell />
-      {:else if route.name === 'practice'}
+      {:else if route.name === 'camera'}
         <Practice startId={route.param} />
-      {:else if route.name === 'progress'}
+      {:else if route.name === 'fingerspelling' && route.param === 'read'}
+        <ReadDrill />
+      {:else if route.name === 'fingerspelling' && route.param === 'spell'}
+        <SpellDrill />
+      {:else if route.name === 'fingerspelling' && route.param === 'sign-five'}
+        <SignFive />
+      {:else if route.name === 'fingerspelling'}
+        <Fingerspell />
+      {:else if route.name === 'dashboard'}
         <Progress section={route.param} listId={route.sub} />
       {:else}
         <Home />
@@ -92,8 +92,8 @@
 </footer>
 
 <nav class="tabbar" aria-label="Main">
-  {#each links.filter((l) => l.name !== 'progress') as link}
-    <a href={link.href} aria-current={route.name === link.name ? 'page' : undefined}>
+  {#each links as link}
+    <a href={link.href} aria-current={current(link.pages)}>
       <Icon name={link.icon} />
       <span>{link.label}</span>
     </a>
@@ -148,7 +148,6 @@
   }
   .top a:hover { background: var(--surface-2); color: var(--ink); }
   .top a[aria-current='page'] { color: var(--ink); background: var(--surface-2); }
-  .progress-link { display: none; }
 
   .page { animation: enter 0.15s ease-out; }
   @keyframes enter { from { opacity: 0; } }
@@ -160,16 +159,6 @@
 
   @media (max-width: 820px) {
     .top { display: none; }
-    .progress-link {
-      display: grid;
-      place-items: center;
-      margin-left: auto;
-      width: 44px;
-      height: 44px;
-      border-radius: 8px;
-      color: var(--ink-2);
-    }
-    .progress-link[aria-current='page'] { color: var(--accent); background: var(--accent-soft); }
     header { margin-bottom: 16px; }
     .bar { min-height: 56px; }
     footer { padding-bottom: calc(var(--nav-h) + 32px + env(safe-area-inset-bottom)); }

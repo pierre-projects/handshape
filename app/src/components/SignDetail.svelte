@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { routes } from '../lib/routes';
   import { content } from '../lib/content';
   import type { ResolvedItem } from '../lib/types';
   import SignMedia from './SignMedia.svelte';
@@ -62,7 +63,7 @@
         <p class="eyebrow">Don't confuse with</p>
         <div class="contrasts">
           {#each contrasts as c}
-            <a href="#/learn/{c.id}" class="contrast">
+            <a href={routes.sign(c.id)} class="contrast">
               <SignPicture id={c.id} size={44} {mirror} />
               <span>{c.gloss}</span>
             </a>

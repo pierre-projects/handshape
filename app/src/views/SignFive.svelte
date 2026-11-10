@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { routes } from '../lib/routes';
   // Sign Five: guess the five-letter word in six tries by fingerspelling it.
   // Safeguards against stray letters: the camera only types held shapes, every
   // letter can be deleted, nothing submits by itself, and a guess that isn't a
@@ -189,7 +190,7 @@
 
 <div class="five">
   <header class="top">
-    <a class="back-link small" href="#/fingerspell"><Icon name="arrow-left" size={16} />Fingerspelling</a>
+    <a class="back-link small" href={routes.fingerspelling}><Icon name="arrow-left" size={16} />Fingerspelling</a>
     <div class="title-row">
       <div>
         <h1>Sign Five</h1>
@@ -296,7 +297,7 @@
           </div>
           <div class="result-actions">
             <button class="primary" onclick={() => newGame('practice')}><Icon name="play" size={14} />New practice word</button>
-            <a class="btn" href="#/fingerspell/spell">Spelling drills</a>
+            <a class="btn" href={routes.spell}>Spelling drills</a>
           </div>
         </section>
       {:else}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { routes } from '../lib/routes';
   import { onMount, tick } from 'svelte';
   import { getStore } from '../lib/app';
   import type { Store } from '../lib/db';
@@ -15,6 +16,9 @@
   import CameraMirror from '../components/CameraMirror.svelte';
   import GradeButtons from '../components/GradeButtons.svelte';
   import Icon from '../components/Icon.svelte';
+
+  /** Opened as #/review/more: start with five extra new signs. */
+  let { more = false }: { more?: boolean } = $props();
 
   let store: Store;
   const settings = $derived(prefs.value);
@@ -56,7 +60,7 @@
     const s = await loadSettings();
     mirror = s.mirrorMedia;
     showCamera = s.showCameraByDefault;
-    await start(s.newItemsPerDay);
+    await start(s.newItemsPerDay, more ? 5 : 0);
   });
 
   async function start(newItemsPerDay: number, extra = 0) {
@@ -174,13 +178,13 @@
       {#if newRemaining > 0}
         <button class="primary" onclick={() => start(settings!.newItemsPerDay, 5)}><Icon name="plus" size={16} />Learn 5 more signs</button>
       {/if}
-      <a class="btn" class:primary={newRemaining === 0} href="#/fingerspell">Practise fingerspelling</a>
-      <a class="btn ghost" href="#/">Back to Today</a>
+      <a class="btn" class:primary={newRemaining === 0} href={routes.fingerspelling}>Practise fingerspelling</a>
+      <a class="btn ghost" href={routes.home}>Back to Today</a>
     </div>
   </section>
 {:else}
   <div class="session-bar">
-    <a class="btn ghost small icon-only" href="#/" aria-label="End session" title="End session"><Icon name="x" size={18} /></a>
+    <a class="btn ghost small icon-only" href={routes.home} aria-label="End session" title="End session"><Icon name="x" size={18} /></a>
     <div class="progress" role="progressbar" aria-label="Session progress" aria-valuemin={0} aria-valuemax={total} aria-valuenow={session.done}>
       <span style="width:{pct}%"></span>
     </div>

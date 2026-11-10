@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { routes } from '../lib/routes';
   import { content } from '../lib/content';
   import SignDetail from '../components/SignDetail.svelte';
   import SignPicture from '../components/SignPicture.svelte';
@@ -26,8 +27,8 @@
 
   function onKey(e: KeyboardEvent) {
     if (!selected || e.target instanceof HTMLInputElement) return;
-    if (e.key === 'ArrowLeft' && prev) location.hash = `#/learn/${prev.id}`;
-    if (e.key === 'ArrowRight' && next) location.hash = `#/learn/${next.id}`;
+    if (e.key === 'ArrowLeft' && prev) location.hash = routes.sign(prev.id);
+    if (e.key === 'ArrowRight' && next) location.hash = routes.sign(next.id);
   }
 </script>
 
@@ -35,13 +36,13 @@
 
 {#if selected}
   <div class="spread crumbs">
-    <a class="btn ghost small" href="#/learn"><Icon name="arrow-left" size={16} /> All signs</a>
+    <a class="btn ghost small" href={routes.signs}><Icon name="arrow-left" size={16} /> All signs</a>
     <div class="row">
       {#if prev}
-        <a class="btn small" href="#/learn/{prev.id}" aria-label="Previous: {prev.gloss}"><Icon name="arrow-left" size={16} />{prev.gloss}</a>
+        <a class="btn small" href={routes.sign(prev.id)} aria-label="Previous: {prev.gloss}"><Icon name="arrow-left" size={16} />{prev.gloss}</a>
       {/if}
       {#if next}
-        <a class="btn small" href="#/learn/{next.id}" aria-label="Next: {next.gloss}">{next.gloss}<Icon name="arrow-right" size={16} /></a>
+        <a class="btn small" href={routes.sign(next.id)} aria-label="Next: {next.gloss}">{next.gloss}<Icon name="arrow-right" size={16} /></a>
       {/if}
     </div>
   </div>
@@ -49,7 +50,7 @@
     <SignDetail item={selected} bind:mirror />
   </section>
   {#if cameraReady}
-    <a class="btn primary lg practise" href="#/practice/{selected.id}">
+    <a class="btn primary lg practise" href={routes.cameraSign(selected.id)}>
       <Icon name="camera" size={18} />Practise {selected.gloss} on camera
     </a>
   {:else}
@@ -58,8 +59,11 @@
 {:else}
   {#if itemId}<p class="notice">No sign called “{itemId}”.</p>{/if}
   <div class="intro">
-    <h1>Signs</h1>
-    <p class="muted">Tap any sign to see how it's made, then try it on camera.</p>
+    <div>
+      <h1>Signs</h1>
+      <p class="muted">Tap any sign to see how it's made, then try it on camera.</p>
+    </div>
+    <a class="btn primary" href={routes.camera}><Icon name="camera" size={18} />Practise on camera</a>
   </div>
   {#each content.units as unit}
     <section class="card stack">
@@ -68,12 +72,17 @@
           <h2>{unit.title}</h2>
           <p class="muted small desc">{unit.description}</p>
         </div>
-        {#if unit.review.status === 'draft'}<span class="badge draft" title="Not yet reviewed by a Deaf signer">Draft</span>{/if}
+        <div class="unit-actions">
+          {#if unit.review.status === 'draft'}<span class="badge draft" title="Not yet reviewed by a Deaf signer">Draft</span>{/if}
+          {#if unit.items[0]}
+            <a class="btn ghost small" href={routes.cameraSign(unit.items[0].id)}><Icon name="camera" size={16} />On camera</a>
+          {/if}
+        </div>
       </div>
       <ul class="grid">
         {#each unit.items as it}
           <li>
-            <a href="#/learn/{it.id}" class="tile">
+            <a href={routes.sign(it.id)} class="tile">
               {#if hasIllustration(it.id)}
                 <SignPicture id={it.id} size={76} mirror={mirrored(prefs.value)} />
               {/if}
@@ -90,7 +99,8 @@
   .crumbs { margin-bottom: 12px; }
   .practise { display: flex; width: fit-content; margin: 0 auto; }
   p.practise { text-align: center; }
-  .intro { margin: 4px 0 16px; }
+  .intro { margin: 4px 0 16px; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .unit-actions { display: flex; align-items: center; gap: 8px; }
   .desc { margin: 4px 0 0; max-width: 60ch; }
   .grid {
     list-style: none;

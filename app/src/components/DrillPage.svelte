@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { routes } from '../lib/routes';
   // The frame both fingerspelling drills share: back link, title with the
   // drill's own colour and icon, a link to the other drill, the word-list
   // picker, and the card the drill itself fills.
@@ -25,13 +26,13 @@
     children: Snippet;
   } = $props();
 
-  const other = $derived(kind === 'read' ? { href: '#/fingerspell/spell', label: 'Spell', icon: 'camera' as const } : { href: '#/fingerspell/read', label: 'Read', icon: 'eye' as const });
+  const other = $derived(kind === 'read' ? { href: routes.spell, label: 'Spell', icon: 'camera' as const } : { href: routes.read, label: 'Read', icon: 'eye' as const });
   const chosen = $derived(drillWords(prefs.value).list);
 </script>
 
 <div class="drill {kind}">
   <header class="drill-head">
-    <a class="back-link small" href="#/fingerspell"><Icon name="arrow-left" size={16} />Fingerspelling</a>
+    <a class="back-link small" href={routes.fingerspelling}><Icon name="arrow-left" size={16} />Fingerspelling</a>
     <div class="title-row">
       <span class="drill-icon"><Icon name={kind === 'read' ? 'eye' : 'camera'} size={22} /></span>
       <div class="titles">

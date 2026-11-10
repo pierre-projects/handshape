@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { routes } from '../lib/routes';
   // Camera drill: sign each prompt and the camera tells you when it matches.
   // It waits for you to press Next unless you turn on auto-advance, so the
   // sign never changes without you seeing it. Slow or skipped signs come back.
@@ -216,7 +217,7 @@
             {#if matched}<p class="time">{lastSeconds}s{lastSeconds > 6 ? ' · comes back for another go' : ''}</p>{/if}
           </div>
           {#if showPicture}
-            <a class="ref" href="#/learn/{current.id}" title="Open {current.gloss} in Signs">
+            <a class="ref" href={routes.sign(current.id)} title="Open {current.gloss} in Signs">
               <SignPicture id={current.id} size="100%" {mirror} label="How to sign {current.gloss}" />
             </a>
           {/if}
