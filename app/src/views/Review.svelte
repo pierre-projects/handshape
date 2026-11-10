@@ -356,9 +356,23 @@
   }
   @media (max-width: 820px) {
     .grade-dock { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); }
+    /* How far along you are stays in view while you scroll a long card. */
+    .session-bar {
+      position: sticky; top: 0; z-index: 6; margin: -4px -16px 8px; padding: 8px 16px;
+      background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(10px);
+    }
   }
   @media (max-width: 640px) {
     .read { grid-template-columns: 1fr; gap: 16px; }
     .answer-actions > * { flex: 1; }
+    .mode-row { margin-bottom: 8px; gap: 4px 10px; }
+    .stage { gap: 12px; }
+    .sign-prompt { padding: 14px 0 6px; }
+    .sign-prompt .primary { width: 100%; }
+    .done { padding: 28px 16px; }
+    .summary { grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+    .stat { padding: 10px 6px; }
+    .actions { width: 100%; }
+    .actions > * { flex: 1 1 100%; justify-content: center; }
   }
 </style>

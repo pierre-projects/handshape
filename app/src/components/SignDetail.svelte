@@ -98,8 +98,18 @@
     background: var(--paper);
   }
   .contrast:hover { border-color: var(--accent); }
+  /* Phones: the name comes first, on one line with its kind, then the picture, then the rest. */
   @media (max-width: 640px) {
-    .detail { grid-template-columns: 1fr; gap: 18px; }
-    .visual { max-width: 320px; margin: 0 auto; width: 100%; }
+    .detail { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    .info { display: contents; }
+    .info > * + * { margin-top: 0; }
+    .head { order: -1; align-items: center; }
+    .head > div { display: flex; align-items: baseline; gap: 10px; }
+    .head .big-gloss { font-size: 2.75rem; }
+    .head .eyebrow { order: 2; margin: 0; }
+    /* Nothing may be wider than the card, whatever is inside it (the one-line credit would be). */
+    .visual, .info > * { width: 100%; min-width: 0; }
+    .fact { padding-bottom: 8px; }
+    .tips { padding: 10px 12px; }
   }
 </style>

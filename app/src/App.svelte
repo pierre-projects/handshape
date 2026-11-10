@@ -165,8 +165,9 @@
 
   @media (max-width: 820px) {
     .top { display: none; }
-    header { margin-bottom: 16px; }
-    .bar { min-height: 56px; }
+    /* On a phone the tab bar does the navigating, so the title bar scrolls away and leaves the room to the page. */
+    header { margin-bottom: 12px; position: static; }
+    .bar { min-height: 48px; }
     footer { padding-bottom: calc(var(--nav-h) + 32px + env(safe-area-inset-bottom)); }
     .tabbar {
       display: grid;

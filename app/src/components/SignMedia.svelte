@@ -105,8 +105,14 @@
     min-height: 0;
     object-fit: contain;
   }
+  /* Phones: a shorter picture, the mirror button tucked into its corner, and the credit on one line. */
   @media (max-width: 640px) {
-    .still { height: 220px; padding: 16px; }
+    .media { position: relative; }
+    .still { height: 200px; padding: 14px; }
+    .drawn { max-width: 240px; }
+    .tools { position: absolute; top: 8px; right: 8px; margin: 0; }
+    .tools button { background: color-mix(in srgb, var(--surface) 90%, transparent); }
+    figcaption { margin-top: 6px; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   }
   .embed { aspect-ratio: 16 / 9; }
   iframe { width: 100%; height: 100%; border: 0; }

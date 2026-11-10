@@ -83,7 +83,14 @@
   .titles p { margin: 2px 0 0; }
   .drill-card { margin-top: 14px; border-top: 3px solid var(--m); display: grid; gap: 14px; }
   .drill :global(.btn.primary), .drill :global(button.primary) { background: var(--m); border-color: var(--m); }
+  /* Phones: a short header, with the link to the other drill up beside the back link, so the drill itself starts higher. */
   @media (max-width: 760px) {
-    .switch { margin-left: 62px; }
+    .drill-head { position: relative; margin-bottom: 10px; }
+    .title-row { gap: 10px; margin-top: 6px; flex-wrap: nowrap; }
+    .drill-icon { width: 38px; height: 38px; border-radius: 10px; }
+    .titles { min-width: 0; }
+    .titles h1 { font-size: 1.25rem; }
+    .switch { position: absolute; top: -7px; right: -8px; }
+    .drill-card { margin-top: 10px; gap: 12px; }
   }
 </style>
