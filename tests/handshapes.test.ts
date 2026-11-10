@@ -125,3 +125,15 @@ describe('judge: one held shape cannot pass for another sign', () => {
     }
   });
 });
+
+describe('P is not too strict', () => {
+  it('accepts P tipped part-way down, not just straight down', () => {
+    for (const deg of [115, 135, 160]) {
+      const e = judge('p', feats({ ...POSES.k, transforms: [{ rotateZ: deg }] }));
+      expect(e.pass, `P at ${deg}°`).toBe(true);
+    }
+  });
+  it('does not let an upright K count as P', () => {
+    expect(judge('p', feats(POSES.k)).pass).toBe(false);
+  });
+});

@@ -51,6 +51,8 @@ export interface Features {
   /** Which way the index and middle fingers point in the image. */
   indexDirection: Direction;
   middleDirection: Direction;
+  /** Middle finger angle in the image, 0 up to 180 down. */
+  middleAngle: number;
   /** Palm facing: +1 straight at the camera, -1 straight away. */
   facingScore: number;
   facing: Facing;
@@ -115,6 +117,7 @@ export function computeFeatures(frame: HandFrame): Features {
   const thumbFront = dot(sub(w[LM.THUMB_TIP], knuckleFront), palmSide) / palmSize;
 
   const handAngle = imageAngle(img[LM.WRIST], img[LM.MIDDLE_MCP], frame.aspect);
+  const middleAngle = imageAngle(img[LM.MIDDLE_MCP], img[LM.MIDDLE_TIP], frame.aspect);
 
   return {
     curl,
@@ -144,7 +147,8 @@ export function computeFeatures(frame: HandFrame): Features {
     handDirection: classifyDirection(handAngle),
     handAngle,
     indexDirection: classifyDirection(imageAngle(img[LM.INDEX_MCP], img[LM.INDEX_TIP], frame.aspect)),
-    middleDirection: classifyDirection(imageAngle(img[LM.MIDDLE_MCP], img[LM.MIDDLE_TIP], frame.aspect)),
+    middleDirection: classifyDirection(middleAngle),
+    middleAngle: Math.abs(middleAngle),
     facingScore,
     facing,
     palmSize,

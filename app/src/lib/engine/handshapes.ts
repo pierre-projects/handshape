@@ -47,6 +47,8 @@ export const T = {
   thumbOutMin: 50,
   thumbParallelMax: 40,
   crossMin: 0.05,
+  /** Degrees from straight up; 100 is just below horizontal. */
+  tippedDownMin: 100,
 };
 
 const NAMES: Record<Finger, string> = { index: 'index', middle: 'middle', ring: 'ring', pinky: 'pinky' };
@@ -257,11 +259,12 @@ const indexDown: Check = {
   reliable: true,
 };
 
-const middleDown: Check = {
-  id: 'middle-down',
+/** P: the middle finger only needs to point below horizontal, not straight down. */
+const middleTippedDown: Check = {
+  id: 'middle-tipped-down',
   param: 'orientation',
-  test: (f) => f.middleDirection === 'down',
-  hint: 'Tip your hand down so your middle finger points at the floor.',
+  test: (f) => f.middleAngle >= T.tippedDownMin,
+  hint: 'Tip your hand down so your middle finger points toward the floor.',
   reliable: true,
 };
 
@@ -403,9 +406,10 @@ const S: SignSpec[] = [
     checks: [
       ...extendedAll('index', 'middle'),
       apart('im', 'Angle your middle finger away from your index finger.'),
-      thumbTouches('middlePip'),
+      // Tipped down, the thumb is usually hidden behind the fingers.
+      thumbTouches('middlePip', false),
       ...curledAll('ring', 'pinky'),
-      middleDown,
+      middleTippedDown,
     ],
   },
   {
