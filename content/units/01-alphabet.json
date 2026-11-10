@@ -24,6 +24,14 @@
         "s",
         "e",
         "t"
+      ],
+      "media": [
+        {
+          "src": "media/letters/a.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_A.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -35,6 +43,14 @@
       "palm": "out",
       "tips": [
         "Keep fingers together, not spread (spread is the number 4 with thumb out)."
+      ],
+      "media": [
+        {
+          "src": "media/letters/b.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_B.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -49,6 +65,14 @@
       ],
       "confusable_with": [
         "o"
+      ],
+      "media": [
+        {
+          "src": "media/letters/c.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_C.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -60,6 +84,14 @@
       "palm": "out",
       "confusable_with": [
         "f"
+      ],
+      "media": [
+        {
+          "src": "media/letters/d.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_D.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -77,6 +109,14 @@
         "s",
         "m",
         "n"
+      ],
+      "media": [
+        {
+          "src": "media/letters/e.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_E.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -89,6 +129,14 @@
       "confusable_with": [
         "d",
         "9"
+      ],
+      "media": [
+        {
+          "src": "media/letters/f.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_F.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -104,6 +152,14 @@
       "confusable_with": [
         "h",
         "q"
+      ],
+      "media": [
+        {
+          "src": "media/letters/g.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_G.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -119,6 +175,14 @@
       "confusable_with": [
         "g",
         "u"
+      ],
+      "media": [
+        {
+          "src": "media/letters/h.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_H.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -131,6 +195,14 @@
       "confusable_with": [
         "j",
         "y"
+      ],
+      "media": [
+        {
+          "src": "media/letters/i.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_I.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -146,6 +218,14 @@
       ],
       "confusable_with": [
         "i"
+      ],
+      "media": [
+        {
+          "src": "media/letters/j.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_J.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -158,6 +238,14 @@
       "confusable_with": [
         "v",
         "p"
+      ],
+      "media": [
+        {
+          "src": "media/letters/k.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_K.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -166,7 +254,15 @@
       "answer": "L",
       "kind": "letter",
       "handshape": "Index finger straight up and thumb straight out, forming an L.",
-      "palm": "out"
+      "palm": "out",
+      "media": [
+        {
+          "src": "media/letters/l.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_L.svg)",
+          "license": "Public domain"
+        }
+      ]
     },
     {
       "id": "m",
@@ -182,6 +278,14 @@
         "n",
         "e",
         "t"
+      ],
+      "media": [
+        {
+          "src": "media/letters/m.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_M.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -197,6 +301,14 @@
       "confusable_with": [
         "m",
         "t"
+      ],
+      "media": [
+        {
+          "src": "media/letters/n.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_N.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -212,6 +324,14 @@
       "confusable_with": [
         "c",
         "0"
+      ],
+      "media": [
+        {
+          "src": "media/letters/o.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_O.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -227,6 +347,14 @@
       "confusable_with": [
         "k",
         "q"
+      ],
+      "media": [
+        {
+          "src": "media/letters/p.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_P.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -242,6 +370,14 @@
       "confusable_with": [
         "g",
         "p"
+      ],
+      "media": [
+        {
+          "src": "media/letters/q.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_Q.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -253,6 +389,14 @@
       "palm": "out",
       "confusable_with": [
         "u"
+      ],
+      "media": [
+        {
+          "src": "media/letters/r.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_R.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -268,6 +412,14 @@
       "confusable_with": [
         "a",
         "e"
+      ],
+      "media": [
+        {
+          "src": "media/letters/s.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_S.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -284,6 +436,14 @@
         "a",
         "m",
         "n"
+      ],
+      "media": [
+        {
+          "src": "media/letters/t.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_T.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -297,6 +457,14 @@
         "v",
         "r",
         "h"
+      ],
+      "media": [
+        {
+          "src": "media/letters/u.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_U.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -313,6 +481,14 @@
         "u",
         "k",
         "2"
+      ],
+      "media": [
+        {
+          "src": "media/letters/v.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_V.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -327,6 +503,14 @@
       ],
       "confusable_with": [
         "6"
+      ],
+      "media": [
+        {
+          "src": "media/letters/w.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_W.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -335,7 +519,15 @@
       "answer": "X",
       "kind": "letter",
       "handshape": "Index finger raised and bent into a hook; other fingers in a fist.",
-      "palm": "out"
+      "palm": "out",
+      "media": [
+        {
+          "src": "media/letters/x.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_X.svg)",
+          "license": "Public domain"
+        }
+      ]
     },
     {
       "id": "y",
@@ -346,6 +538,14 @@
       "palm": "out",
       "confusable_with": [
         "i"
+      ],
+      "media": [
+        {
+          "src": "media/letters/y.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_Y.svg)",
+          "license": "Public domain"
+        }
       ]
     },
     {
@@ -358,6 +558,14 @@
       "movement": "Index finger draws a Z from the signer's point of view.",
       "tips": [
         "Draw it as you would read it; from the front it looks reversed."
+      ],
+      "media": [
+        {
+          "src": "media/letters/z.svg",
+          "type": "image",
+          "credit": "wpclipart.com, via Wikimedia Commons (File:Sign_language_Z.svg)",
+          "license": "Public domain"
+        }
       ]
     }
   ],
