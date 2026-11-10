@@ -1,24 +1,28 @@
 # ASL
 
 An open-source web app for learning American Sign Language, built to help you learn fast.
-It runs entirely in your browser: no accounts, no servers, and camera video never leaves your device.
+It runs entirely in your browser: no accounts, and camera video never leaves your device.
 
 ## What it does today
 
 - **Daily review.** A spaced-repetition queue (FSRS) brings each sign back just before you would
-  forget it. New signs are introduced a few per day.
-- **Sign it.** See a letter or number, sign it (with an optional mirrored camera and record-and-replay),
-  then reveal the handshape, palm and movement notes and grade yourself.
-- **What is this sign?** For signs with an image or video, see the sign and type what it means.
+  forget it. New signs are introduced a few per day. Cards are "Read it" (see a sign, type what it
+  means, or tap "I don't know") and "Sign it" (make the sign, with an optional camera check), and
+  you grade yourself; the camera or your typed answer suggests the grade.
 - **Camera checks.** Sign a letter or number to your camera and get told what to fix, such as
-  "Straighten your index finger" or "Turn your palm to face out". The Camera page runs through the
-  alphabet and moves on as soon as each sign matches. Hand tracking runs on your device.
+  "Straighten your index finger" or "Turn your palm to face out". The Camera page works through the
+  alphabet or numbers with a sign list you can jump around in. Hand tracking runs on your device.
 - **Read fingerspelling.** Watch a word spelled letter by letter and type it. The speed rises after clean
   reads and drops after misses, and words with your weakest letters come up more often.
-- **Spell words.** Fingerspell a word against a timer and grade how clean it was.
-- **Progress.** Retention, streak, reading speed in words per minute, the signs you misread most,
-  and export/import of all your data as a JSON file.
-- **Works offline** once loaded, and installs to your phone's home screen.
+- **Spell fingerspelling.** Fingerspell a word to the camera; each letter turns green as it matches,
+  and you get a score for the word.
+- **Sign Five.** A word game: guess the five-letter word in six tries by fingerspelling each guess
+  to the camera (or typing it). Play the day's official Wordle word, or unlimited practice words.
+- **Word lists.** Make named lists of the words you want to practise and pick one in any drill or game.
+- **Dashboard.** What's due, streak, retention, reading speed, Sign Five stats, the signs you misread
+  most, your word lists, settings, and export/import of all your data as a JSON file.
+- **Works offline** once loaded (except fetching the daily Sign Five word), and installs to your
+  phone's home screen.
 
 Content covers the alphabet and numbers 0 to 10. Descriptions are drafts until a Deaf signer
 reviews them. Reading drills unlock as images and videos are added; see `content/README.md`.
@@ -44,14 +48,15 @@ Then open the address it prints. The camera needs `localhost` or https.
 
 | Folder | Holds |
 | --- | --- |
-| `app/` | The web app: views, components and logic in `app/src/lib` |
-| `content/` | Lesson units (JSON), media, and the content schema |
-| `app/src/lib/engine/` | Camera checks: hand features and per-sign rules |
+| `app/` | The web app: pages in `app/src/views`, components, and logic in `app/src/lib` |
+| `app/src/lib/engine/` | Camera and hand tracking: hand measurements, per-sign rules, letter reading |
+| `content/` | Lesson units (JSON), media, word lists, and their schemas |
+| `functions/` | Cloudflare Pages Function that relays the daily Wordle word |
 | `models/` | The bundled hand-tracking model |
 | `fixtures/handshapes/` | Recorded hand samples that test the camera checks |
 | `scripts/` | Content validator |
 | `tests/` | Unit tests |
-| `docs/` | Architecture and its review |
+| `docs/` | [Architecture](docs/architecture.md) and its [review](docs/architecture-review.md) |
 
 ## How the camera checks work
 
@@ -59,7 +64,9 @@ MediaPipe finds 21 points on your hand in each video frame. The app turns those 
 measurements: how curled each finger is, where the thumb sits, how far the fingers spread,
 which way the hand points and which way the palm faces. Each sign is a short list of readable
 rules over those measurements, and each rule carries the fix to suggest when it fails.
-A sign counts once it holds for about half a second.
+A sign counts once it holds for about half a second. In Sign Five, where the app has to work out
+which letter you mean, a letter types only after you hold it steadily for about a second, and
+holding it longer doesn't type it again.
 
 Thumb positions tucked behind the fingers (A, E, M, N, S, T) are hard for any camera to see.
 Those rules are marked unsure: they show as advice but never block a match. J, Z and 10 need
@@ -72,6 +79,10 @@ The rules are tested against a model hand in `tests/`, and real recorded samples
 
 The CI workflow tests every pull request and deploys `main` to GitHub Pages. In the repository
 settings, set Pages to deploy from "GitHub Actions".
+
+The app also deploys to Cloudflare Pages as-is: build command `npm run build`, output directory
+`dist`, environment variable `NODE_VERSION=22`. Cloudflare also runs `functions/`, which lets Sign
+Five fetch the official Wordle word; on GitHub Pages the game uses its own word of the day instead.
 
 ## Licenses
 

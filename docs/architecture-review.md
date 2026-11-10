@@ -2,6 +2,36 @@
 
 Review of `architecture.md` (Nov 9, 2026). The lens is the stated personal goal: **learn ASL fast**, with the open-source project as the vehicle.
 
+## Status (Nov 10, 2026)
+
+This review was written against the first plan. [architecture.md](architecture.md) now
+describes the app as built. Where each recommendation stands:
+
+| Recommendation | Status |
+| --- | --- |
+| Spaced repetition as the spine (FSRS) | Done: Review page, every exercise feeds the queue |
+| Every exercise works without the recognizer (self-grading) | Done: Again / Hard / Good / Easy everywhere; the camera suggests the grade |
+| Receptive fingerspelling with speed control and WPM | Done: Read drill, adaptive speed, weak letters come up more often |
+| Self-recording and side-by-side comparison | Partly: record and replay in Review; no side-by-side with a model clip yet |
+| Parameter checking instead of whole-sign classification | Done for handshape and palm direction; location, movement and non-manuals not yet |
+| Pick one UI framework | Done: Svelte 5 |
+| Tracking: Hand + Pose + Face from phase 1 | Hand only so far; location checks (and so first vocabulary) need pose or face |
+| Normalisation, handedness, smoothing | Done (hand-relative measurements, signing-hand setting, smoothing); segmentation not needed yet |
+| Engine as its own UI-free package, tested in Node | Done, at `app/src/lib/engine/` rather than `app/engine/`; tested with synthetic hands |
+| Run tracking in a Web Worker | Not yet |
+| IndexedDB with JSON export/import | Done |
+| JSON Schema for content, validated in CI | Done, for lesson units and word lists |
+| `fixtures/` of recorded landmarks | Set up, with a sample-saving tool; no samples yet |
+| `reviewed_by` and clip license in the data | Done in the schema; no unit reviewed yet |
+| Three licenses (code, content, models) | Done: MIT (`LICENSE`), CC BY 4.0 (`content/LICENSE.md`), each model's license listed in `models/README.md` (no separate `models/LICENSE` file) |
+| Speech: typing by default, on-device if added | No speech features; nothing is sent to a speech service |
+| Privacy page, "beyond the app" page | Not yet |
+| Embedded clip sources | Supported in the schema; not used yet |
+
+One addition the review didn't anticipate: Sign Five fetches the official Wordle word through
+the app's own relay, which is the app's only network request (see architecture.md, "Network and
+privacy").
+
 ## Verdict
 
 The architecture is sound for what it describes: a static, privacy-preserving, browser-only app with a swappable recognizer and lessons-as-data. The main problem is that it is organised around the hardest, slowest part (camera sign recognition) while the parts that make a learner faster (receptive practice, spaced repetition, self-recording, vocabulary scale) are either missing or sitting in a side module. As written, you would spend months on the recognizer before the app teaches you anything you could not get from a flashcard deck.
