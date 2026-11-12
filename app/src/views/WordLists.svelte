@@ -27,7 +27,7 @@
 {#if settings}
   <ListsManager {settings} {listId} onSave={save} />
 {:else}
-  <p class="muted">Loading…</p>
+  <p class="muted loading-note">Loading…</p>
 {/if}
 
 <style>
