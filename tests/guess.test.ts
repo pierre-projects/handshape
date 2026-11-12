@@ -3,10 +3,10 @@ import {
   ANSWERS, dailyAnswer, dailyStatus, describeDaily, fetchOfficialAnswer, isKnownWord, letterMarks, randomAnswer, scoreGuess, shareText, shareTitle, todaysAnswer, WORDS,
 } from '../app/src/lib/guess';
 import { sortWords } from '../app/src/lib/spelling';
-import { classifyLetter, handMotion, LetterReader, READABLE_LETTERS } from '../app/src/lib/engine/reader';
+import { classifyLetter, handMotion, isMoving, LetterReader, READABLE_LETTERS, READER_DEFAULTS, readLetter } from '../app/src/lib/engine/reader';
 import { computeFeatures } from '../app/src/lib/engine/features';
 import { buildHand } from './helpers/synthHand';
-import { POSES } from './helpers/poses';
+import { POSES, REAL } from './helpers/poses';
 
 describe('word list', () => {
   it('has only five-letter words and plenty of answers', () => {
@@ -84,6 +84,131 @@ describe('LetterReader: no accidental letters', () => {
   });
   it('types two different letters in a row', () => {
     expect(feed(new LetterReader(), [['c', 1000], ['a', 1300]])).toEqual(['c', 'a']);
+  });
+});
+
+describe('LetterReader: a wobble does not restart the hold', () => {
+  /** Feeds one reading per frame, `step` ms apart, and returns what was typed. */
+  function feed(seq: [string | undefined, number][], step = 33) {
+    const reader = new LetterReader();
+    const typed: string[] = [];
+    let t = 0;
+    for (const [l, ms] of seq) {
+      for (let end = t + ms; t < end; t += step) {
+        const s = reader.update(l, t);
+        if (s.typed) typed.push(s.typed);
+      }
+    }
+    return typed;
+  }
+
+  it('carries on from what is left after the reading drops out', () => {
+    // 700 ms held, lost for a quarter of a second, then 400 ms more: it used to start again from nothing.
+    expect(feed([['h', 700], [undefined, 250], ['h', 400]])).toEqual(['h']);
+    // The same wobble as a passing misreading of a neighboring letter.
+    expect(feed([['h', 700], ['u', 100], ['h', 300]])).toEqual(['h']);
+  });
+
+  it('keeps most of the hold through the wobble', () => {
+    const reader = new LetterReader();
+    let p = 0;
+    for (let t = 0; t < 700; t += 33) p = reader.update('h', t).progress;
+    const before = p;
+    for (let t = 700; t < 950; t += 33) p = reader.update(undefined, t).progress;
+    expect(p).toBeGreaterThan(before * 0.6);
+    expect(p).toBeLessThan(before);
+  });
+
+  it('lets go of a letter that stays away', () => {
+    expect(feed([['h', 500], [undefined, 800], ['h', 600]])).toEqual([]);
+  });
+
+  it('never types a letter that is read less than half the time', () => {
+    const brushes: [string | undefined, number][] = [];
+    for (let i = 0; i < 30; i++) brushes.push(['c', 100], [undefined, 400]);
+    expect(feed(brushes)).toEqual([]);
+    // Flickering one frame on, three off, used to type inside a second.
+    const flicker: [string | undefined, number][] = [];
+    for (let i = 0; i < 20; i++) flicker.push(['c', 33], [undefined, 99]);
+    expect(feed(flicker)).toEqual([]);
+  });
+
+  it('starts a different letter from nothing', () => {
+    // S was nearly there; changing to A must not finish S, or give A a head start.
+    expect(feed([['s', 800], ['a', 600]])).toEqual([]);
+    expect(feed([['s', 800], ['a', 1100]])).toEqual(['a']);
+  });
+
+  it('judges a slow camera like a fast one', () => {
+    for (const step of [16, 33, 66, 100]) {
+      expect(feed([['a', 1100]], step), `steady at ${step} ms a frame`).toEqual(['a']);
+      expect(feed([['a', 700]], step), `too short at ${step} ms a frame`).toEqual([]);
+      expect(feed([['h', 700], [undefined, 250], ['h', 500]], step), `wobble at ${step} ms a frame`).toEqual(['h']);
+    }
+  });
+
+  it('does not let one stalled frame type or wipe a letter', () => {
+    const reader = new LetterReader();
+    reader.update('a', 0);
+    reader.update('a', 33);
+    // The camera stalls for two seconds with A still showing: that is one frame, not a two-second hold.
+    expect(reader.update('a', 2033).typed).toBeUndefined();
+  });
+});
+
+describe('isMoving', () => {
+  const pts = Array.from({ length: 21 }, (_, i) => ({ x: i / 40, y: i / 40 }));
+  const shifted = (d: number) => pts.map((p) => ({ x: p.x + d, y: p.y }));
+  const size = Math.hypot(pts[0].x - pts[9].x, pts[0].y - pts[9].y);
+
+  it('goes by speed, so the same movement reads the same on a slow camera', () => {
+    // A drift of one hand length a second: slow enough to read.
+    expect(isMoving(pts, shifted(size * 0.033), 33)).toBe(false);
+    expect(isMoving(pts, shifted(size * 0.1), 100)).toBe(false);
+    // Three hand lengths a second: traveling.
+    expect(isMoving(pts, shifted(size * 0.1), 33)).toBe(true);
+    expect(isMoving(pts, shifted(size * 0.3), 100)).toBe(true);
+  });
+
+  it('is false with nothing to compare against', () => {
+    expect(isMoving(undefined, pts, 33)).toBe(false);
+    expect(isMoving(pts, shifted(0.5), 0)).toBe(false);
+  });
+});
+
+describe('a loosely matched letter is held longer', () => {
+  /** Holds one letter for `ms`, every frame sure or not, and says whether it typed. */
+  const types = (ms: number, sure: (frame: number) => boolean) => {
+    const reader = new LetterReader();
+    let typed = false;
+    for (let t = 0, n = 0; t < ms; t += 33, n++) typed ||= !!reader.update('s', t, sure(n)).typed;
+    return typed;
+  };
+
+  it('says whether a reading is a full match or a loose one', () => {
+    expect(readLetter(computeFeatures(buildHand(POSES.a)))).toEqual({ letter: 'a', sure: true });
+    // P seen from above: the index and thumb can't be checked, so it matches loosely.
+    expect(readLetter(computeFeatures(buildHand(REAL.pHidden)))).toEqual({ letter: 'p', sure: false });
+  });
+
+  it('needs the longer hold when every frame is loose', () => {
+    expect(READER_DEFAULTS.unsureHoldMs).toBeGreaterThan(READER_DEFAULTS.holdMs);
+    expect(types(READER_DEFAULTS.holdMs + 100, () => false)).toBe(false);
+    expect(types(READER_DEFAULTS.unsureHoldMs + 100, () => false)).toBe(true);
+  });
+
+  it('keeps the usual hold for a full match, and for the odd loose frame', () => {
+    expect(types(READER_DEFAULTS.holdMs + 100, () => true)).toBe(true);
+    expect(types(READER_DEFAULTS.holdMs + 100, (n) => n % 10 !== 0)).toBe(true);
+  });
+
+  it('says so while the hold is mostly loose', () => {
+    const reader = new LetterReader();
+    reader.update('s', 0, false);
+    expect(reader.update('s', 33, false).unsure).toBe(true);
+    const sure = new LetterReader();
+    sure.update('s', 0);
+    expect(sure.update('s', 33).unsure).toBe(false);
   });
 });
 

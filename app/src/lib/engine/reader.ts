@@ -10,27 +10,57 @@ import { imagePalm, imagePoint, MOVES, StrokeTracker, thumbSide, type MoveId, ty
 /** Letters the camera can read from a still hand. J and Z are drawn in the air; see CameraTyper. */
 export const READABLE_LETTERS = [...'abcdefghiklmnopqrstuvwxy'].filter((l) => SPECS.has(l));
 
+export interface LetterReading {
+  letter: string;
+  /**
+   * False when the letter only matched loosely: a check the camera often
+   * misreads (mostly where the thumb is) failed. That is how the fist letters
+   * A, E, M, N, S and T get mixed up, so such a reading has to be held longer.
+   */
+  sure: boolean;
+}
+
 /**
  * The one letter this hand clearly is, or undefined when it's no letter or
  * could be more than one. Strict matches win over loose ones; a tie is no answer.
  */
-export function classifyLetter(features: Features, letters: string[] = READABLE_LETTERS): string | undefined {
+export function readLetter(features: Features, letters: string[] = READABLE_LETTERS): LetterReading | undefined {
   const passing = letters.map((l) => judge(l, features, letters)).filter((j) => j.pass);
-  if (passing.length === 1) return passing[0].target;
+  if (passing.length === 1) return { letter: passing[0].target, sure: passing[0].passAll };
   const strict = passing.filter((j) => j.passAll);
-  return strict.length === 1 ? strict[0].target : undefined;
+  return strict.length === 1 ? { letter: strict[0].target, sure: true } : undefined;
+}
+
+export function classifyLetter(features: Features, letters: string[] = READABLE_LETTERS): string | undefined {
+  return readLetter(features, letters)?.letter;
 }
 
 export interface ReaderOptions {
   /** How long a letter must be held steady before it types. */
   holdMs: number;
+  /** The longer hold for a letter that only matched loosely (see LetterReading.sure). */
+  unsureHoldMs: number;
   /** After typing, how long the hand must show something else (or nothing) before the next letter. */
   releaseMs: number;
-  /** Frames of a different reading forgiven while holding, for tracking flicker. */
-  graceFrames: number;
+  /**
+   * How long the held letter may go unread before the hold starts to drain, and
+   * how long a different letter must be read before it takes over. In time, not
+   * frames, so a slow camera is judged like a fast one.
+   */
+  graceMs: number;
+  /**
+   * How fast a hold drains once the letter has gone unread for longer than
+   * graceMs, as a share of how fast it fills. At 1 a letter has to be read more
+   * than half the time to get anywhere, so a hand that only brushes a shape
+   * now and then never types it.
+   */
+  drain: number;
 }
 
-export const READER_DEFAULTS: ReaderOptions = { holdMs: 900, releaseMs: 300, graceFrames: 3 };
+export const READER_DEFAULTS: ReaderOptions = { holdMs: 900, unsureHoldMs: 1300, releaseMs: 300, graceMs: 130, drain: 1 };
+
+/** The most time one frame may add to or take from a hold, so a stalled camera can't type or wipe a letter in one step. */
+const MAX_STEP_MS = 250;
 
 export interface ReaderState {
   /** The letter being held right now, if any. */
@@ -41,20 +71,38 @@ export interface ReaderState {
   waitingForRelease: boolean;
   /** Set on the one frame a letter is typed. */
   typed?: string;
+  /** True while the held letter is mostly a loose match, so it is being held for longer. */
+  unsure?: boolean;
 }
 
 /**
  * Turns per-frame letter readings into deliberate key presses:
- *  - a letter types only after it's held steady for holdMs;
- *  - then nothing types until the hand changes shape or drops for releaseMs,
- *    so one long hold types one letter, and a double letter needs a small bounce;
- *  - a reading that flickers for a frame or two doesn't restart the hold.
+ *  - a letter types once it has been read for holdMs in all;
+ *  - a wobble doesn't restart the hold. While the letter goes unread the hold
+ *    pauses for graceMs, then drains; when the letter comes back it carries on
+ *    from what is left. Only time the letter was actually read counts;
+ *  - a different letter read for longer than graceMs takes over, and starts
+ *    its own hold from nothing;
+ *  - after typing, nothing types until the hand changes shape or drops for
+ *    releaseMs, so one long hold types one letter, and a double letter needs a
+ *    small bounce;
+ *  - a letter that only matched loosely needs a longer hold, in proportion to
+ *    how much of the hold was loose.
  */
 export class LetterReader {
   private opts: ReaderOptions;
   private candidate?: string;
-  private since = 0;
-  private misses = 0;
+  /** Time the candidate has been read, less what has drained, and how much of that was a loose match. */
+  private heldMs = 0;
+  private unsureMs = 0;
+  /** Time since the candidate was last read. */
+  private lostMs = 0;
+  /** A different letter being read instead of the candidate, and for how long without the candidate in between. */
+  private rival?: string;
+  private rivalMs = 0;
+  private rivalUnsureMs = 0;
+  /** When the last frame came. */
+  private last?: number;
   private lastTyped?: string;
   /** Readings that count as still holding the letter just typed. */
   private held = new Set<string>();
@@ -66,21 +114,69 @@ export class LetterReader {
   }
 
   reset(): void {
-    this.candidate = undefined;
-    this.misses = 0;
+    this.hold(undefined);
+    this.last = undefined;
     this.needRelease = false;
     this.releaseSince = undefined;
     this.lastTyped = undefined;
   }
 
-  update(letter: string | undefined, now: number): ReaderState {
+  /** Starts holding `letter` (or nothing), with any time it has already been read. */
+  private hold(letter: string | undefined, heldMs = 0, unsureMs = 0): void {
+    this.candidate = letter;
+    this.heldMs = heldMs;
+    this.unsureMs = unsureMs;
+    this.lostMs = 0;
+    this.rival = undefined;
+    this.rivalMs = 0;
+    this.rivalUnsureMs = 0;
+  }
+
+  /** One frame of the hold: the candidate was read, something else was, or nothing was. */
+  private step(letter: string | undefined, sure: boolean, dt: number): void {
+    if (!this.candidate) {
+      this.hold(letter, 0, 0);
+      return;
+    }
+    if (letter === this.candidate) {
+      this.heldMs += dt;
+      if (!sure) this.unsureMs += dt;
+      this.lostMs = 0;
+      this.rival = undefined;
+      return;
+    }
+    this.lostMs += dt;
+    if (letter) {
+      if (letter === this.rival) {
+        this.rivalMs += dt;
+        if (!sure) this.rivalUnsureMs += dt;
+      } else {
+        this.rival = letter;
+        this.rivalMs = 0;
+        this.rivalUnsureMs = 0;
+      }
+      if (this.rivalMs > this.opts.graceMs) {
+        this.hold(this.rival, this.rivalMs, this.rivalUnsureMs);
+        return;
+      }
+    }
+    if (this.lostMs <= this.opts.graceMs) return;
+    const loose = this.heldMs > 0 ? this.unsureMs / this.heldMs : 0;
+    this.heldMs -= dt * this.opts.drain;
+    this.unsureMs = Math.max(0, this.heldMs) * loose;
+    if (this.heldMs <= 0) this.hold(this.rival, this.rivalMs, this.rivalUnsureMs);
+  }
+
+  update(letter: string | undefined, now: number, sure = true): ReaderState {
+    const dt = this.last === undefined ? 0 : Math.min(Math.max(now - this.last, 0), MAX_STEP_MS);
+    this.last = now;
     if (this.needRelease) {
       if (!letter || !this.held.has(letter)) {
         this.releaseSince ??= now;
         if (now - this.releaseSince >= this.opts.releaseMs) {
           this.needRelease = false;
           this.releaseSince = undefined;
-          this.candidate = undefined;
+          this.hold(undefined);
         }
       } else {
         this.releaseSince = undefined;
@@ -88,26 +184,21 @@ export class LetterReader {
       if (this.needRelease) return { letter: this.lastTyped, progress: 0, waitingForRelease: true };
     }
 
-    if (letter && letter === this.candidate) {
-      this.misses = 0;
-    } else if (this.candidate && ++this.misses <= this.opts.graceFrames) {
-      // Forgive a short flicker: keep holding the same candidate.
-    } else {
-      this.candidate = letter;
-      this.since = now;
-      this.misses = 0;
-    }
+    this.step(letter, sure, dt);
 
     if (!this.candidate) return { progress: 0, waitingForRelease: false };
-    const progress = Math.min(1, (now - this.since) / this.opts.holdMs);
-    if (progress < 1) return { letter: this.candidate, progress, waitingForRelease: false };
+    // The very first frame of a hold has no time behind it yet, so judge it by itself.
+    const loose = this.heldMs > 0 ? this.unsureMs / this.heldMs : sure ? 0 : 1;
+    const need = this.opts.holdMs + (this.opts.unsureHoldMs - this.opts.holdMs) * loose;
+    const progress = Math.min(1, this.heldMs / need);
+    if (progress < 1) return { letter: this.candidate, progress, waitingForRelease: false, unsure: loose > 0.5 };
 
     const typed = this.candidate;
     this.lastTyped = typed;
     this.held = new Set([typed]);
     this.needRelease = true;
     this.releaseSince = undefined;
-    this.candidate = undefined;
+    this.hold(undefined);
     return { letter: typed, progress: 1, waitingForRelease: true, typed };
   }
 
@@ -121,8 +212,7 @@ export class LetterReader {
     this.held = new Set([letter, ...sameAs]);
     this.needRelease = true;
     this.releaseSince = undefined;
-    this.candidate = undefined;
-    this.misses = 0;
+    this.hold(undefined);
   }
 }
 
@@ -235,10 +325,24 @@ export class CameraTyper {
       }
     }
 
-    const state = this.reader.update(moving || drawing ? undefined : classifyLetter(features), now);
+    const read = moving || drawing ? undefined : readLetter(features);
+    const state = this.reader.update(read?.letter, now, read?.sure ?? true);
     if (state.typed) this.lastStill = { letter: state.typed, at: now };
     return { ...state, drawing, trail };
   }
+}
+
+/**
+ * Above this speed, in hand lengths a second, the hand is traveling between
+ * letters and readings are ignored. (It was 0.06 a frame, which is this at 30
+ * frames a second; a slower camera saw the same movement as twice as fast.)
+ */
+export const MOVING_SPEED = 1.8;
+
+/** Whether the hand is traveling too fast to read, given the time between the two frames. */
+export function isMoving(prev: { x: number; y: number }[] | undefined, next: { x: number; y: number }[], dtMs: number): boolean {
+  if (!(dtMs > 0)) return false;
+  return handMotion(prev, next) / (Math.min(dtMs, MAX_STEP_MS) / 1000) > MOVING_SPEED;
 }
 
 /**

@@ -10,7 +10,7 @@
   import { cameraSupported, drawHand, drawTrail, HandTracker, problemMessage } from '../lib/engine/camera';
   import type { MoveId, Pt } from '../lib/engine/movement';
   import { Smoother, Steady } from '../lib/engine/tracker';
-  import { CameraTyper, handMotion, type TyperState } from '../lib/engine/reader';
+  import { CameraTyper, isMoving, type TyperState } from '../lib/engine/reader';
 
   let {
     enabled = true,
@@ -20,6 +20,7 @@
     onLetter,
     onCommand,
     compact = false,
+    confirmWord = '',
   }: {
     /** When false, nothing is read at all (game over). */
     enabled?: boolean;
@@ -33,22 +34,24 @@
     onCommand?: (command: Command) => void;
     /** Phone layout: a slim strip with a small video, the status beside it. */
     compact?: boolean;
+    /** The word a thumbs up would enter, shown large while the thumbs up is held. Empty when there's nothing to enter yet. */
+    confirmWord?: string;
   } = $props();
-
-  /** Above this, the hand is moving between letters. */
-  const MOTION_LIMIT = 0.06;
 
   let status = $state<'off' | 'loading' | 'running' | 'error'>('off');
   let error = $state('');
   let video = $state<HTMLVideoElement>();
   let canvas = $state<HTMLCanvasElement>();
   let prevPoints: { x: number; y: number }[] | undefined;
+  let prevTime = 0;
 
   let handSeen = $state(false);
   let moving = $state(false);
   let reading = $state<string>();
   let progress = $state(0);
   let waiting = $state(false);
+  /** The held letter is a loose match, so it needs a longer hold. */
+  let unsure = $state(false);
   let drawing = $state<MoveId>();
   let trail: Pt[] = [];
   let flash = $state<string>();
@@ -104,8 +107,9 @@
       return;
     }
     handSeen = true;
-    moving = handMotion(prevPoints, frame.image) > MOTION_LIMIT;
+    moving = isMoving(prevPoints, frame.image, now - prevTime);
     prevPoints = frame.image;
+    prevTime = now;
     const smooth = smoother.push(frame);
     if (enabled) apply(typer.update(smooth, computeFeatures(smooth), moving, now, { letters }));
     draw(smooth);
@@ -122,6 +126,7 @@
     reading = s.letter;
     progress = s.progress;
     waiting = s.waitingForRelease;
+    unsure = !!s.unsure;
     drawing = s.drawing;
     trail = s.trail;
     if (s.command) onCommand?.(s.command);
@@ -172,15 +177,23 @@
             : moving
               ? 'Hold still…'
               : reading === 'enter'
-                ? 'Thumbs up: hold to enter…'
+                ? confirmWord
+                  ? `Enter ${confirmWord}? Keep holding…`
+                  : 'Thumbs up: hold to enter…'
                 : reading === 'delete'
                   ? 'Thumbs down: hold to delete…'
                   : reading
-                    ? `Hold ${reading.toUpperCase()}…`
+                    ? unsure
+                      ? `Hold ${reading.toUpperCase()} a little longer…`
+                      : `Hold ${reading.toUpperCase()}…`
                     : letters
                       ? 'Make a letter'
                       : 'Thumbs up to enter, thumbs down to delete',
   );
+  /** A thumbs up is being held over a full word: show the word at once, so it can be read before it enters. */
+  const confirming = $derived(enabled && handSeen && !waiting && reading === 'enter' && !!confirmWord);
+  /** The confirmation skips the usual settle time: the hold is short and the word must be seen during it. */
+  const line = $derived(confirming ? message : (shown ?? message));
 </script>
 
 {#if !supported}
@@ -208,11 +221,17 @@
         </svg>
         <span>{label(flash ?? (waiting ? '' : reading))}</span>
       </div>
-      {#if !compact}<p class="msg" aria-live="polite">{shown ?? message}</p>{/if}
+      {#if confirming && !compact}
+        <div class="confirm" aria-hidden="true">
+          <span>Enter this word?</span>
+          <b>{confirmWord}</b>
+        </div>
+      {/if}
+      {#if !compact}<p class="msg" aria-live="polite">{line}</p>{/if}
     </div>
     {#if compact}
       <div class="side-text">
-        <p class="msg-line" aria-live="polite">{status === 'loading' ? 'Loading hand tracking…' : (shown ?? message)}</p>
+        <p class="msg-line" aria-live="polite">{status === 'loading' ? 'Loading hand tracking…' : line}</p>
         <button class="ghost small" onclick={stop}>Camera off</button>
       </div>
     {/if}
@@ -255,6 +274,13 @@
   .reading .fill { stroke: var(--spell-glow); stroke-dasharray: 1; stroke-dashoffset: calc(1 - var(--p)); transition: stroke-dashoffset 80ms linear; }
   .reading span { position: relative; font-size: 2rem; font-weight: 750; }
   .reading.typed { background: var(--spell); transform: scale(1.12); }
+  .confirm {
+    position: absolute; inset: 0; z-index: 1;
+    display: grid; place-content: center; justify-items: center; gap: 2px;
+    background: rgb(0 0 0 / 0.5); color: #fff; text-align: center;
+  }
+  .confirm span { font-size: 0.85rem; font-weight: 600; opacity: 0.85; }
+  .confirm b { font-size: clamp(2rem, 9vw, 3rem); font-weight: 750; letter-spacing: 0.14em; margin-right: -0.14em; line-height: 1.1; }
   /* Phone strip: small video on the left, what it's reading on the right. */
   .wrap-cam.compact { display: flex; align-items: center; gap: 12px; }
   .compact .cam { width: 112px; flex: none; max-height: none; border-radius: var(--radius-sm); }

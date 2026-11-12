@@ -2,8 +2,12 @@
   import { routes } from '../lib/routes';
   // Sign Five: guess the five-letter word in six tries by fingerspelling it.
   // Safeguards against stray letters: the camera only types held shapes, every
-  // letter can be deleted, nothing submits by itself, and a guess that isn't a
-  // known word asks for a second Enter (a stray letter usually makes a non-word).
+  // letter can be deleted, and nothing submits by itself. Any five letters are
+  // accepted as a guess: the app doesn't have Wordle's own word list, so it
+  // can't say which words that game would turn down. Instead it helps the
+  // learner check the word before entering it: a dot marks each letter the
+  // camera typed, a thumbs up shows the word while it's held, and a word that
+  // isn't in the app's own list gets a quiet note (Enter still works).
   import { onMount } from 'svelte';
   import { getStore } from '../lib/app';
   import type { Store } from '../lib/db';
@@ -19,6 +23,7 @@
   import { fiveLetterWords, selectedList } from '../lib/lists';
   import SignPicture from '../components/SignPicture.svelte';
   import Icon from '../components/Icon.svelte';
+  import LetterTip from '../components/LetterTip.svelte';
 
   type Game = 'daily' | 'practice';
   const ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
@@ -32,19 +37,27 @@
   let today = $state<{ word: string; source: DailySource }>();
   let guesses = $state<string[]>([]);
   let current = $state('');
-  let confirmUnknown = $state(false);
   let toast = $state('');
   let shake = $state(false);
   let showShapes = $state(true);
   let saved = $state<SignFiveSave>(structuredClone(DEFAULT_SIGN_FIVE));
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
-  /** Which letters of the current row came from the camera (for sharing). */
-  let currentSigned: boolean[] = [];
+  /** Which letters of the current row came from the camera: dotted on the board, and counted for sharing. */
+  let currentSigned = $state<boolean[]>([]);
   /** Letters fingerspelled to the camera in this game's entered guesses. */
   let signed = $state(0);
   /** The share pop-up. It opens by itself when a game ends, and from "Share results". */
   let shareOpen = $state(false);
   let shareTimer: ReturnType<typeof setTimeout> | undefined;
+
+  // "How to sign this letter": hover a key or tile with a mouse, focus a key
+  // from the keyboard, or press and hold a key on a touch screen.
+  let peek = $state<{ letter: string; rect: DOMRect }>();
+  let peekTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Set when a press-and-hold opened the tip, so letting go doesn't also type the letter. */
+  let heldOpen = false;
+  const HOVER_MS = 300;
+  const HOLD_MS = 450;
 
   // Phones get a one-screen layout: the board sized to fit, with the keyboard
   // and a slim camera strip pinned above the tab bar.
@@ -65,13 +78,17 @@
       if (r < guesses.length) {
         const g = guesses[r];
         const m = scoreGuess(g, answer);
-        return { kind: 'done' as const, cells: [...g].map((c, i) => ({ c, m: m[i] as Mark | undefined })) };
+        return { kind: 'done' as const, cells: [...g].map((c, i) => ({ c, m: m[i] as Mark | undefined, cam: false })) };
       }
       const active = r === guesses.length && !over;
       const text = active ? current : '';
       return {
         kind: active ? ('active' as const) : ('empty' as const),
-        cells: Array.from({ length: WORD_LENGTH }, (_, i) => ({ c: text[i] ?? '', m: undefined as Mark | undefined })),
+        cells: Array.from({ length: WORD_LENGTH }, (_, i) => ({
+          c: text[i] ?? '',
+          m: undefined as Mark | undefined,
+          cam: active && !!currentSigned[i],
+        })),
       };
     }),
   );
@@ -147,8 +164,10 @@
     signed = d?.signed ?? 0;
   }
 
-  /** Words allowed as guesses: the dictionary, your list, and the answer itself. */
-  const allowed = (w: string) => isKnownWord(w) || w === answer || fiveWords.includes(w);
+  /** Words the app knows: its dictionary, your list, and the answer itself. Only used for a note; any word can be entered. */
+  const listed = (w: string) => isKnownWord(w) || w === answer || fiveWords.includes(w);
+  const full = $derived(current.length === WORD_LENGTH);
+  const unlisted = $derived(full && !over && !listed(current));
 
   function persist() {
     store?.saveSignFive($state.snapshot(saved));
@@ -170,20 +189,17 @@
     if (!answer || over) return;
     if (replaces && current.endsWith(replaces) && currentSigned[currentSigned.length - 1]) {
       current = current.slice(0, -1) + letter.toUpperCase();
-      confirmUnknown = false;
       return;
     }
     if (current.length >= WORD_LENGTH) return;
     current += letter.toUpperCase();
     currentSigned = [...currentSigned, fromCamera];
-    confirmUnknown = false;
   }
 
   function erase() {
     if (over || !current) return;
     current = current.slice(0, -1);
     currentSigned = currentSigned.slice(0, -1);
-    confirmUnknown = false;
   }
 
   function enter() {
@@ -193,14 +209,8 @@
       nudge();
       return;
     }
-    if (!allowed(current) && !confirmUnknown) {
-      confirmUnknown = true;
-      nudge();
-      return;
-    }
     guesses = [...guesses, current];
     current = '';
-    confirmUnknown = false;
     signed += currentSigned.filter(Boolean).length;
     currentSigned = [];
     if (game === 'daily') saved.daily = { key: dayKey(), guesses: [...guesses], answer, source, signed };
@@ -249,7 +259,6 @@
     currentSigned = [];
     clearTimeout(shareTimer);
     shareOpen = false;
-    confirmUnknown = false;
     if (g === 'daily') {
       answer = '';
       loadDaily();
@@ -269,7 +278,55 @@
     }
   }
 
+  function showTip(letter: string, el: Element) {
+    clearTimeout(peekTimer);
+    peek = { letter, rect: el.getBoundingClientRect() };
+  }
+
+  function hideTip() {
+    clearTimeout(peekTimer);
+    peek = undefined;
+  }
+
+  /** Mouse hover: a short wait, unless a tip is already open (then moving along the keys is instant). */
+  function hoverTip(e: PointerEvent, letter: string) {
+    if (e.pointerType !== 'mouse' || !letter) return;
+    const el = e.currentTarget as Element;
+    clearTimeout(peekTimer);
+    if (peek) showTip(letter, el);
+    else peekTimer = setTimeout(() => showTip(letter, el), HOVER_MS);
+  }
+
+  function holdTip(e: PointerEvent, letter: string) {
+    if (e.pointerType === 'mouse') return;
+    heldOpen = false;
+    const el = e.currentTarget as Element;
+    clearTimeout(peekTimer);
+    peekTimer = setTimeout(() => {
+      heldOpen = true;
+      showTip(letter, el);
+    }, HOLD_MS);
+  }
+
+  function releaseTip(e: PointerEvent) {
+    if (e.pointerType !== 'mouse') hideTip();
+  }
+
+  function focusTip(e: FocusEvent, letter: string) {
+    const el = e.currentTarget as Element;
+    if (el.matches(':focus-visible')) showTip(letter, el);
+  }
+
+  function pressKey(letter: string) {
+    if (heldOpen) {
+      heldOpen = false;
+      return;
+    }
+    type(letter);
+  }
+
   function onKey(e: KeyboardEvent) {
+    if (e.key === 'Escape') hideTip();
     if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement) return;
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -283,7 +340,7 @@
   }
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} onscroll={hideTip} />
 
 <div class="five" class:phone>
   <header class="top">
@@ -336,13 +393,18 @@
                 class="tile {cell.m ?? ''}"
                 class:filled={!!cell.c}
                 class:cursor={row.kind === 'active' && i === current.length}
+                class:cam={cell.cam}
                 style="--d: {i * 90}ms"
+                role="presentation"
+                onpointerenter={(e) => hoverTip(e, cell.c)}
+                onpointerleave={hideTip}
               >
                 {#if cell.c}
                   {#if showShapes}
                     <span class="shape"><SignPicture id={cell.c.toLowerCase()} size="100%" {mirror} /></span>
                   {/if}
                   <span class="ch">{cell.c}</span>
+                  {#if cell.cam}<span class="cam-dot" aria-hidden="true"></span>{/if}
                 {/if}
               </div>
             {/each}
@@ -390,7 +452,8 @@
       {:else if !phone}
         <section class="card cam-card">
           <LetterCam
-            letters={current.length < WORD_LENGTH && !confirmUnknown}
+            letters={!full}
+            confirmWord={full ? current : ''}
             autostart={settings?.showCameraByDefault ?? false}
             dominantHand={settings?.dominantHand}
             onLetter={(l, o) => type(l, true, o?.replaces)}
@@ -412,16 +475,12 @@
 
   <div class="dock" class:pinned={phone && !over} bind:this={dock}>
     <div class="status" aria-live="polite">
-      {#if confirmUnknown}
-        <div class="notice warn">
-          <span><b>{current}</b> isn't in the word list. A letter may have slipped in.</span>
-          <span class="notice-actions">
-            <button class="small" onclick={erase}>Fix it</button>
-            <button class="small primary" onclick={enter}>Use it anyway</button>
-          </span>
-        </div>
-      {:else if toast}
+      {#if toast}
         <div class="notice">{toast}</div>
+      {:else if unlisted}
+        {#key current}
+          <p class="note small"><b>{current}</b> isn't in our word list. You can still enter it.</p>
+        {/key}
       {/if}
     </div>
 
@@ -429,7 +488,8 @@
       <div class="cam-strip">
         <LetterCam
           compact
-          letters={current.length < WORD_LENGTH && !confirmUnknown}
+          letters={!full}
+          confirmWord={full ? current : ''}
           autostart={settings?.showCameraByDefault ?? false}
           dominantHand={settings?.dominantHand}
           onLetter={(l, o) => type(l, true, o?.replaces)}
@@ -443,7 +503,20 @@
       <div class="krow">
         {#if k === 2}<button class="key wide" onclick={enter} aria-label="Enter guess, or hold a thumbs up to the camera">Enter</button>{/if}
         {#each krow as c}
-          <button class="key {marks.get(c) ?? ''}" onclick={() => type(c)} aria-label={c}>
+          <button
+            class="key {marks.get(c) ?? ''}"
+            onclick={() => pressKey(c)}
+            onpointerenter={(e) => hoverTip(e, c)}
+            onpointerleave={hideTip}
+            onpointerdown={(e) => holdTip(e, c)}
+            onpointerup={releaseTip}
+            onpointercancel={releaseTip}
+            oncontextmenu={(e) => e.preventDefault()}
+            onfocus={(e) => focusTip(e, c)}
+            onblur={hideTip}
+            aria-label={c}
+            aria-describedby={peek?.letter === c ? 'letter-tip' : undefined}
+          >
             {#if showShapes}<span class="kshape"><SignPicture id={c.toLowerCase()} size="100%" {mirror} /></span>{/if}
             <span>{c}</span>
           </button>
@@ -462,12 +535,18 @@
       <li>To repeat a letter (like the PP in APPLE), drop or change your hand between them.</li>
       <li>For J and Z, hold the handshape, then draw the letter in the air (or tap the key).</li>
       <li>👍 Hold a thumbs up to enter your guess. 👎 Hold a thumbs down to delete the last letter. Or tap Enter and the back arrow.</li>
-      <li>Typed a wrong letter? Delete it before you enter.</li>
+      <li>Typed a wrong letter? Delete it before you enter. A purple dot marks each letter the camera typed, and a thumbs up shows your word while you hold it.</li>
+      <li>Any five letters count as a guess. If a word isn't in our list you'll see a note, and you can still enter it.</li>
+      <li>Not sure how to make a letter? Hover over its key to see how, or press and hold the key on a phone.</li>
     </ul>
     <label class="shapes-toggle small">
       <input type="checkbox" bind:checked={showShapes} /> Show handshapes on tiles and keys
     </label>
   </details>
+
+  {#if peek}
+    <LetterTip letter={peek.letter} anchor={peek.rect} {mirror} />
+  {/if}
 
   {#if over}
     <ShareDialog bind:open={shareOpen} {...shareData} />
@@ -512,6 +591,8 @@
   }
   .tile.filled { border-color: var(--ink-3); animation: pop 0.12s; }
   .tile.cursor { border-color: var(--m); box-shadow: 0 0 0 2px var(--m-soft); }
+  /* A letter the camera typed: worth a second look before entering. */
+  .cam-dot { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--m); }
   @keyframes pop { 50% { transform: scale(1.08); } }
   .tile:has(.shape) { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px 0 3px; }
   .tile:has(.shape) { gap: 1px; }
@@ -537,10 +618,15 @@
     font-size: 0.9rem;
     text-align: center;
   }
-  .notice.warn { background: var(--warn-soft); color: var(--warn-ink); border: 1px solid color-mix(in srgb, var(--warn-ink) 25%, transparent); font-weight: 400; }
-  .notice-actions { display: inline-flex; gap: 6px; margin-left: 8px; }
-  .notice.warn { display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 6px; }
-  .notice.warn .notice-actions { margin-left: 0; }
+
+  .note { margin: 0; align-self: center; color: var(--ink-3); text-align: center; }
+  .note b { color: var(--ink-2); font-weight: 600; }
+  /* On a phone messages float over the foot of the board, so the note steps aside after a moment. */
+  .phone .note {
+    padding: 6px 12px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line);
+    box-shadow: var(--shadow-lift); animation: note-out 0.3s 2.6s forwards;
+  }
+  @keyframes note-out { to { opacity: 0; visibility: hidden; } }
 
   .cam-card { display: grid; gap: 12px; }
   .cam-actions { display: flex; gap: 8px; }
@@ -587,6 +673,8 @@
     font-weight: 700;
     font-size: 0.95rem;
   }
+  /* Press and hold shows the letter's tip, so don't let the phone select text or open a menu. */
+  .key { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
   .key.wide { flex: 1.5; max-width: 80px; font-size: 0.8rem; }
   .kshape { width: 26px; height: 26px; display: grid; place-items: center; mix-blend-mode: multiply; }
   .kshape :global(img), .kshape :global(svg) { width: 100%; height: 100%; object-fit: contain; }
