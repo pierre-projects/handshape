@@ -380,7 +380,8 @@
         <!-- What the camera measured, for tuning the checks against real hands. -->
         <p class="muted mono">
           bend {Object.values(features.curl).map(Math.round).join('/')} · joints
-          {Object.values(features.tipBend).map(Math.round).join('/')} · spread
+          {Object.values(features.tipBend).map(Math.round).join('/')} · straight
+          {Object.values(features.reach).map(r2).join('/')} · spread
           {Object.values(features.spread).map(Math.round).join('/')} · thumb bend {Math.round(features.thumbBend)}° out
           {Math.round(features.thumbOut)}° across {r2(features.thumbAcross)} front {r2(features.thumbFront)} · palm
           {features.facing} · points {features.handDirection} · middle tilt {Math.round(features.middleAngle)}° · index raise

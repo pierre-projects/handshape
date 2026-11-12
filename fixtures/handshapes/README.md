@@ -34,7 +34,8 @@ a correct sign is missing.
 ### Most wanted
 
 - **P and K.** The middle finger leans far forward, and in P the camera sees the hand from
-  above. Thresholds: `straightTipMax`, `foldedMin`, `tippedDownMin`.
+  above. Thresholds: `straightReachMin` (Details shows it as "straight"), `foldedMin`,
+  `tippedDownMin`, and `foldedReachMax`, which keeps a P from reading as G or Q.
 - **1, 2, 4 and 5**, palm toward you. Thresholds: `extendedMax` (ring and pinky), `fanMin`, and
   the thumb test `thumbSticksOut` (`thumbAsideMax`).
 - **T and X.** They are told apart by whether the index finger stands up off the fist

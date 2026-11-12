@@ -45,6 +45,18 @@ export const T = {
   extendedMax: { index: 65, middle: 65, ring: 75, pinky: 85 } as Record<Finger, number>,
   /** Most bend in the finger's own two joints for it to count as straight, whatever its knuckle does. */
   straightTipMax: 55,
+  /**
+   * K and P's middle finger: straight in itself (see Features.reach), at any
+   * knuckle angle. 0.82 is about 85 degrees of bend in the finger's own joints
+   * on a steady reading, so depth wobble on a straight finger still passes.
+   */
+  straightReachMin: 0.82,
+  /**
+   * G and Q's middle finger must be folded: at most this reach. A fist finger
+   * reads about 0.5. Below straightReachMin, so one hand can never have both
+   * a "straight" and a "folded" middle finger, which kept P reading as G.
+   */
+  foldedReachMax: 0.75,
   curledMin: 120,
   /** A looser fold, for fingers the camera can barely see (P's ring and pinky). */
   foldedMin: 90,
@@ -84,6 +96,28 @@ export const T = {
    */
   raiseKnuckleMin: 40,
   raiseTipMin: 0.3,
+  /**
+   * C is a firm, even cup. The plain bent() range (35 to 200) takes in almost
+   * any relaxed hand, so C has its own: clearly curved but not near a fist, all
+   * four fingers curved alike and held together, and the thumb opposite them
+   * across a gap no wider than a cup.
+   */
+  c: {
+    curlMin: 55,
+    curlMax: 165,
+    /** Most difference in curl between the most and least curved finger. */
+    evenMax: 50,
+    /** Most spread between neighboring fingers. Looser than together(): curved fingers read a little apart. */
+    togetherMax: 16,
+    /** Most fingertip span (see Features.tipSpan). Together reads 1.0 to 1.2; a fanned cup 1.4 and up. */
+    spanMax: 1.35,
+    /** Thumb tip to index tip, in palm lengths: a gap, but not an open hand. */
+    gapMin: 0.4,
+    gapMax: 1.1,
+    /** Thumb tip across the knuckle line: under the fingers, not out to the side. */
+    thumbAcrossMin: -0.5,
+    thumbAcrossMax: 0.7,
+  },
 };
 
 /**
@@ -129,11 +163,25 @@ const extended = (finger: Finger): Check => ({
 const straight = (finger: Finger): Check => ({
   id: `${finger}-straight`,
   param: 'handshape',
-  test: (f) => f.tipBend[finger] <= T.straightTipMax,
+  test: (f) => f.reach[finger] >= T.straightReachMin,
   hint: `Keep your ${NAMES[finger]} finger straight; bend it only where it meets your hand.`,
   parts: [finger],
   reliable: true,
 });
+
+/**
+ * G and Q: the middle finger is folded into the hand, not held out straight.
+ * P's middle finger is straight but angled so far forward at the knuckle that
+ * its total bend passes curled(); this is what tells the two apart.
+ */
+const middleFolded: Check = {
+  id: 'middle-folded',
+  param: 'handshape',
+  test: (f) => f.reach.middle <= T.foldedReachMax,
+  hint: 'Fold your middle finger into your palm.',
+  parts: ['middle'],
+  reliable: true,
+};
 
 /** Folded down, without needing a tight curl. For fingers hidden from the camera. */
 const tucked = (finger: Finger): Check => ({
@@ -451,6 +499,64 @@ const palmIn: Check = {
   reliable: true,
 };
 
+const FOUR: Finger[] = ['index', 'middle', 'ring', 'pinky'];
+
+/** C's curve: clearly bent, but short of a fist. */
+const cupped = (finger: Finger): Check => ({
+  id: `${finger}-cupped`,
+  param: 'handshape',
+  test: (f) => f.curl[finger] >= T.c.curlMin && f.curl[finger] <= T.c.curlMax,
+  hint: (f) =>
+    f.curl[finger] < T.c.curlMin
+      ? `Curve your ${NAMES[finger]} finger more, like holding a cup.`
+      : `Open your ${NAMES[finger]} finger a little; a C is a curve, not a fist.`,
+  parts: [finger],
+  reliable: true,
+});
+
+const cEven: Check = {
+  id: 'c-even',
+  param: 'handshape',
+  test: (f) => Math.max(...FOUR.map((x) => f.curl[x])) - Math.min(...FOUR.map((x) => f.curl[x])) <= T.c.evenMax,
+  hint: 'Curve all four fingers the same amount, as if holding a can.',
+  parts: FOUR,
+  reliable: true,
+};
+
+const cTogether: Check = {
+  id: 'c-together',
+  param: 'handshape',
+  test: (f) =>
+    f.tipSpan <= T.c.spanMax &&
+    f.spread.im <= T.c.togetherMax &&
+    f.spread.mr <= T.c.togetherMax &&
+    f.spread.rp <= T.c.togetherMax,
+  hint: 'Keep your fingers together.',
+  parts: FOUR,
+  reliable: true,
+};
+
+const cGap: Check = {
+  id: 'c-gap',
+  param: 'handshape',
+  test: (f) => f.thumbTo.indexTip >= T.c.gapMin && f.thumbTo.indexTip <= T.c.gapMax,
+  hint: (f) =>
+    f.thumbTo.indexTip < T.c.gapMin
+      ? 'Open a gap between your thumb and fingers, like holding a cup.'
+      : 'Bring your thumb closer to your fingers to close the C.',
+  parts: ['thumb', 'index'],
+  reliable: true,
+};
+
+const cThumbUnder: Check = {
+  id: 'c-thumb-under',
+  param: 'handshape',
+  test: (f) => f.thumbAcross >= T.c.thumbAcrossMin && f.thumbAcross <= T.c.thumbAcrossMax,
+  hint: 'Curve your thumb under your fingers, facing them, not out to the side.',
+  parts: ['thumb'],
+  reliable: true,
+};
+
 const curledAll = (...fs: Finger[]) => fs.map(curled);
 const extendedAll = (...fs: Finger[]) => fs.map(extended);
 /** The same check as advice only: reported, never blocking. */
@@ -481,11 +587,7 @@ const S: SignSpec[] = [
   },
   {
     id: 'c',
-    checks: [
-      ...(['index', 'middle', 'ring', 'pinky'] as Finger[]).map(bent),
-      thumbApartFrom('indexTip', 'Open a gap between your thumb and fingers, like holding a cup.'),
-      middleNotDown,
-    ],
+    checks: [...FOUR.map(cupped), cEven, cTogether, cGap, cThumbUnder, middleNotDown],
   },
   {
     id: 'd',
@@ -512,7 +614,7 @@ const S: SignSpec[] = [
   },
   {
     id: 'g',
-    checks: [extended('index'), ...curledAll('middle', 'ring', 'pinky'), thumbParallel, indexSideways, palmIn],
+    checks: [extended('index'), ...curledAll('middle', 'ring', 'pinky'), middleFolded, thumbParallel, indexSideways, palmIn],
   },
   {
     id: 'h',
@@ -593,7 +695,7 @@ const S: SignSpec[] = [
   },
   {
     id: 'q',
-    checks: [extended('index'), ...curledAll('middle', 'ring', 'pinky'), thumbParallel, indexDown],
+    checks: [extended('index'), ...curledAll('middle', 'ring', 'pinky'), middleFolded, thumbParallel, indexDown],
   },
   {
     id: 'r',

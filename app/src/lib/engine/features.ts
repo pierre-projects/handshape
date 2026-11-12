@@ -15,6 +15,14 @@ export interface Features {
   /** Bend at the two finger joints (PIP + DIP). */
   tipBend: Record<Finger, number>;
   /**
+   * How straight each finger is in itself: fingertip to knuckle in a straight
+   * line, over the finger's length along its bones. 1 is straight, about 0.5 a
+   * fist; bending only at the knuckle doesn't change it. It holds up when the
+   * camera misjudges depth, where tipBend doesn't: a joint read 1 cm too near
+   * adds 30 to 50 degrees of bend but takes only 0.03 off this.
+   */
+  reach: Record<Finger, number>;
+  /**
    * How far each fingertip reaches along the hand: 0 at the wrist, 1 at the
    * middle knuckle. A folded finger's tip sits below the knuckles (under 1); a
    * raised one, even hooked, stays above them.
@@ -28,6 +36,13 @@ export interface Features {
   thumbIndexAngle: number;
   /** Angle between adjacent fingers, in degrees. */
   spread: { im: number; mr: number; rp: number };
+  /**
+   * Index fingertip to pinky fingertip, over index knuckle to pinky knuckle.
+   * About 1 with the fingers together, more when they fan out. Unlike spread it
+   * still works on curved fingers, whose angles say little about how far apart
+   * the tips are.
+   */
+  tipSpan: number;
   /** Thumb tip distance to other landmarks, in palm lengths. */
   thumbTo: {
     indexTip: number;
@@ -90,6 +105,7 @@ export function computeFeatures(frame: HandFrame): Features {
   const mcpBend = {} as Record<Finger, number>;
   const tipBend = {} as Record<Finger, number>;
   const tipHeight = {} as Record<Finger, number>;
+  const reach = {} as Record<Finger, number>;
   for (const f of FINGERS) {
     const [mcp, pip, dip, tip] = FINGER_JOINTS[f];
     const m = bendAt(w[LM.WRIST], w[mcp], w[pip]);
@@ -98,6 +114,7 @@ export function computeFeatures(frame: HandFrame): Features {
     mcpBend[f] = m;
     tipBend[f] = p + d;
     curl[f] = m + p + d;
+    reach[f] = dist(w[mcp], w[tip]) / (dist(w[mcp], w[pip]) + dist(w[pip], w[dip]) + dist(w[dip], w[tip]) || 1);
     tipHeight[f] = projectT(w[tip], w[LM.WRIST], w[LM.MIDDLE_MCP]);
   }
 
@@ -131,6 +148,7 @@ export function computeFeatures(frame: HandFrame): Features {
     curl,
     mcpBend,
     tipBend,
+    reach,
     tipHeight,
     thumbBend: bendAt(w[LM.THUMB_CMC], w[LM.THUMB_MCP], w[LM.THUMB_IP]) + bendAt(w[LM.THUMB_MCP], w[LM.THUMB_IP], w[LM.THUMB_TIP]),
     thumbOut: angleBetween(thumbDir, handAxis),
@@ -140,6 +158,7 @@ export function computeFeatures(frame: HandFrame): Features {
       mr: angleBetween(fingerDir('middle'), fingerDir('ring')),
       rp: angleBetween(fingerDir('ring'), fingerDir('pinky')),
     },
+    tipSpan: dist(w[LM.INDEX_TIP], w[LM.PINKY_TIP]) / (dist(w[LM.INDEX_MCP], w[LM.PINKY_MCP]) || 1),
     thumbTo: {
       indexTip: rel(LM.THUMB_TIP, LM.INDEX_TIP),
       middleTip: rel(LM.THUMB_TIP, LM.MIDDLE_TIP),

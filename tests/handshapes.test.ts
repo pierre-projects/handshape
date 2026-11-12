@@ -364,3 +364,102 @@ describe('thumb out or tucked: Y and L against I, J and Z', () => {
     expect(evaluate('j', feats(POSES.y)).hint).toBe(TUCK);
   });
 });
+
+describe('C is a firm, even cup, not any loose hand', () => {
+  const cup = (mcp: number, pip: number, dip: number, spread = [2, 0, -2, -4]) => ({
+    index: [mcp, pip, dip, spread[0]] as [number, number, number, number],
+    middle: [mcp, pip, dip, spread[1]] as [number, number, number, number],
+    ring: [mcp, pip, dip, spread[2]] as [number, number, number, number],
+    pinky: [mcp, pip, dip, spread[3]] as [number, number, number, number],
+  });
+  const under = (gap: number) => ({ to: (p: Record<string, { x: number; y: number; z: number }>) => ({ ...p.indexTip, y: p.indexTip.y + gap }) });
+
+  it('still reads natural C hands', () => {
+    const cs: Record<string, Pose> = {
+      shallow: { fingers: cup(30, 32, 15), thumb: under(0.05) },
+      deep: { fingers: cup(50, 55, 30), thumb: under(0.04) },
+      wideGap: { fingers: cup(40, 40, 20), thumb: under(0.075) },
+      ringPinkyDeeper: {
+        fingers: { ...cup(38, 38, 18), ring: [45, 45, 22, -3], pinky: [50, 50, 25, -6] },
+        thumb: under(0.045),
+      },
+      palmSideways: { ...POSES.c, transforms: [{ rotateY: 70 }] },
+      leftHand: { ...POSES.c, hand: 'Left' },
+    };
+    for (const [name, pose] of Object.entries(cs)) expect(classifyLetter(feats(pose)), name).toBe('c');
+  });
+
+  it('does not read loose, in-between hands as C', () => {
+    const vague: Record<string, Pose> = {
+      relaxedOpen: { fingers: cup(12, 20, 10, [8, 0, -8, -16]), thumb: { line: [0.7, -0.7, -0.2] } },
+      unevenClaw: { fingers: { index: [10, 25, 10, 4], middle: [30, 50, 25, 0], ring: [55, 70, 35, -4], pinky: [70, 80, 40, -10] }, thumb: under(0.05) },
+      nearFist: { fingers: cup(75, 90, 35), thumb: under(0.035) },
+      fannedCup: { fingers: cup(40, 40, 20, [14, 0, -16, -34]), thumb: under(0.045) },
+      thumbOutToSide: { fingers: POSES.c.fingers, thumb: { line: [1, -0.4, 0] } },
+      thumbFarAway: { fingers: POSES.c.fingers, thumb: { line: [0.9, -0.9, -0.1] } },
+    };
+    for (const [name, pose] of Object.entries(vague)) expect(classifyLetter(feats(pose)), name).not.toBe('c');
+  });
+
+  it('says what to fix when a hand is close to a C', () => {
+    expect(evaluate('c', feats({ fingers: cup(40, 40, 20, [14, 0, -16, -34]), thumb: under(0.045) })).hint).toBe('Keep your fingers together.');
+    expect(evaluate('c', feats({ fingers: POSES.c.fingers, thumb: { line: [1, -0.4, 0] } })).pass).toBe(false);
+  });
+});
+
+describe('P is not read as G or Q', () => {
+  const MIDDLE = [10, 11, 12]; // middle finger PIP, DIP and tip
+  /** The model P as a camera with a poor sense of depth reports it: the middle finger's joints pushed near or far. */
+  const wobbly = (pose: Pose, dz: number[]) => {
+    const h = buildHand(pose);
+    MIDDLE.forEach((i, n) => (h.world[i] = { ...h.world[i], z: h.world[i].z + dz[n] }));
+    return computeFeatures(h);
+  };
+  const tilts = [
+    [{ rotateX: 100 }, { rotateY: -50 }],
+    [{ rotateX: 80 }, { rotateY: -20 }],
+    [{ rotateX: 115 }, { rotateY: -65 }],
+  ];
+
+  it('still reads P when the camera misjudges the middle finger by a centimeter', () => {
+    for (const transforms of tilts) {
+      for (const dz of [[0.01, 0, 0], [-0.01, 0, 0], [0.01, -0.01, 0], [0, 0.01, -0.01], [-0.01, 0.01, 0.01]]) {
+        const f = wobbly({ ...POSES.p, transforms }, dz);
+        // The old test, bend in the finger's own joints, fails on most of these.
+        expect(classifyLetter(f), `${JSON.stringify(transforms)} ${dz}`).toBe('p');
+      }
+    }
+    // What the old test saw for one of them.
+    expect(wobbly(POSES.p, [0.01, -0.01, 0]).tipBend.middle).toBeGreaterThan(T.straightTipMax);
+  });
+
+  it('never lets one hand have both a straight and a folded middle finger', () => {
+    expect(T.foldedReachMax).toBeLessThan(T.straightReachMin);
+    for (const transforms of tilts) {
+      for (let knuckle = 55; knuckle <= 95; knuckle += 10) {
+        for (let pip = 0; pip <= 100; pip += 10) {
+          const pose = { ...POSES.p, fingers: { ...POSES.p.fingers, middle: [knuckle, pip, pip / 2, -12] as [number, number, number, number] }, transforms };
+          const f = feats(pose);
+          const where = `knuckle ${knuckle} joint ${pip}`;
+          for (const other of ['g', 'q']) expect(evaluate('p', f).pass && evaluate(other, f).pass, `P and ${other.toUpperCase()} at ${where}`).toBe(false);
+          // While the middle finger is held out, the hand is never typed as G or Q.
+          if (f.reach.middle > T.foldedReachMax) expect(['g', 'q']).not.toContain(classifyLetter(f));
+        }
+      }
+    }
+  });
+
+  it('tells a G to fold the middle finger when it is held out like a P', () => {
+    const f = feats({ ...POSES.g, fingers: { ...POSES.g.fingers, middle: [85, 25, 15, 0] } });
+    // Its total bend is a "curled" finger's, which is how a P used to pass for G.
+    expect(f.curl.middle).toBeGreaterThanOrEqual(T.curledMin);
+    expect(evaluate('g', f).hint).toBe('Fold your middle finger into your palm.');
+  });
+
+  it('still reads G and Q with a loosely folded middle finger', () => {
+    for (const id of ['g', 'q']) {
+      const f = feats({ ...POSES[id], fingers: { ...POSES[id].fingers, middle: [60, 80, 40, 0] } });
+      expect(classifyLetter(f), id).toBe(id);
+    }
+  });
+});
