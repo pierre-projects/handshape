@@ -166,7 +166,7 @@
     <div class="words-actions">
       {#if chosen}<a class="btn" href={routes.list(chosen.id)}><Icon name="edit" size={16} />Edit this list</a>{/if}
       <a class="btn primary" href={routes.lists}>
-        <Icon name={lists.length ? 'arrow-right' : 'plus'} size={16} />{lists.length ? 'All word lists' : 'Make a list'}
+        {#if lists.length}All word lists<Icon name="arrow-right" size={16} />{:else}<Icon name="plus" size={16} />Make a list{/if}
       </a>
     </div>
   </section>
@@ -253,6 +253,9 @@
   .words-pick label { font-size: 0.78rem; font-weight: 600; color: var(--ink-2); }
   .words-pick select { min-width: 200px; font-weight: 600; }
   .words-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  /* The buttons sit level with the list picker, not with its label: both line up along the bottom, at the picker's height. */
+  .words-pick, .words-actions { align-self: end; }
+  .words-actions :global(.btn) { min-height: 42px; }
   .words :global(.btn.primary) { background: var(--accent); border-color: var(--accent); }
   .modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
   .mode-card {
