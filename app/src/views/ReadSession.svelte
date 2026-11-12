@@ -196,7 +196,7 @@
     lists={false}
   >
     {#if !ready}
-      <p class="muted small">Loading…</p>
+      <p class="muted small loading-note">Loading…</p>
     {:else if locked}
       <h2>Locked</h2>
       <p>{lockedReason(level)}</p>

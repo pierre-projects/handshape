@@ -118,7 +118,7 @@
 </header>
 
 {#if !loaded}
-  <p class="muted">Loading…</p>
+  <p class="muted loading-note">Loading…</p>
 {:else if tab === 'overview'}
   <section class="card panel">
     <header class="panel-head">

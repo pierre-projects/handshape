@@ -109,8 +109,8 @@
 <section class="hero">
   <div class="hero-text">
     {#if !loaded}
-      <p class="eyebrow">Loading…</p>
-      <h1>Getting your lessons ready…</h1>
+      <p class="eyebrow loading-note">Loading…</p>
+      <h1 class="loading-note">Getting your lessons ready…</h1>
     {:else if !started}
       <p class="eyebrow">Welcome</p>
       <h1>Let's learn to sign.</h1>

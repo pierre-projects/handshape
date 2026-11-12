@@ -154,7 +154,7 @@
 <svelte:window onkeydown={onKey} />
 
 {#if !session}
-  <p class="muted">Loading…</p>
+  <p class="muted loading-note">Loading…</p>
 {:else if !card || !item}
   <section class="card done">
     <span class="done-icon"><Icon name="check" size={36} /></span>

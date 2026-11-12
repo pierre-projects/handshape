@@ -66,6 +66,9 @@
 html, body { margin: 0; }
 /* Phones: don't let the browser resize text, and no gray flash or double-tap zoom on things you tap. */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* Keep room for the scrollbar on every page, so switching between a short page and a long one
+   doesn't shift everything sideways as the scrollbar comes and goes. */
+html { scrollbar-gutter: stable; }
 a, button, select, summary, label { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
 body {
@@ -85,6 +88,17 @@ h3 { font-size: 0.975rem; font-weight: 600; }
 p { margin: 0 0 0.75rem; }
 
 .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+
+/* The page fills the window at least, so the footer stays at the bottom while a page loads
+   instead of jumping up under the title and back down. */
+#app { display: flex; flex-direction: column; min-height: 100vh; min-height: 100svh; }
+#app > main { flex: 1 0 auto; width: 100%; }
+#app > footer { width: 100%; }
+
+/* "Loading…" shows only if loading is slow. It usually takes a few milliseconds, and a message
+   that flashes for a frame reads as the page jumping. It still takes its space while hidden. */
+.loading-note { animation: show-late 0s 0.4s both; }
+@keyframes show-late { from { visibility: hidden; } }
 
 .card {
   background: var(--surface);
