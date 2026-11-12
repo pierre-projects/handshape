@@ -15,7 +15,7 @@
 
   type Set = 'letter' | 'number';
 
-  /** Opened from a sign's page (#/practice/<id>): that sign comes first. */
+  /** Opened from a sign's page (#/practice/camera/<id>): that sign comes first. "numbers" opens on the numbers. */
   let { startId }: { startId?: string } = $props();
 
   const AUTO_MS = 2000;
@@ -63,7 +63,8 @@
   onMount(async () => {
     await loadSettings();
     const start = startId ? content.byId.get(startId) : undefined;
-    begin(start?.kind === 'number' ? 'number' : 'letter', start?.id);
+    // "numbers" in place of a sign opens on the numbers without choosing one of them.
+    begin(startId === 'numbers' || start?.kind === 'number' ? 'number' : 'letter', start?.id);
   });
   onDestroy(() => clearTimeout(advanceTimer));
 
@@ -175,6 +176,10 @@
 <svelte:window onkeydown={onKey} />
 
 <div class="practice">
+  <header class="cam-head">
+    <a class="back-link small" href={routes.practice}><Icon name="arrow-left" size={16} />Practice</a>
+    <h1>Camera practice</h1>
+  </header>
   <div class="toolbar">
     <div class="segmented" role="tablist" aria-label="What to practice">
       <button role="tab" aria-selected={set === 'letter'} onclick={() => begin('letter')}>Letters</button>
@@ -220,7 +225,7 @@
             {#if matched}<p class="time">{lastSeconds}s{lastSeconds > 6 ? ' · comes back for another go' : ''}</p>{/if}
           </div>
           {#if showPicture}
-            <a class="ref" href={routes.sign(current.id)} title="Open {current.gloss} in Signs">
+            <a class="ref" href={routes.sign(current.id)} title="Open {current.gloss} in Learn">
               <SignPicture id={current.id} size="100%" {mirror} label="How to sign {current.gloss}" />
             </a>
           {/if}
@@ -285,6 +290,9 @@
     flex-direction: column;
     gap: 12px;
   }
+  /* The title is inside the one-screen box, so the page still fits without scrolling. */
+  .cam-head { display: flex; align-items: baseline; gap: 14px; flex: none; }
+  .cam-head h1 { margin: 0; font-size: 1.35rem; }
   .toolbar { display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; }
   .session { display: flex; gap: 14px; margin: 0; color: var(--ink-3); }
   .session b { color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -386,6 +394,9 @@
       min-height: 460px;
       gap: 8px;
     }
+    /* The Practice tab already leads back, and every line counts on a phone. */
+    .cam-head .back-link { display: none; }
+    .cam-head h1 { font-size: 1.15rem; }
     .toolbar { gap: 8px 12px; flex-wrap: wrap; }
     .toolbar .segmented button { padding: 6px 12px; min-height: 34px; }
     .session { order: 3; width: 100%; justify-content: space-between; }

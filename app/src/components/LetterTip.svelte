@@ -1,7 +1,7 @@
 <script lang="ts">
   // How to make a letter's or a number's handshape, in a small card that floats
   // by the key or tile it belongs to. The words come from the content, so they
-  // match the Signs pages.
+  // match the Learn pages.
   import { content } from '../lib/content';
   import SignPicture from './SignPicture.svelte';
 

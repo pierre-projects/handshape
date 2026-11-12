@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Free reading practice (#/fingerspelling/read/free): watch a word spelled one
+  // Free reading (#/practice/read/free): watch a word spelled one
   // letter at a time, then type it, word after word. Speed adapts: clean reads
   // speed up, misses slow down. Uses the built-in words or one of your lists.
   import { onMount, tick } from 'svelte';
@@ -119,11 +119,11 @@
 
 <DrillPage
   kind="read"
-  title="Free reading practice"
+  title="Free reading"
   subtitle="{summary.read.wpm ? `${summary.read.wpm} wpm reading` : 'No reading speed yet'} · {plural(summary.read.count, 'word')} read"
   activeWord={phase !== 'idle' ? word : undefined}
   onPlay={canRead ? next : undefined}
-  back={{ href: routes.read, label: 'Reading levels' }}
+  back={{ href: routes.read, label: 'Read' }}
 >
   {#if !canRead}
     <h2>Not available yet</h2>

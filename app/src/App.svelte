@@ -2,11 +2,12 @@
   import { onMount } from 'svelte';
   import { clearReturn, parseRoute, routes, type Route } from './lib/routes';
   import { FEEDBACK_URL } from './lib/roadmap';
+  import { tabFor, tabs } from './lib/nav';
   import About from './views/About.svelte';
   import Home from './views/Home.svelte';
   import Review from './views/Review.svelte';
   import Learn from './views/Learn.svelte';
-  import Fingerspell from './views/Fingerspell.svelte';
+  import PracticeHub from './views/PracticeHub.svelte';
   import ReadDrill from './views/ReadDrill.svelte';
   import ReadHome from './views/ReadHome.svelte';
   import ReadSession from './views/ReadSession.svelte';
@@ -14,7 +15,9 @@
   import SignFive from './views/SignFive.svelte';
   import SignSums from './views/SignSums.svelte';
   import Progress from './views/Progress.svelte';
-  import Practice from './views/Practice.svelte';
+  import Settings from './views/Settings.svelte';
+  import WordLists from './views/WordLists.svelte';
+  import CameraPractice from './views/CameraPractice.svelte';
   import Icon from './components/Icon.svelte';
   import Logo from './components/Logo.svelte';
 
@@ -30,23 +33,16 @@
   onMount(() => {
     const onHash = () => {
       route = read();
-      // A "Back to …" link only makes sense while you're still on the dashboard.
-      if (route.name !== 'dashboard') clearReturn();
+      // A "Back to …" link only makes sense while you're still in Word lists.
+      if (!(route.name === 'practice' && route.param === 'lists')) clearReturn();
       window.scrollTo(0, 0);
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   });
 
-  // The same five places on every screen size. Camera practice belongs with Signs.
-  const links = [
-    { label: 'Today', href: routes.home, icon: 'home', pages: [''] },
-    { label: 'Review', href: routes.review, icon: 'review', pages: ['review'] },
-    { label: 'Signs', href: routes.signs, icon: 'signs', pages: ['signs', 'camera'] },
-    { label: 'Spelling', href: routes.fingerspelling, icon: 'spell', pages: ['fingerspelling'] },
-    { label: 'Dashboard', href: routes.dashboard, icon: 'progress', pages: ['dashboard'] },
-  ] as const;
-  const current = (pages: readonly string[]) => ((pages as readonly string[]).includes(route.name) ? 'page' : undefined);
+  // The same four places on every screen size (lib/nav.ts), and the one this page sits under.
+  const here = $derived(tabFor(route));
 </script>
 
 <a class="skip" href="#main">Skip to content</a>
@@ -58,12 +54,16 @@
       <span>Hand<b>shape</b></span>
     </a>
     <nav class="top" aria-label="Main">
-      {#each links as link}
-        <a href={link.href} aria-current={current(link.pages)}>
-          <Icon name={link.icon} size={18} />{link.label}
+      {#each tabs as tab}
+        <a href={tab.href} aria-current={here === tab.id ? 'page' : undefined}>
+          <Icon name={tab.icon} size={18} />{tab.label}
         </a>
       {/each}
     </nav>
+    <!-- Settings is about the app, not a place to learn, so it is a gear here and not a tab. -->
+    <a class="gear" href={routes.settings} aria-label="Settings" title="Settings" aria-current={route.name === 'settings' ? 'page' : undefined}>
+      <Icon name="settings" size={20} />
+    </a>
   </div>
 </header>
 
@@ -72,26 +72,30 @@
     <div class="page">
       {#if route.name === 'review'}
         <Review more={route.param === 'more'} />
-      {:else if route.name === 'signs'}
+      {:else if route.name === 'learn'}
         <Learn itemId={route.param} />
-      {:else if route.name === 'camera'}
-        <Practice startId={route.param} />
-      {:else if route.name === 'fingerspelling' && route.param === 'read' && route.sub === 'free'}
+      {:else if route.name === 'practice' && route.param === 'camera'}
+        <CameraPractice startId={route.sub} />
+      {:else if route.name === 'practice' && route.param === 'read' && route.sub === 'free'}
         <ReadDrill />
-      {:else if route.name === 'fingerspelling' && route.param === 'read' && route.sub}
+      {:else if route.name === 'practice' && route.param === 'read' && route.sub}
         <ReadSession levelId={route.sub} />
-      {:else if route.name === 'fingerspelling' && route.param === 'read'}
+      {:else if route.name === 'practice' && route.param === 'read'}
         <ReadHome />
-      {:else if route.name === 'fingerspelling' && route.param === 'spell'}
+      {:else if route.name === 'practice' && route.param === 'spell'}
         <SpellDrill />
-      {:else if route.name === 'fingerspelling' && route.param === 'sign-five'}
+      {:else if route.name === 'practice' && route.param === 'sign-five'}
         <SignFive />
-      {:else if route.name === 'fingerspelling' && route.param === 'sums'}
+      {:else if route.name === 'practice' && route.param === 'sums'}
         <SignSums />
-      {:else if route.name === 'fingerspelling'}
-        <Fingerspell />
-      {:else if route.name === 'dashboard'}
-        <Progress section={route.param} listId={route.sub} />
+      {:else if route.name === 'practice' && route.param === 'lists'}
+        <WordLists listId={route.sub} />
+      {:else if route.name === 'practice'}
+        <PracticeHub />
+      {:else if route.name === 'progress'}
+        <Progress />
+      {:else if route.name === 'settings'}
+        <Settings />
       {:else if route.name === 'about'}
         <About />
       {:else}
@@ -108,10 +112,10 @@
 </footer>
 
 <nav class="tabbar" aria-label="Main">
-  {#each links as link}
-    <a href={link.href} aria-current={current(link.pages)}>
-      <Icon name={link.icon} />
-      <span>{link.label}</span>
+  {#each tabs as tab}
+    <a href={tab.href} aria-current={here === tab.id ? 'page' : undefined}>
+      <Icon name={tab.icon} />
+      <span>{tab.label}</span>
     </a>
   {/each}
 </nav>
@@ -154,7 +158,14 @@
     font-size: 0.875rem;
   }
   .top a:hover { background: var(--surface-2); color: var(--ink); }
-  .top a[aria-current='page'] { color: var(--ink); background: var(--surface-2); }
+  /* The tab you are on is blue on every screen size. */
+  .top a[aria-current='page'] { color: var(--accent); background: var(--accent-soft); }
+  .gear {
+    flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 8px;
+    color: var(--ink-3);
+  }
+  .gear:hover { background: var(--surface-2); color: var(--ink); }
+  .gear[aria-current='page'] { color: var(--accent); background: var(--accent-soft); }
 
   .page { animation: enter 0.15s ease-out; }
   @keyframes enter { from { opacity: 0; } }
@@ -168,13 +179,15 @@
 
   @media (max-width: 820px) {
     .top { display: none; }
+    /* With the tabs gone from the top bar, the gear moves to its right-hand end, at a size for a thumb. */
+    .gear { margin-left: auto; width: 44px; height: 44px; margin-right: -8px; }
     /* On a phone the tab bar does the navigating, so the title bar scrolls away and leaves the room to the page. */
     header { margin-bottom: 12px; position: static; }
     .bar { min-height: 48px; }
     footer { padding-bottom: calc(var(--nav-h) + 32px + env(safe-area-inset-bottom)); }
     .tabbar {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       position: fixed;
       left: 0;
       right: 0;

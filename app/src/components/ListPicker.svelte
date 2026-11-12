@@ -1,7 +1,7 @@
 <script lang="ts">
   import { rememberReturn, routes } from '../lib/routes';
   // Choose which word list a drill or game uses: the built-in words or one of
-  // your lists. Lists are made and edited on the dashboard.
+  // your lists. Lists are made and edited on the Word lists page.
   import type { WordListDef } from '../lib/types';
   import Icon from './Icon.svelte';
 

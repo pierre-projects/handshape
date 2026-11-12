@@ -41,32 +41,48 @@ service worker keeps them for offline use.
 
 ## Pages
 
-Routing is by URL hash (`#/review`, `#/fingerspelling/read`, …), so any static host works without
+Routing is by URL hash (`#/review`, `#/practice/read`, …), so any static host works without
 redirect rules. Each page is one file in `app/src/views/`, and only `App.svelte` routes to pages.
 Every address is defined once in `lib/routes.ts`; pages link with `routes.*`, never a hand-written
-`#/…`. Addresses from older versions (`#/learn`, `#/practice`, `#/fingerspell`, `#/progress`) are
-redirected there, so old bookmarks keep working.
+`#/…`. Addresses from older versions (`#/signs`, `#/camera`, `#/fingerspelling`, `#/dashboard`, and
+`#/fingerspell` before them) are redirected there, so old bookmarks and shared Sign Five links keep
+working.
 
-The main navigation is the same five places on every screen size: Today, Review, Signs, Spelling,
-Dashboard. Camera practice belongs with Signs (and is linked from Today and every sign).
+The main navigation is the same four places on every screen size, organized by what you do: Today,
+Learn, Practice, Progress. `lib/nav.ts` holds the list and says which tab each page sits under, and
+the first part of an address is that tab. Review is not a tab: it is a session started from Today.
+Settings and About are about the app itself, so they sit under no tab: Settings is the gear in the
+top bar, and About is linked from the Settings page and from the footer of every page.
+
+Where a thing goes follows four rules. A tab is somewhere you come to do something (start the day,
+look a sign up, practice, see how you're doing). Things you make live where you use them, so word
+lists are under Practice. Things about the app itself are utilities, never tabs. And a label has to
+cover everything under it: Progress holds only your progress.
+Each page has one name, used by its tab or heading, by `pageTitle()` and by every back link.
+
+Practice groups its drills by what is practiced, letters and words or numbers, so numbers have one
+place to start from. Learn does the same from the other side: each unit lists the ways to practice it.
 
 | Page | Route | What the learner does |
 | --- | --- | --- |
-| Today | `#/` | Gets one clear next step, sees streak and signs started, and picks any activity from the Practice hub |
+| Today | `#/` | Gets one clear next step, starts the day's review, sees streak and signs started, and picks from a few more ways to practice |
 | Review | `#/review`, `#/review/more` | Works through the spaced-repetition queue: new signs, "Read it" (type what a sign means) and "Sign it" (make the sign, camera optional), then grades Again / Hard / Good / Easy. `/more` starts with five extra new signs |
-| Signs | `#/signs`, `#/signs/<id>` | Browses every sign: picture, handshape, palm, movement, tips, look-alikes |
-| Camera practice | `#/camera`, `#/camera/<id>` | Signs each letter or number to the camera; a sign list shows progress, and the next sign comes on Next (or automatically, if turned on) |
-| Fingerspelling | `#/fingerspelling` | Chooses between the two drills and the word game |
-| Read | `#/fingerspelling/read` | Sees the reading levels (Letters, Words, Numbers), what's passed and what's next, free practice, and their own mix-ups |
-| Reading level | `#/fingerspelling/read/<level>` | Plays ten reads: picks a letter or number from four, or types a word or digit string; then a summary of what was missed |
-| Free reading | `#/fingerspelling/read/free` | Watches word after word from the built-in words or a list and types it; speed adapts |
-| Spell drill | `#/fingerspelling/spell` | Fingerspells a word; the camera checks each letter and scores the word |
-| Sign Five | `#/fingerspelling/sign-five` | Guesses a five-letter word in six tries by fingerspelling it (daily word or practice) |
-| About | `#/about` | Reads what the app is and does, how the camera check works, what happens to their data, and what it can't do. Linked from the footer of every page |
-| Dashboard | `#/dashboard` | Signs and fingerspelling progress, activity, word lists (`/lists`, `/lists/<id>`), settings and data (`/settings`) |
+| Learn | `#/learn`, `#/learn/<id>` | Browses every sign by unit: picture, handshape, palm, movement, tips, look-alikes. Each unit links to the ways to practice it |
+| Practice | `#/practice` | Plays the daily word game or picks a drill, grouped under Letters and words, and Numbers |
+| Camera practice | `#/practice/camera`, `/camera/<id>`, `/camera/numbers` | Signs each letter or number to the camera; a sign list shows progress, and the next sign comes on Next (or automatically, if turned on) |
+| Read | `#/practice/read` | Sees the reading levels (Letters, Words, Numbers), what's passed and what's next, free reading, and their own mix-ups |
+| Reading level | `#/practice/read/<level>` | Plays ten reads: picks a letter or number from four, or types a word or digit string; then a summary of what was missed |
+| Free reading | `#/practice/read/free` | Watches word after word from the built-in words or a list and types it; speed adapts |
+| Spell | `#/practice/spell` | Fingerspells a word; the camera checks each letter and scores the word |
+| Sign Five | `#/practice/sign-five` | Guesses a five-letter word in six tries by fingerspelling it (daily word or practice word) |
+| Sign the answer | `#/practice/sums` | Sees a sum and signs its answer, a number from 0 to 10, or taps it; ten sums a round |
+| Word lists | `#/practice/lists`, `/lists/<id>` | Makes and edits the lists of words that Read, Spell and Sign Five can use |
+| Progress | `#/progress` | Sees signs and fingerspelling progress and activity, on one page |
+| Settings | `#/settings` | Sets preferences (new signs a day, signing hand, camera, mirroring), exports, imports or deletes their data, and finds About and the feedback form. The gear in the top bar |
+| About | `#/about` | Reads what the app is and does, what's coming, how to send feedback, how the camera check works, what happens to their data, and what it can't do. Linked from Settings and from the footer of every page |
 
 "Edit list" in a drill remembers the drill for the browser tab, and the lists page offers "Back
-to …" until you leave the dashboard.
+to …" until you leave Word lists.
 
 ## Code layout
 
@@ -83,6 +99,11 @@ app/src/
 | Module | Responsibility |
 | --- | --- |
 | `lib/routes.ts` | Every address, redirects from older ones, page names, and the "Back to …" memory |
+| `lib/nav.ts` | The four main tabs, and which tab each page sits under |
+| `lib/roadmap.ts` | What's coming (shown on About) and the feedback form's address |
+| `lib/sums.ts` | Sign the answer: the sums, a round of them, and how a round is scored |
+| `lib/peek.svelte.ts` | The "how to make this sign" tip on a key or tile: hover, focus, or press and hold |
+| `lib/demo.svelte.ts` | The clock behind a drill's preview, the small version that plays itself on its start screen |
 | `lib/types.ts` | Shared types and defaults (settings, cards, attempts, word lists, Sign Five save) |
 | `lib/db.ts` | IndexedDB store: cards, reviews, attempts, settings; export, import, delete all |
 | `lib/settings.svelte.ts` | The one shared copy of settings; `updateSettings(patch)` merges into the latest saved settings and saves in order |
@@ -177,7 +198,7 @@ All learner data is in one IndexedDB database (`asl`):
   files without newer fields still import.
 - **Migrations** happen when settings are read: older one-list settings become named lists, and
   Sign Five data from older versions moves from localStorage into the database once.
-- **localStorage** holds only per-device conveniences (Camera page toggles).
+- **localStorage** holds only per-device conveniences (Camera practice toggles).
 
 ## Content
 

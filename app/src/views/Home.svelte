@@ -141,7 +141,7 @@
       </p>
       <div class="ctas">
         <a class="cta" href={upNext.href}>
-          <Icon name="play" size={18} />{upNext.id === 'read' ? (nextRead ? `Read: ${nextRead.title}` : 'Free reading practice') : five.state === 'playing' ? 'Keep playing Sign Five' : "Play today's Sign Five"}
+          <Icon name="play" size={18} />{upNext.id === 'read' ? (nextRead ? `Read: ${nextRead.title}` : 'Free reading') : five.state === 'playing' ? 'Keep playing Sign Five' : "Play today's Sign Five"}
         </a>
         {#if newRemaining > 0}
           <a class="cta ghost" href={routes.reviewMore}><Icon name="plus" size={18} />Learn 5 new signs</a>
@@ -152,7 +152,7 @@
       <h1>That's today done.</h1>
       <p class="lead">Review, reading and today's word are all ticked off. Come back tomorrow, or keep going.</p>
       <div class="ctas">
-        <a class="cta" href={routes.camera}><Icon name="camera" size={18} />Practice on camera</a>
+        <a class="cta" href={routes.camera}><Icon name="camera" size={18} />Camera practice</a>
         {#if newRemaining > 0}
           <a class="cta ghost" href={routes.reviewMore}><Icon name="plus" size={18} />Learn 5 new signs</a>
         {/if}
@@ -160,14 +160,14 @@
     {/if}
 
     {#if loaded && started}
-      <a class="stats" href={routes.dashboard}>
+      <a class="stats" href={routes.progress}>
         <span><b>{days}</b> day streak</span>
         <span class="signs">
           <span><b>{learned}</b> of {total} signs started</span>
           <span class="bar" aria-hidden="true"><span style="width:{(learned / total) * 100}%"></span></span>
         </span>
         <span><b>{levelsPassed}</b> of {LEVELS.length} reading levels</span>
-        <span class="more">Dashboard<Icon name="arrow-right" size={15} /></span>
+        <span class="more">Progress<Icon name="arrow-right" size={15} /></span>
       </a>
     {/if}
   </div>
@@ -207,7 +207,7 @@
   <a class="hub-card" href={routes.spell} style="--c: var(--spell); --s: var(--spell-soft)">
     <span class="hub-icon"><Icon name="camera" size={22} /></span>
     <span class="hub-text">
-      <b>Spell with the camera</b>
+      <b>Spell</b>
       <span>{spelling?.spell.clean !== undefined ? `${spelling.spell.clean}% clean lately` : 'Sign words letter by letter'}</span>
     </span>
   </a>
@@ -218,10 +218,10 @@
       <span>Sign each letter and number, get told what to fix</span>
     </span>
   </a>
-  <a class="hub-card" href={routes.signs} style="--c: var(--ink-2); --s: var(--surface-2)">
+  <a class="hub-card" href={routes.learn} style="--c: var(--ink-2); --s: var(--surface-2)">
     <span class="hub-icon"><Icon name="signs" size={22} /></span>
     <span class="hub-text">
-      <b>All signs</b>
+      <b>Learn</b>
       <span>{total} letters and numbers, and how to make each one</span>
     </span>
   </a>

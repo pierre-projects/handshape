@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Reading practice (#/fingerspelling/read): the levels, track by track, with
+  // Read (#/practice/read): the levels, track by track, with
   // what's passed and what's next; free practice; and the learner's own mix-ups.
   import { onMount } from 'svelte';
   import { getStore } from '../lib/app';
@@ -43,7 +43,7 @@
 
 <div class="read">
   <header class="head">
-    <a class="back-link small" href={routes.fingerspelling}><Icon name="arrow-left" size={16} />Fingerspelling</a>
+    <a class="back-link small" href={routes.practice}><Icon name="arrow-left" size={16} />Practice</a>
     <div class="title-row">
       <span class="icon"><Icon name="eye" size={22} /></span>
       <div class="titles">
@@ -115,7 +115,7 @@
 
     <section class="track" aria-labelledby="free-title">
       <div class="track-head">
-        <h2 id="free-title">Free practice</h2>
+        <h2 id="free-title">Free reading</h2>
         <p class="small muted">No levels: word after word from the built-in words or your own lists, at a speed that follows you.</p>
       </div>
       <a class="level" href={routes.readFree}>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Spell drill (#/fingerspell/spell): see a word and fingerspell it. The
+  // Spell (#/practice/spell): see a word and fingerspell it. The
   // camera checks one letter at a time and moves on when it matches; at the
   // end you see how many letters you got.
   import { onMount } from 'svelte';
@@ -9,6 +9,8 @@
   import { drillWords, letters, plural } from '../lib/fingerspell';
   import { loadSettings, mirrored, prefs } from '../lib/settings.svelte';
   import type { SpellingAttempt } from '../lib/types';
+  import { createDemoLoop } from '../lib/demo.svelte';
+  import DrillIntro from '../components/DrillIntro.svelte';
   import DrillPage from '../components/DrillPage.svelte';
   import HandCheck from '../components/HandCheck.svelte';
   import SignPicture from '../components/SignPicture.svelte';
@@ -35,6 +37,18 @@
   /** The camera confirmed at least one letter, so its score can be trusted. */
   const scored = $derived(got > 0);
   const summary = $derived(spellingSummary(attempts));
+
+  // The start screen's preview: a short word spelled a letter at a time, each
+  // box turning green as its letter is matched, then the next word.
+  const DEMO_WORDS = ['CAT', 'SUN', 'DOG'];
+  /** One step for each letter, then one with the whole word matched. Still, it shows the word half spelled. */
+  const loop = createDemoLoop(() => [1100, 1100, 1100, 1700], () => 1);
+  const demoWord = $derived(DEMO_WORDS[loop.round % DEMO_WORDS.length]);
+  const demoLetter = $derived(demoWord[loop.step]);
+
+  $effect(() => {
+    if (phase === 'idle') return loop.run();
+  });
 
   onMount(async () => {
     store = await getStore();
@@ -124,20 +138,35 @@
 
 <DrillPage
   kind="spell"
-  title="Spell with the camera"
+  title="Spell"
   subtitle="{summary.spell.lettersPerSecond ? `${summary.spell.lettersPerSecond.toFixed(1)} letters/s` : 'No spelling speed yet'} · {plural(summary.spell.count, 'word')} spelled"
   activeWord={phase !== 'idle' ? word : undefined}
   onPlay={next}
 >
   {#if phase === 'idle'}
-    <div class="intro">
+    <DrillIntro label="How a word goes" caption={demoLetter ? `You sign ${demoLetter}` : 'Every letter matched'}>
       <ol class="steps">
         <li><span>1</span>Turn on your camera and keep your hand in view.</li>
         <li><span>2</span>Fingerspell the word. Each letter turns green when the camera matches it.</li>
         <li><span>3</span>Stuck on a letter? Skip it or show its handshape.</li>
       </ol>
       <button class="primary lg" onclick={() => next()}><Icon name="play" size={16} />Start <kbd>Enter</kbd></button>
-    </div>
+
+      {#snippet demo()}
+        <div class="word-boxes demo-boxes">
+          {#each demoWord as c, i}
+            <span class="box" class:ok={i < loop.step} class:now={i === loop.step}>{c}</span>
+          {/each}
+        </div>
+        <div class="demo-frame filled">
+          {#if demoLetter}
+            <SignPicture id={demoLetter.toLowerCase()} size={104} mirror={mirrored(settings)} />
+          {:else}
+            <span class="demo-done"><Icon name="check" size={44} /></span>
+          {/if}
+        </div>
+      {/snippet}
+    </DrillIntro>
   {:else}
     <div class="stage">
       <div class="side">
@@ -202,7 +231,10 @@
 </DrillPage>
 
 <style>
-  .intro { display: grid; justify-items: center; gap: 18px; padding: 24px 16px; }
+  /* The start screen's layout and preview frame are in DrillIntro; these are the pieces inside the preview. */
+  .demo-boxes { flex-wrap: nowrap; gap: 6px; }
+  .demo-boxes .box { width: 46px; height: 52px; font-size: 1.6rem; }
+  .demo-done { color: var(--good); display: grid; }
   /* Word on the left, camera on the right. */
   .stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 20px; align-items: start; }
   .side { align-self: center; display: grid; gap: 14px; }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Sign the answer (#/fingerspelling/sums): a sum appears and the learner
+  // Sign the answer (#/practice/sums): a sum appears and the learner
   // signs its answer, a number from 0 to 10. There is no picture to copy, so
   // the handshape has to be recalled. The camera reads numbers only here, so a
   // 2 is never taken for a V; tapping the number works too, for when there is
@@ -9,6 +9,8 @@
   import { content } from '../lib/content';
   import { loadSettings, mirrored, prefs } from '../lib/settings.svelte';
   import { ANSWERS, firstTry, makeRound, ROUND_LENGTH, roundMessage, sumSpoken, sumText, type Sum, type SumResult } from '../lib/sums';
+  import { createDemoLoop } from '../lib/demo.svelte';
+  import DrillIntro from '../components/DrillIntro.svelte';
   import DrillPage from '../components/DrillPage.svelte';
   import LetterCam from '../components/LetterCam.svelte';
   import LetterTip from '../components/LetterTip.svelte';
@@ -44,6 +46,24 @@
   const clean = $derived(results.filter(firstTry).length);
   const signed = $derived(results.filter((r) => r.signed).length);
   const lastWrong = $derived(wrong[wrong.length - 1]);
+
+  // Before a round, the page plays the game to itself: a sum appears, then its
+  // answer and the handshape for it, so the learner sees what they are about to
+  // do instead of only reading about it.
+  const DEMO: Sum[] = [
+    { a: 3, b: 4, op: 'plus', answer: 7 },
+    { a: 9, b: 4, op: 'minus', answer: 5 },
+    { a: 1, b: 2, op: 'plus', answer: 3 },
+    { a: 6, b: 4, op: 'plus', answer: 10 },
+  ];
+  /** Two steps: the sum with a "?", then its answer and handshape. Still, it shows a finished one. */
+  const loop = createDemoLoop(() => [1300, 1700], () => 1);
+  const demoSum = $derived(DEMO[loop.round % DEMO.length]);
+  const demoSolved = $derived(loop.step === 1);
+
+  $effect(() => {
+    if (phase === 'idle') return loop.run();
+  });
 
   // How to sign a number, on its key: hover, keyboard focus, or press and hold,
   // as on Sign Five's letter keys. Any key can be looked at; looking at the
@@ -159,7 +179,7 @@
 
 <DrillPage kind="spell" title="Sign the answer" subtitle="Numbers 0 to 10 · {ROUND_LENGTH} sums a round" lists={false}>
   {#if phase === 'idle'}
-    <div class="intro">
+    <DrillIntro label="How a sum goes" caption={demoSolved ? `You sign ${demoSum.answer}` : 'What would you sign?'}>
       <ol class="steps">
         <li><span>1</span>Turn on your camera and keep your hand in view.</li>
         <li><span>2</span>A sum appears. Sign the answer and hold it for about a second.</li>
@@ -167,7 +187,21 @@
       </ol>
       <p class="small muted reminder">For 1 to 5 your palm faces you. For 6 to 9 it faces the camera.</p>
       <button class="primary lg" onclick={start}><Icon name="play" size={16} />Start <kbd>Enter</kbd></button>
-    </div>
+
+      {#snippet demo()}
+        <p class="sum demo-sum">
+          <span>{sumText(demoSum)} =</span>
+          <span class="slot" class:right={demoSolved}>{demoSolved ? demoSum.answer : '?'}</span>
+        </p>
+        <div class="demo-frame" class:filled={demoSolved}>
+          {#if demoSolved}
+            <SignPicture id={String(demoSum.answer)} size={104} {mirror} />
+          {:else}
+            <Icon name="camera" size={30} />
+          {/if}
+        </div>
+      {/snippet}
+    </DrillIntro>
   {:else if phase === 'playing' && sum}
     <div class="stage">
       <div class="side">
@@ -260,7 +294,7 @@
       </ul>
 
       <div class="button-row">
-        <a class="btn ghost" href={routes.signs}>Look up the numbers</a>
+        <a class="btn ghost" href={routes.learn}>See the numbers in Learn</a>
         <button class="primary" onclick={start}><Icon name="play" size={14} />Play again <kbd>Enter</kbd></button>
       </div>
     </div>
@@ -272,8 +306,8 @@
 </DrillPage>
 
 <style>
-  .intro { display: grid; justify-items: center; gap: 16px; padding: 24px 16px; }
-  .reminder { margin: 0; text-align: center; }
+  /* The start screen's layout and preview frame are in DrillIntro; this is the sum inside the preview. */
+  .sum.demo-sum { margin: 0; font-size: 2rem; gap: 10px; }
 
   /* The sum on the left, the camera on the right. */
   .stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 20px; align-items: start; }

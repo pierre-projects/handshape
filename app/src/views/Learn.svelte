@@ -16,8 +16,24 @@
     mirror = mirrored(await loadSettings());
   });
 
-  // Same rule as the Camera page's drill: any sign with a handshape check.
+  // Same rule as Camera practice: any sign with a handshape check.
   const cameraReady = $derived(!!selected && SPECS.has(selected.id));
+
+  /** The ways to practice a unit, by what it holds, so a new unit of letters or numbers gets them too. */
+  type Way = { label: string; href: string; icon: 'camera' | 'eye' | 'play' };
+  const WAYS: Record<string, Way[]> = {
+    letter: [
+      { label: 'Camera practice', href: routes.camera, icon: 'camera' },
+      { label: 'Read', href: routes.read, icon: 'eye' },
+      { label: 'Spell', href: routes.spell, icon: 'camera' },
+      { label: 'Sign Five', href: routes.signFive, icon: 'play' },
+    ],
+    number: [
+      { label: 'Camera practice', href: routes.cameraNumbers, icon: 'camera' },
+      { label: 'Read numbers', href: routes.readLevel('numbers-1'), icon: 'eye' },
+      { label: 'Sign the answer', href: routes.sums, icon: 'play' },
+    ],
+  };
 
   // Previous / next within the same unit.
   const siblings = $derived(selected ? content.items.filter((i) => i.unitId === selected.unitId) : []);
@@ -36,7 +52,7 @@
 
 {#if selected}
   <div class="spread crumbs">
-    <a class="btn ghost small" href={routes.signs}><Icon name="arrow-left" size={16} /> All signs</a>
+    <a class="btn ghost small" href={routes.learn}><Icon name="arrow-left" size={16} /> Learn</a>
     <div class="row">
       {#if prev}
         <a class="btn small" href={routes.sign(prev.id)} aria-label="Previous: {prev.gloss}"><Icon name="arrow-left" size={16} />{prev.gloss}</a>
@@ -60,10 +76,9 @@
   {#if itemId}<p class="notice">No sign called “{itemId}”.</p>{/if}
   <div class="intro">
     <div>
-      <h1>Signs</h1>
-      <p class="muted">Tap any sign to see how it's made, then try it on camera.</p>
+      <h1>Learn</h1>
+      <p class="muted">Tap any sign to see how it's made. Each set has its own ways to practice.</p>
     </div>
-    <a class="btn primary" href={routes.camera}><Icon name="camera" size={18} />Practice on camera</a>
   </div>
   {#each content.units as unit}
     <section class="card stack">
@@ -72,12 +87,15 @@
           <h2>{unit.title}</h2>
           <p class="muted small desc">{unit.description}</p>
         </div>
-        <div class="unit-actions">
-          {#if unit.items[0]}
-            <a class="btn ghost small" href={routes.cameraSign(unit.items[0].id)}><Icon name="camera" size={16} />On camera</a>
-          {/if}
-        </div>
       </div>
+      {#if WAYS[unit.items[0]?.kind ?? '']}
+        <div class="ways">
+          <span class="small muted">Practice these:</span>
+          {#each WAYS[unit.items[0].kind] as way}
+            <a class="btn small" href={way.href}><Icon name={way.icon} size={15} />{way.label}</a>
+          {/each}
+        </div>
+      {/if}
       <ul class="grid">
         {#each unit.items as it}
           <li>
@@ -99,7 +117,7 @@
   .practice { display: flex; width: fit-content; margin: 0 auto; }
   p.practice { text-align: center; }
   .intro { margin: 4px 0 16px; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .unit-actions { display: flex; align-items: center; gap: 8px; }
+  .ways { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
   .desc { margin: 4px 0 0; max-width: 60ch; }
   .grid {
     list-style: none;

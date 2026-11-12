@@ -299,7 +299,7 @@
 
 <div class="five" class:phone>
   <header class="top">
-    <a class="back-link small" href={routes.fingerspelling}><Icon name="arrow-left" size={16} />Fingerspelling</a>
+    <a class="back-link small" href={routes.practice}><Icon name="arrow-left" size={16} />Practice</a>
     <div class="title-row">
       <div>
         <h1>Sign Five</h1>
@@ -307,7 +307,7 @@
       </div>
       <div class="segmented" role="group" aria-label="Which game">
         <button aria-pressed={game === 'daily'} onclick={() => newGame('daily')}>Daily word</button>
-        <button aria-pressed={game === 'practice'} onclick={() => newGame('practice')}>Practice</button>
+        <button aria-pressed={game === 'practice'} onclick={() => newGame('practice')}>Practice word</button>
       </div>
     </div>
     <p class="source small">
@@ -399,7 +399,7 @@
           <div class="result-actions">
             <button class="primary" onclick={() => (shareOpen = true)}><Icon name="arrow-right" size={14} />Share results</button>
             <button onclick={() => newGame('practice')}><Icon name="play" size={14} />New practice word</button>
-            <a class="btn ghost" href={routes.spell}>Spelling drills</a>
+            <a class="btn ghost" href={routes.spell}>Spell</a>
           </div>
           {#if signed}<p class="small muted signed-note">🤟 You fingerspelled {signed} of {guesses.length * WORD_LENGTH} letters to the camera.</p>{/if}
 
@@ -655,7 +655,7 @@
 
   /* Phone: one screen. Compact header, board sized in script, dock pinned above the tab bar. */
   .phone .top { margin-bottom: 8px; }
-  /* The Spelling tab already leads back to Fingerspelling. */
+  /* The Practice tab already leads back. */
   .phone .top .back-link { display: none; }
   .phone .title-row { margin-top: 4px; align-items: center; }
   .phone .title-row h1 { font-size: 1.35rem; }

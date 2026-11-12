@@ -1,9 +1,9 @@
 <script lang="ts">
   import { routes } from '../lib/routes';
-  // Dashboard: your progress at a glance, your word lists, and settings.
-  //   #/dashboard                Overview: signs, fingerspelling, activity
-  //   #/dashboard/lists[/<id>]   Word lists
-  //   #/dashboard/settings       Settings and your data
+  // Progress (#/progress): how you're doing, on one page: signs, fingerspelling
+  // and activity. It holds only that. Word lists are under Practice, where they
+  // are used (views/WordLists.svelte), and settings and your data are behind the
+  // gear (views/Settings.svelte).
   import { onMount } from 'svelte';
   import { getStore } from '../lib/app';
   import type { Store } from '../lib/db';
@@ -11,26 +11,16 @@
   import { activityDates, cardCounts, dailyActivity, MATURE_DAYS, retention, streak, weakestItems } from '../lib/stats';
   import { spellingSummary } from '../lib/spelling';
   import { confusions, LEVELS, mixUpLetterCount, nextLevel, passedCount, topMixUps } from '../lib/receptive';
-  import type { ReviewEntry, Settings, SignFiveSave, SpellingAttempt, StoredCard } from '../lib/types';
-  import { prefs, reloadSettings, updateSettings } from '../lib/settings.svelte';
+  import type { ReviewEntry, SignFiveSave, SpellingAttempt, StoredCard } from '../lib/types';
+  import { prefs, reloadSettings } from '../lib/settings.svelte';
   import ActivityChart from '../components/ActivityChart.svelte';
-  import ListsManager from '../components/ListsManager.svelte';
   import Icon from '../components/Icon.svelte';
-
-  let { section, listId }: { section?: string; listId?: string } = $props();
-  const tab = $derived(section === 'lists' || section === 'settings' ? section : 'overview');
-  const TABS = [
-    { id: 'overview', label: 'Overview', href: routes.dashboard, icon: 'progress' },
-    { id: 'lists', label: 'Word lists', href: routes.lists, icon: 'spell' },
-    { id: 'settings', label: 'Settings', href: routes.settings, icon: 'edit' },
-  ] as const;
 
   let store: Store;
   let cards = $state<StoredCard[]>([]);
   let reviews = $state<ReviewEntry[]>([]);
   let attempts = $state<SpellingAttempt[]>([]);
   const settings = $derived(prefs.value);
-  let message = $state('');
   let loaded = $state(false);
   let five = $state<SignFiveSave['stats']>();
 
@@ -62,64 +52,14 @@
     loaded = true;
   }
 
-  function patch(p: Partial<Settings>) {
-    return updateSettings(p);
-  }
-
-  async function save(p: Partial<Settings>) {
-    await updateSettings(p);
-    message = 'Settings saved.';
-  }
-
-  const perDay = (v: string) => Math.max(0, Math.min(50, Math.round(Number(v) || 0)));
-
-  async function exportData() {
-    const data = await store.exportAll();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `handshape-progress-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-    message = 'Progress exported.';
-  }
-
-  async function importData(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    (e.target as HTMLInputElement).value = '';
-    if (!file) return;
-    if (!confirm('Replace all progress on this device with the contents of this file?')) return;
-    try {
-      await store.importAll(JSON.parse(await file.text()));
-      await load();
-      message = 'Progress imported.';
-    } catch (err) {
-      message = err instanceof Error ? err.message : 'Could not import that file.';
-    }
-  }
-
-  async function reset() {
-    if (!confirm('Delete all progress on this device? Export first if you want a backup.')) return;
-    await store.clearAll();
-    await load();
-    message = 'All progress deleted.';
-  }
-
   const gloss = (id: string) => content.byId.get(id)?.gloss ?? id;
 </script>
 
-<header class="dash-head">
-  <h1>Dashboard</h1>
-  <nav class="tabs" aria-label="Dashboard sections">
-    {#each TABS as t}
-      <a href={t.href} aria-current={tab === t.id ? 'page' : undefined}><Icon name={t.icon} size={16} />{t.label}</a>
-    {/each}
-  </nav>
-</header>
+<h1 class="page-title">Progress</h1>
 
 {#if !loaded}
   <p class="muted loading-note">Loading…</p>
-{:else if tab === 'overview'}
+{:else}
   <section class="card panel">
     <header class="panel-head">
       <h2><span class="p-ico"><Icon name="review" size={18} /></span>Signs</h2>
@@ -165,7 +105,7 @@
   <section class="card panel spellpanel">
     <header class="panel-head">
       <h2><span class="p-ico"><Icon name="spell" size={18} /></span>Fingerspelling</h2>
-      <a class="btn small" href={routes.fingerspelling}>Practice<Icon name="arrow-right" size={16} /></a>
+      <a class="btn small" href={routes.practice}>Practice<Icon name="arrow-right" size={16} /></a>
     </header>
     <div class="metrics">
       <a class="metric link" href={routes.read}>
@@ -220,74 +160,11 @@
     </header>
     <ActivityChart data={activity} />
   </section>
-{:else if tab === 'lists' && settings}
-  <ListsManager {settings} {listId} onSave={patch} />
-{:else if tab === 'settings' && settings}
-  <section class="card stack">
-    <h2>Settings</h2>
-    <label class="field">
-      <span>New signs per day</span>
-      <input
-        type="number" min="0" max="50" value={settings.newItemsPerDay}
-        onchange={(e) => {
-          const n = perDay(e.currentTarget.value);
-          e.currentTarget.value = String(n);
-          save({ newItemsPerDay: n });
-        }}
-      />
-    </label>
-    <label class="field">
-      <span>Signing hand</span>
-      <select
-        value={settings.dominantHand}
-        onchange={(e) => save({ dominantHand: e.currentTarget.value as Settings['dominantHand'] })}
-      >
-        <option value="Right">Right</option>
-        <option value="Left">Left</option>
-      </select>
-    </label>
-    <label class="check">
-      <input
-        type="checkbox" checked={settings.showCameraByDefault}
-        onchange={(e) => save({ showCameraByDefault: e.currentTarget.checked })}
-      />
-      Turn the camera on automatically in drills
-    </label>
-    <label class="check">
-      <input
-        type="checkbox" checked={settings.mirrorMedia}
-        onchange={(e) => save({ mirrorMedia: e.currentTarget.checked })}
-      />
-      Mirror sign images and videos by default (useful if you sign left-handed)
-    </label>
-  </section>
-
-  <section class="card stack">
-    <h2>Your data</h2>
-    <p class="small muted">
-      Progress and word lists are stored only in this browser. Export them to back up or move to another device.
-    </p>
-    <div class="row">
-      <button onclick={exportData}>Export</button>
-      <label class="btn">Import<input type="file" accept="application/json,.json" onchange={importData} hidden /></label>
-      <button onclick={reset}>Delete all</button>
-    </div>
-  </section>
 {/if}
 
-{#if message}<p class="small" role="status">{message}</p>{/if}
 
 <style>
-  .dash-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-  .dash-head h1 { margin: 0; }
-  .tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; }
-  .tabs a {
-    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 7px;
-    color: var(--ink-2); text-decoration: none; font-weight: 600; font-size: 0.9rem; white-space: nowrap;
-  }
-  .tabs a:hover { color: var(--ink); }
-  .tabs a[aria-current='page'] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgb(16 24 40 / 0.1); }
-
+  .page-title { margin: 4px 0 18px; }
   .panel { display: grid; gap: 14px; margin-bottom: 16px; }
   .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
   .panel-head h2 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 1.1rem; }
@@ -315,17 +192,10 @@
   .streak { font-size: 0.9rem; color: var(--ink-2); }
   .streak b { color: var(--ink); }
 
-  .field { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .field input { width: 90px; }
-  .check { display: flex; gap: 10px; align-items: flex-start; }
-  .check input { margin-top: 4px; width: 18px; height: 18px; flex-shrink: 0; }
-
   @media (max-width: 820px) {
     .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 480px) {
-    .tabs { width: 100%; }
-    .tabs a { flex: 1; justify-content: center; padding: 6px 4px; font-size: 0.82rem; }
     .m-value { font-size: 1.35rem; }
   }
 </style>

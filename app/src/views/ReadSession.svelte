@@ -1,5 +1,5 @@
 <script lang="ts">
-  // One reading level (#/fingerspelling/read/<level>): ten quick reads, then a
+  // One reading level (#/practice/read/<level>): ten quick reads, then a
   // summary of what was missed. Letters and numbers are picked from four
   // choices; words and digit strings are typed.
   import { onMount, tick } from 'svelte';
@@ -13,7 +13,9 @@
   } from '../lib/receptive';
   import { loadSettings, mirrored, prefs, updateSettings } from '../lib/settings.svelte';
   import type { SpellingAttempt } from '../lib/types';
+  import { createDemoLoop } from '../lib/demo.svelte';
   import DisplaySwitch from '../components/DisplaySwitch.svelte';
+  import DrillIntro from '../components/DrillIntro.svelte';
   import DrillPage from '../components/DrillPage.svelte';
   import Icon from '../components/Icon.svelte';
   import LetterStrip from '../components/LetterStrip.svelte';
@@ -173,6 +175,48 @@
     return compare(a.item, a.given).map((c, i) => ({ id: a.item.show[i], label: c.shown, ok: c.ok }));
   }
 
+  // The start screen's preview, in the level's own shape. A level that asks you
+  // to pick shows one sign and four choices, then the right one. A level that
+  // asks you to type shows a short word or number a sign at a time, then the
+  // answer typed out.
+  const picking = level?.answer === 'choice';
+  const DEMO_PICKS: { show: string; choices: string[] }[] =
+    level?.kind === 'number'
+      ? [
+          { show: '7', choices: ['6', '7', '8', '9'] },
+          { show: '3', choices: ['2', '3', '5', '6'] },
+          { show: '10', choices: ['1', '4', '9', '10'] },
+        ]
+      : [
+          { show: 'B', choices: ['A', 'B', 'D', 'S'] },
+          { show: 'L', choices: ['D', 'G', 'I', 'L'] },
+          { show: 'W', choices: ['F', 'U', 'V', 'W'] },
+        ];
+  const DEMO_SPELLED = level?.kind === 'number' ? ['407', '259', '631'] : ['CAT', 'SUN', 'DOG'];
+  /** Picking: the sign, then the answer. Typing: one step for each sign, then the answer. Still, it shows the answer. */
+  const loop = createDemoLoop(
+    () => (picking ? [1500, 1700] : [750, 750, 750, 1800]),
+    () => (picking ? 1 : 3),
+  );
+  const demoPick = $derived(DEMO_PICKS[loop.round % DEMO_PICKS.length]);
+  const demoSpelled = $derived(DEMO_SPELLED[loop.round % DEMO_SPELLED.length]);
+  /** The sign on show in the preview right now, if any. */
+  const demoShow = $derived(picking ? demoPick.show : demoSpelled[loop.step]);
+  const demoAnswered = $derived(picking ? loop.step === 1 : loop.step === 3);
+  const demoCaption = $derived(
+    picking
+      ? demoAnswered
+        ? `It's ${demoPick.show}`
+        : 'Which is it?'
+      : demoAnswered
+        ? `You type ${demoSpelled}`
+        : `Watch: ${loop.step + 1} of ${demoSpelled.length}`,
+  );
+
+  $effect(() => {
+    if (phase === 'intro' && level && !locked) return loop.run();
+  });
+
   const pace = level?.speed
     ? `${level.speed} ${level.kind === 'number' ? 'digits' : 'letters'} a second`
     : level?.flashMs
@@ -185,14 +229,14 @@
 {#if !level}
   <section class="card">
     <h2>No such level</h2>
-    <p><a href={routes.read}>Back to the reading levels</a></p>
+    <p><a href={routes.read}>Back to Read</a></p>
   </section>
 {:else}
   <DrillPage
     kind="read"
     title={level.title}
     subtitle="{track?.title} · {pace}"
-    back={{ href: routes.read, label: 'Reading levels' }}
+    back={{ href: routes.read, label: 'Read' }}
     lists={false}
   >
     {#if !ready}
@@ -200,9 +244,9 @@
     {:else if locked}
       <h2>Locked</h2>
       <p>{lockedReason(level)}</p>
-      <p><a class="btn" href={routes.read}>Back to the levels</a></p>
+      <p><a class="btn" href={routes.read}>Back to Read</a></p>
     {:else if phase === 'intro'}
-      <div class="intro">
+      <DrillIntro label={picking ? 'How one goes' : `How a ${what} goes`} caption={demoCaption}>
         <p class="lead">{level.blurb}</p>
         <ol class="steps">
           {#if still}
@@ -221,7 +265,27 @@
         {#if !items.length && answers.length === 0 && level.id === MIXUPS_LEVEL && mixUpLetters === 0}
           <p class="small muted">There is nothing to drill yet.</p>
         {/if}
-      </div>
+
+        {#snippet demo()}
+          <div class="demo-frame" class:filled={!!demoShow}>
+            {#if demoShow}
+              <SignPicture id={demoShow.toLowerCase()} size={104} {mirror} />
+            {:else}
+              <Icon name="eye" size={30} />
+            {/if}
+          </div>
+          {#if picking}
+            <div class="demo-choices">
+              <!-- New chips for each example, so the last one's green doesn't fade out on the next one's letter. -->
+              {#each demoPick.choices as c (`${loop.round}-${c}`)}
+                <span class:right={demoAnswered && c === demoPick.show}>{c}</span>
+              {/each}
+            </div>
+          {:else}
+            <div class="demo-typed" class:right={demoAnswered}>{demoAnswered ? demoSpelled : ''}</div>
+          {/if}
+        {/snippet}
+      </DrillIntro>
     {:else if phase === 'summary'}
       <div class="summary">
         <p class="score" class:good={score.passed}><b>{score.correct}</b> of {score.total}</p>
@@ -270,13 +334,13 @@
           {#if score.passed && nextUp && !rerun}
             <a class="btn primary" href={routes.readLevel(nextUp.id)}>Next: {nextUp.title}<Icon name="arrow-right" size={16} /></a>
           {:else}
-            <a class="btn primary" href={routes.read}>Back to the levels</a>
+            <a class="btn primary" href={routes.read}>Back to Read</a>
           {/if}
         </div>
       </div>
     {:else if !item}
       <p>There is nothing to read in this level yet.</p>
-      <p><a class="btn" href={routes.read}>Back to the levels</a></p>
+      <p><a class="btn" href={routes.read}>Back to Read</a></p>
     {:else}
       <div class="toolbar">
         <span class="count small"><b>{index + 1}</b> of {items.length}{#if rerun}{' · '}the ones you missed{/if}</span>
@@ -356,9 +420,22 @@
 {/if}
 
 <style>
-  .intro { display: grid; justify-items: center; gap: 18px; padding: 8px 8px 16px; text-align: center; }
-  .intro .steps { text-align: left; }
+  /* The start screen's layout and preview frame are in DrillIntro; these are the pieces inside the preview. */
   .lead { margin: 0; font-size: 1.05rem; color: var(--ink-2); max-width: 46ch; }
+  .demo-choices { display: grid; grid-template-columns: repeat(4, 44px); gap: 6px; }
+  .demo-choices span {
+    display: grid; place-items: center; height: 40px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+    background: var(--surface); font-weight: 700; color: var(--ink-2);
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .demo-choices span.right { background: var(--good); border-color: var(--good); color: #fff; }
+  .demo-typed {
+    display: grid; place-items: center; min-width: 124px; height: 40px; padding: 0 12px;
+    border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface);
+    font-weight: 700; font-size: 1.15rem; letter-spacing: 0.12em; color: var(--ink);
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .demo-typed.right { background: var(--good-soft); border-color: var(--good); color: var(--good); }
 
   .toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .toolbar .progress { flex: 1; min-width: 100px; }

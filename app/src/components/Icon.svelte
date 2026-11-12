@@ -1,5 +1,5 @@
 <script lang="ts">
-  type Name = 'home' | 'review' | 'signs' | 'spell' | 'camera' | 'progress' | 'arrow-left' | 'arrow-right' | 'check' | 'x' | 'flip' | 'play' | 'edit' | 'plus' | 'eye';
+  type Name = 'home' | 'review' | 'signs' | 'spell' | 'camera' | 'progress' | 'arrow-left' | 'arrow-right' | 'check' | 'x' | 'flip' | 'play' | 'edit' | 'plus' | 'eye' | 'settings';
   let { name, size = 22 }: { name: Name; size?: number } = $props();
 
   const paths: Record<Name, string> = {
@@ -18,6 +18,9 @@
     edit: 'M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16zM13.5 6.5l4 4',
     plus: 'M12 5v14M5 12h14',
     eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    // A gear (from Feather icons, MIT).
+    settings:
+      'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z',
   };
 </script>
 

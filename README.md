@@ -10,7 +10,7 @@ It runs entirely in your browser: no accounts, and camera video never leaves you
   means, or tap "I don't know") and "Sign it" (make the sign, with an optional camera check), and
   you grade yourself; the camera or your typed answer suggests the grade.
 - **Camera checks.** Sign a letter or number to your camera and get told what to fix, such as
-  "Straighten your index finger" or "Turn your palm to face out". The Camera page works through the
+  "Straighten your index finger" or "Turn your palm to face out". Camera practice works through the
   alphabet or numbers with a sign list you can jump around in. Hand tracking runs on your device.
 - **Read fingerspelling.** Reading is the hard part, so it has its own module. Levels in three
   tracks, each played as ten quick reads: **Letters** (pick the letter you saw, then look-alikes
@@ -18,16 +18,20 @@ It runs entirely in your browser: no accounts, and camera video never leaves you
   names and places at four letters a second, with a hint such as "a name" as you'd have in
   conversation) and **Numbers** (0 to 10, then digit strings like phone numbers). A miss shows the
   word letter by letter with what you got wrong, and each session ends with a summary and a way
-  to go over the ones you missed. **Free practice** reads word after word from the built-in words
+  to go over the ones you missed. **Free reading** reads word after word from the built-in words
   or your lists, at a speed that rises after clean reads and drops after misses. Words can be
   shown as letter pictures or, as an experiment, a drawn hand that moves from letter to letter.
 - **Spell fingerspelling.** Fingerspell a word to the camera; each letter turns green as it matches,
   and you get a score for the word.
 - **Sign Five.** A word game: guess the five-letter word in six tries by fingerspelling each guess
   to the camera (or typing it). Play the day's official Wordle word, or unlimited practice words.
+- **Sign the answer.** A numbers game: a sum appears and you sign its answer, a number from 0 to
+  10, to the camera (or tap it).
 - **Word lists.** Make named lists of the words you want to practice and pick one in any drill or game.
-- **Dashboard.** What's due, streak, retention, reading speed, Sign Five stats, the signs you misread
-  most, your word lists, settings, and export/import of all your data as a JSON file.
+- **Progress.** What's due, streak, retention, reading speed, Sign Five stats and the signs you
+  misread most.
+- **Settings.** Behind the gear: new signs a day, your signing hand, and export/import of all your
+  data as a JSON file.
 - **Works offline** once loaded (except fetching the daily Sign Five word), and installs to your
   phone's home screen.
 

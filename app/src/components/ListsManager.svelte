@@ -1,8 +1,8 @@
 <script lang="ts">
   import { clearReturn, peekReturn, routes } from '../lib/routes';
-  // Word lists on the dashboard.
-  //   #/progress/lists        all lists, and "New list"
-  //   #/progress/lists/<id>   one list: rename, add and remove words, choose where it's used, delete
+  // Word lists, under Practice (views/WordLists.svelte).
+  //   #/practice/lists        all lists, and "New list"
+  //   #/practice/lists/<id>   one list: rename, add and remove words, choose where it's used, delete
   import { onDestroy, tick, untrack } from 'svelte';
   import { fiveLetterWords, findList, MAX_LISTS, newListId, uniqueName } from '../lib/lists';
   import { MAX_WORD_LETTERS, sortWords } from '../lib/spelling';
@@ -16,8 +16,12 @@
   }: { settings: Settings; listId?: string; onSave: (patch: Partial<Settings>) => Promise<void> } = $props();
 
   const list = $derived(findList(settings.lists, listId));
-  /** Came here from a drill's "Edit list": offer the way back. */
-  const back = peekReturn();
+  /**
+   * Came here from a drill's "Edit list": offer the way back. Not from the
+   * Practice page itself, though: the back link above the lists already goes there.
+   */
+  const from = peekReturn();
+  const back = from && from.href !== routes.practice ? from : undefined;
   const fives = $derived(list ? fiveLetterWords(list.words) : []);
   const inSpell = $derived(!!list && settings.spellListId === list.id);
   const inFive = $derived(!!list && settings.fiveListId === list.id);
@@ -124,7 +128,7 @@
 
 {#if back}
   <div class="return">
-    <span class="small">Editing word lists from the {back.label}.</span>
+    <span class="small">You came here from {back.label}.</span>
     <a class="btn small primary" href={back.href} onclick={clearReturn}><Icon name="arrow-left" size={16} />Back to {back.label}</a>
   </div>
 {/if}
@@ -132,7 +136,7 @@
 {#if !listId}
   <div class="index-head">
     <div>
-      <h2>Word lists</h2>
+      <h1>Word lists</h1>
       <p class="muted small">
         Lists of words you want to practice: names, places, words from a class. Pick a list in any drill or game.
       </p>
@@ -163,7 +167,7 @@
           </span>
           {#if settings.spellListId === l.id || settings.fiveListId === l.id}
             <span class="uses">
-              {#if settings.spellListId === l.id}<span class="use read">Fingerspelling</span>{/if}
+              {#if settings.spellListId === l.id}<span class="use read">Read and Spell</span>{/if}
               {#if settings.fiveListId === l.id}<span class="use five">Sign Five</span>{/if}
             </span>
           {/if}
@@ -177,7 +181,7 @@
     <section class="card empty">
       <span class="empty-ico"><Icon name="spell" size={28} /></span>
       <h3>No lists yet</h3>
-      <p class="muted">Make a list of words you want to practice, then choose it in Fingerspelling or Sign Five.</p>
+      <p class="muted">Make a list of words you want to practice, then choose it in Read, Spell or Sign Five.</p>
       <button class="primary" onclick={create}><Icon name="plus" size={16} />Make your first list</button>
     </section>
   {/if}
@@ -215,7 +219,7 @@
       <div class="use-toggles">
         <button class="use-toggle" aria-pressed={inSpell} onclick={() => toggleUse('spellListId')} disabled={!list.words.length}>
           <span class="tick">{#if inSpell}<Icon name="check" size={14} />{/if}</span>
-          <span><b>Fingerspelling</b><small>Read and Spell drills</small></span>
+          <span><b>Read and Spell</b><small>The reading and spelling drills</small></span>
         </button>
         <button class="use-toggle five" aria-pressed={inFive} onclick={() => toggleUse('fiveListId')} disabled={!fives.length}>
           <span class="tick">{#if inFive}<Icon name="check" size={14} />{/if}</span>
@@ -278,7 +282,7 @@
 
 <style>
   .index-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-  .index-head h2 { margin: 0 0 2px; }
+  .index-head h1 { margin: 0 0 2px; }
   .index-head p { margin: 0; max-width: 60ch; }
 
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }

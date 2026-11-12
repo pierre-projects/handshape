@@ -178,7 +178,7 @@
       {#if newRemaining > 0}
         <button class="primary" onclick={() => start(settings!.newItemsPerDay, 5)}><Icon name="plus" size={16} />Learn 5 more signs</button>
       {/if}
-      <a class="btn" class:primary={newRemaining === 0} href={routes.fingerspelling}>Practice fingerspelling</a>
+      <a class="btn" class:primary={newRemaining === 0} href={routes.practice}>Practice</a>
       <a class="btn ghost" href={routes.home}>Back to Today</a>
     </div>
   </section>

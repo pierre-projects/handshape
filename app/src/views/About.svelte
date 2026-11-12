@@ -1,7 +1,8 @@
 <script lang="ts">
   // About (#/about): what Handshape is and does, what's coming and how to reach
   // its maker, how the camera works, what happens to your data, and what the
-  // app can't do, in plain words.
+  // app can't do, in plain words. It sits under no tab; the footer of every
+  // page links to it.
   import { content } from '../lib/content';
   import { routes } from '../lib/routes';
   import { FEEDBACK_URL, UPCOMING } from '../lib/roadmap';
@@ -31,12 +32,13 @@
     <ul class="list">
       <li><b>Learn the signs.</b> The {letters} letters and the numbers 0 to {numbers - 1}, each with a picture, how to make it, and the signs it gets mixed up with.</li>
       <li><b>Review a little each day.</b> A few new signs at a time. Each one comes back after a day, then a few days, then longer, so it sticks.</li>
-      <li><b>Practice on camera.</b> Make a sign to your camera and get a plain hint, such as "Straighten your index finger" or "Turn your palm to face out".</li>
+      <li><b>Camera practice.</b> Make a sign to your camera and get a plain hint, such as "Straighten your index finger" or "Turn your palm to face out".</li>
       <li><b>Read fingerspelling.</b> Watch letters, words and numbers spelled out and say what you saw, in short levels that get faster.</li>
       <li><b>Spell words.</b> Fingerspell a word to the camera, letter by letter.</li>
       <li><b>Play Sign Five.</b> Guess the day's five-letter word in six tries by fingerspelling each guess.</li>
       <li><b>Sign the answer.</b> A sum appears and you sign the number, from 0 to 10.</li>
-      <li><b>See your progress</b> and make your own word lists on the Dashboard.</li>
+      <li><b>Make your own word lists</b> under Practice, and use them in Read, Spell and Sign Five.</li>
+      <li><b>See your progress</b> under Progress.</li>
     </ul>
     <p class="start"><a class="btn primary" href={routes.home}>Go to Today<Icon name="arrow-right" size={16} /></a></p>
   </section>
@@ -80,7 +82,7 @@
     <h2>Your privacy</h2>
     <ul class="list">
       <li>No account, no ads and no tracking.</li>
-      <li>Your progress is saved only in this browser, on this device. To back it up or move it, use Export in <a href={routes.settings}>Settings</a>.</li>
+      <li>Your progress is saved only in this browser, on this device. To back it up or move it, use Export in <a href={routes.settings}>Settings</a>, behind the gear at the top.</li>
       <li>The one thing the app asks the internet for is the day's Sign Five word. It sends the date and gets a word back.</li>
       <li>Once it has loaded, the app works offline, and you can add it to your phone's home screen.</li>
     </ul>

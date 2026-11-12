@@ -16,7 +16,7 @@
     subtitle,
     activeWord,
     onPlay,
-    back = { href: routes.fingerspelling, label: 'Fingerspelling' },
+    back = { href: routes.practice, label: 'Practice' },
     lists = true,
     children,
   }: {
@@ -33,7 +33,7 @@
     children: Snippet;
   } = $props();
 
-  const other = $derived(kind === 'read' ? { href: routes.spell, label: 'Spell', icon: 'camera' as const } : { href: routes.readFree, label: 'Read', icon: 'eye' as const });
+  const other = $derived(kind === 'read' ? { href: routes.spell, label: 'Spell', icon: 'camera' as const } : { href: routes.readFree, label: 'Free reading', icon: 'eye' as const });
   const chosen = $derived(drillWords(prefs.value).list);
 </script>
 
