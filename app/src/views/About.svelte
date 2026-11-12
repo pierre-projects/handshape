@@ -1,8 +1,10 @@
 <script lang="ts">
-  // About (#/about): what Handshape is and does, how the camera works, what
-  // happens to your data, and what the app can't do, in plain words.
+  // About (#/about): what Handshape is and does, what's coming and how to reach
+  // its maker, how the camera works, what happens to your data, and what the
+  // app can't do, in plain words.
   import { content } from '../lib/content';
   import { routes } from '../lib/routes';
+  import { FEEDBACK_URL, UPCOMING } from '../lib/roadmap';
   import Icon from '../components/Icon.svelte';
   import Logo from '../components/Logo.svelte';
 
@@ -33,9 +35,35 @@
       <li><b>Read fingerspelling.</b> Watch letters, words and numbers spelled out and say what you saw, in short levels that get faster.</li>
       <li><b>Spell words.</b> Fingerspell a word to the camera, letter by letter.</li>
       <li><b>Play Sign Five.</b> Guess the day's five-letter word in six tries by fingerspelling each guess.</li>
+      <li><b>Sign the answer.</b> A sum appears and you sign the number, from 0 to 10.</li>
       <li><b>See your progress</b> and make your own word lists on the Dashboard.</li>
     </ul>
     <p class="start"><a class="btn primary" href={routes.home}>Go to Today<Icon name="arrow-right" size={16} /></a></p>
+  </section>
+
+  <section class="card">
+    <h2>What's coming</h2>
+    <p>Handshape is still being built. This is what's planned. There are no dates, and the order may change.</p>
+    <ul class="coming">
+      {#each UPCOMING as item}
+        <li>
+          <span class="stage {item.stage.toLowerCase()}">{item.stage}</span>
+          <span><b>{item.title}.</b> {item.text}</span>
+        </li>
+      {/each}
+    </ul>
+    {#if FEEDBACK_URL}
+      <div class="reach">
+        <p>
+          <b>Found a sign the camera gets wrong, or have an idea?</b> Tell me. It takes about two minutes, and it
+          shapes what gets built next.
+        </p>
+        <p>
+          <a class="btn primary" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">Send feedback<Icon name="arrow-right" size={16} /></a>
+        </p>
+        <p class="small muted">Opens a Google Form in a new tab. What you write there goes to Google and to me, not through this app.</p>
+      </div>
+    {/if}
   </section>
 
   <section class="card">
@@ -104,7 +132,20 @@
   .list { margin: 0; padding-left: 20px; display: grid; gap: 8px; color: var(--ink-2); }
   .list b { color: var(--ink); }
   .start { margin-top: 16px !important; }
+  .coming { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; color: var(--ink-2); }
+  .coming li { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; align-items: baseline; }
+  .coming b { color: var(--ink); }
+  .stage {
+    justify-self: start; padding: 2px 9px; border-radius: 999px;
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    background: var(--surface-2); color: var(--ink-2);
+  }
+  .stage.next { background: var(--accent-soft); color: var(--accent); }
+  .reach { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .reach p { margin-bottom: 10px; }
+  .reach b { color: var(--ink); }
   @media (max-width: 560px) {
+    .coming li { grid-template-columns: 1fr; gap: 4px; }
     .head { gap: 12px; }
     .head :global(svg) { width: 44px; height: 44px; }
     .lead { font-size: 1rem; }
