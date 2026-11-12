@@ -24,6 +24,7 @@
   import SignPicture from '../components/SignPicture.svelte';
   import Icon from '../components/Icon.svelte';
   import LetterTip from '../components/LetterTip.svelte';
+  import { createPeek } from '../lib/peek.svelte';
 
   type Game = 'daily' | 'practice';
   const ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
@@ -52,12 +53,7 @@
 
   // "How to sign this letter": hover a key or tile with a mouse, focus a key
   // from the keyboard, or press and hold a key on a touch screen.
-  let peek = $state<{ letter: string; rect: DOMRect }>();
-  let peekTimer: ReturnType<typeof setTimeout> | undefined;
-  /** Set when a press-and-hold opened the tip, so letting go doesn't also type the letter. */
-  let heldOpen = false;
-  const HOVER_MS = 300;
-  const HOLD_MS = 450;
+  const peek = createPeek();
 
   // Phones get a one-screen layout: the board sized to fit, with the keyboard
   // and a slim camera strip pinned above the tab bar.
@@ -278,55 +274,14 @@
     }
   }
 
-  function showTip(letter: string, el: Element) {
-    clearTimeout(peekTimer);
-    peek = { letter, rect: el.getBoundingClientRect() };
-  }
-
-  function hideTip() {
-    clearTimeout(peekTimer);
-    peek = undefined;
-  }
-
-  /** Mouse hover: a short wait, unless a tip is already open (then moving along the keys is instant). */
-  function hoverTip(e: PointerEvent, letter: string) {
-    if (e.pointerType !== 'mouse' || !letter) return;
-    const el = e.currentTarget as Element;
-    clearTimeout(peekTimer);
-    if (peek) showTip(letter, el);
-    else peekTimer = setTimeout(() => showTip(letter, el), HOVER_MS);
-  }
-
-  function holdTip(e: PointerEvent, letter: string) {
-    if (e.pointerType === 'mouse') return;
-    heldOpen = false;
-    const el = e.currentTarget as Element;
-    clearTimeout(peekTimer);
-    peekTimer = setTimeout(() => {
-      heldOpen = true;
-      showTip(letter, el);
-    }, HOLD_MS);
-  }
-
-  function releaseTip(e: PointerEvent) {
-    if (e.pointerType !== 'mouse') hideTip();
-  }
-
-  function focusTip(e: FocusEvent, letter: string) {
-    const el = e.currentTarget as Element;
-    if (el.matches(':focus-visible')) showTip(letter, el);
-  }
-
+  /** A key was pressed. A press-and-hold that showed the letter's tip doesn't also type it. */
   function pressKey(letter: string) {
-    if (heldOpen) {
-      heldOpen = false;
-      return;
-    }
+    if (peek.wasHold()) return;
     type(letter);
   }
 
   function onKey(e: KeyboardEvent) {
-    if (e.key === 'Escape') hideTip();
+    if (e.key === 'Escape') peek.hide();
     if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement) return;
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -340,7 +295,7 @@
   }
 </script>
 
-<svelte:window onkeydown={onKey} onscroll={hideTip} />
+<svelte:window onkeydown={onKey} onscroll={peek.hide} />
 
 <div class="five" class:phone>
   <header class="top">
@@ -396,8 +351,8 @@
                 class:cam={cell.cam}
                 style="--d: {i * 90}ms"
                 role="presentation"
-                onpointerenter={(e) => hoverTip(e, cell.c)}
-                onpointerleave={hideTip}
+                onpointerenter={(e) => peek.hover(e, cell.c.toLowerCase())}
+                onpointerleave={peek.hide}
               >
                 {#if cell.c}
                   {#if showShapes}
@@ -506,16 +461,16 @@
           <button
             class="key {marks.get(c) ?? ''}"
             onclick={() => pressKey(c)}
-            onpointerenter={(e) => hoverTip(e, c)}
-            onpointerleave={hideTip}
-            onpointerdown={(e) => holdTip(e, c)}
-            onpointerup={releaseTip}
-            onpointercancel={releaseTip}
+            onpointerenter={(e) => peek.hover(e, c.toLowerCase())}
+            onpointerleave={peek.hide}
+            onpointerdown={(e) => peek.hold(e, c.toLowerCase())}
+            onpointerup={peek.release}
+            onpointercancel={peek.release}
             oncontextmenu={(e) => e.preventDefault()}
-            onfocus={(e) => focusTip(e, c)}
-            onblur={hideTip}
+            onfocus={(e) => peek.focus(e, c.toLowerCase())}
+            onblur={peek.hide}
             aria-label={c}
-            aria-describedby={peek?.letter === c ? 'letter-tip' : undefined}
+            aria-describedby={peek.current?.sign === c.toLowerCase() ? 'letter-tip' : undefined}
           >
             {#if showShapes}<span class="kshape"><SignPicture id={c.toLowerCase()} size="100%" {mirror} /></span>{/if}
             <span>{c}</span>
@@ -544,8 +499,8 @@
     </label>
   </details>
 
-  {#if peek}
-    <LetterTip letter={peek.letter} anchor={peek.rect} {mirror} />
+  {#if peek.current}
+    <LetterTip sign={peek.current.sign} anchor={peek.current.rect} {mirror} />
   {/if}
 
   {#if over}

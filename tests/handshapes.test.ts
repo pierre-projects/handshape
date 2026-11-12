@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { computeFeatures } from '../app/src/lib/engine/features';
-import { evaluate, judge, looksLike, SPECS, T, thumbSticksOut } from '../app/src/lib/engine/handshapes';
+import { evaluate, judge, looksLike, openThumbOut, SPECS, T, thumbRaised, thumbSticksOut } from '../app/src/lib/engine/handshapes';
 import { HoldTimer, Smoother } from '../app/src/lib/engine/tracker';
 import { content } from '../app/src/lib/content';
 import { buildHand, STRAIGHT, type Pose } from './helpers/synthHand';
 import { POSES, REAL, TWINS } from './helpers/poses';
-import { classifyLetter } from '../app/src/lib/engine/reader';
+import { fist4 } from '../app/src/lib/engine/poses';
+import { front, mid } from './helpers/synthHand';
+import { classifyLetter, READABLE_NUMBERS, readLetter } from '../app/src/lib/engine/reader';
 
 const feats = (pose: Pose) => computeFeatures(buildHand(pose));
 const ids = [...SPECS.keys()];
@@ -248,9 +250,15 @@ describe('numbers 1 to 5 are not too strict', () => {
     }
   });
 
-  it('still needs the fingers fanned for 4 and 5', () => {
-    const closed = { ...POSES['5'], fingers: POSES.b.fingers };
-    expect(judge('5', feats(closed)).hint).toBe('Spread all your fingers apart.');
+  it('still needs the fingers fanned for 4, and asks for it in 5 without insisting', () => {
+    const four = judge('4', feats({ ...POSES['4'], fingers: POSES.b.fingers }));
+    expect(four.pass).toBe(false);
+    expect(four.hint).toBe('Spread your fingers apart.');
+    // 5 with the fingers together: nothing else it could be, so it counts, as a loose match.
+    const five = judge('5', feats({ ...POSES['5'], fingers: POSES.b.fingers }));
+    expect(five.pass).toBe(true);
+    expect(five.passAll).toBe(false);
+    expect(five.unsure).toEqual(['Spread all your fingers apart.']);
   });
 
   it('never lets one thumb count as both tucked and out', () => {
@@ -461,5 +469,296 @@ describe('P is not read as G or Q', () => {
       const f = feats({ ...POSES[id], fingers: { ...POSES[id].fingers, middle: [60, 80, 40, 0] } });
       expect(classifyLetter(f), id).toBe(id);
     }
+  });
+});
+
+describe('a relaxed 5 counts', () => {
+  const PALM = 'Turn your palm to face you, so the camera sees the back of your hand.';
+  /** Four fingers bent alike, with a spread from index to pinky. */
+  const fingers = (mcp: number, pip: number, dip: number, spread: number[]) => ({
+    index: [mcp, pip, dip, spread[0]] as [number, number, number, number],
+    middle: [mcp, pip, dip, spread[1]] as [number, number, number, number],
+    ring: [mcp, pip, dip, spread[2]] as [number, number, number, number],
+    pinky: [mcp, pip, dip, spread[3]] as [number, number, number, number],
+  });
+  const back = [{ rotateY: 180 }];
+  const lazy: Record<string, Pose> = {
+    curvedFingers: { fingers: fingers(15, 35, 25, [12, 2, -8, -18]), thumb: { line: [1, -0.6, 0] }, transforms: back },
+    fingersTogether: { fingers: fingers(5, 10, 8, [3, 0, -3, -6]), thumb: { line: [1, -0.6, 0] }, transforms: back },
+    restingThumb: { fingers: POSES['5'].fingers, thumb: { line: [0.5, -1, 0] }, transforms: back },
+    leaning: { ...POSES['5'], transforms: [{ rotateY: 180 }, { rotateZ: 55 }] },
+    leaningTheOtherWay: { ...POSES['5'], transforms: [{ rotateY: 180 }, { rotateZ: -55 }] },
+    palmPartlyTurned: { ...POSES['5'], transforms: [{ rotateY: 115 }] },
+    allOfIt: { fingers: fingers(15, 30, 20, [5, 0, -4, -9]), thumb: { line: [0.55, -1, 0] }, transforms: [{ rotateY: 180 }, { rotateZ: 30 }] },
+  };
+
+  it('reads each lazy 5 as a 5, among the numbers and as the sign being practiced', () => {
+    for (const [name, pose] of Object.entries(lazy)) {
+      const f = feats(pose);
+      expect(judge('5', f).pass, name).toBe(true);
+      expect(readLetter(f, READABLE_NUMBERS)?.letter, name).toBe('5');
+    }
+  });
+
+  it('used to turn most of them down', () => {
+    // The old rule: palm squarely toward you, upright, fingers straight and fanned, thumb stuck out.
+    const old = (f: ReturnType<typeof feats>) =>
+      f.facing === 'in' &&
+      f.handDirection === 'up' &&
+      (['index', 'middle', 'ring', 'pinky'] as const).every((x) => f.curl[x] <= T.extendedMax[x]) &&
+      f.spread.im + f.spread.mr + f.spread.rp >= T.fanMin &&
+      thumbSticksOut(f);
+    const rejected = Object.entries(lazy).filter(([, pose]) => !old(feats(pose))).map(([name]) => name);
+    expect(rejected.length).toBeGreaterThanOrEqual(5);
+    expect(old(feats(POSES['5']))).toBe(true);
+  });
+
+  it('holds a 5 with the fingers together a little longer, as a loose match', () => {
+    expect(readLetter(feats(lazy.fingersTogether), READABLE_NUMBERS)).toEqual({ letter: '5', sure: false });
+    expect(readLetter(feats(POSES['5']), READABLE_NUMBERS)).toEqual({ letter: '5', sure: true });
+  });
+
+  it('is still not a 5 with the palm to the camera, the thumb tucked, or the fingers folded', () => {
+    const out = judge('5', feats({ ...lazy.allOfIt, transforms: [] }));
+    expect(out.pass).toBe(false);
+    expect(out.hint).toBe(PALM);
+    expect(judge('5', feats(REAL.four)).hint).toBe('Move your thumb out to the side, away from your palm.');
+    expect(judge('5', feats({ ...POSES['5'], fingers: POSES.c.fingers })).pass).toBe(false);
+    expect(judge('5', feats({ ...POSES['5'], transforms: [{ rotateY: 180 }, { rotateZ: 120 }] })).hint).toBe('Point your fingers up.');
+  });
+
+  it('never lets one open hand be both a 4 and a 5, however the thumb lies', () => {
+    for (let deg = -80; deg <= 90; deg += 5) {
+      const a = (deg * Math.PI) / 180;
+      const thumb = { line: [Math.sin(a), -Math.cos(a) * 0.8, deg < 0 ? -0.4 : 0] as [number, number, number] };
+      for (const base of [REAL.four, REAL.fiveRelaxed, lazy.allOfIt]) {
+        const f = feats({ ...base, thumb });
+        expect(evaluate('4', f).pass && evaluate('5', f).pass, `4 and 5 at ${deg}`).toBe(false);
+      }
+    }
+    expect(openThumbOut(feats(REAL.four))).toBe(false);
+    expect(openThumbOut(feats(lazy.restingThumb))).toBe(true);
+  });
+
+  it('leaves the other numbers alone', () => {
+    for (const id of READABLE_NUMBERS) expect(readLetter(feats(POSES[id]), READABLE_NUMBERS)?.letter, id).toBe(id);
+    for (const [sign, name] of [['1', 'one'], ['2', 'two'], ['4', 'four']]) {
+      expect(readLetter(feats(REAL[name]), READABLE_NUMBERS)?.letter, name).toBe(sign);
+    }
+  });
+});
+
+describe('2 needs only a small gap between the fingers', () => {
+  /** A 2, palm toward you, with the index and middle fingers this many degrees apart. */
+  const two = (gap: number): Pose => ({
+    ...REAL.two,
+    fingers: { ...REAL.two.fingers, index: [0, 4, 4, gap / 2], middle: [0, 4, 4, -gap / 2] },
+  });
+
+  it('reads a narrow 2 as a full match, where it used to be turned down', () => {
+    for (const gap of [8, 10]) {
+      const f = feats(two(gap));
+      expect(f.spread.im, `${gap} degrees`).toBeLessThan(T.spreadMin);
+      expect(readLetter(f, READABLE_NUMBERS), `${gap} degrees`).toEqual({ letter: '2', sure: true });
+      expect(judge('2', f).passAll).toBe(true);
+    }
+  });
+
+  it('still counts with the fingers together, as a loose match that says to spread them', () => {
+    const f = feats(two(2));
+    expect(readLetter(f, READABLE_NUMBERS)).toEqual({ letter: '2', sure: false });
+    const j = judge('2', f);
+    expect(j.pass).toBe(true);
+    expect(j.unsure).toEqual(['Spread your index and middle fingers apart.']);
+  });
+
+  it('is still a 3 with the thumb out, and still needs the palm toward you', () => {
+    expect(readLetter(feats(POSES['3']), READABLE_NUMBERS)?.letter).toBe('3');
+    expect(evaluate('2', feats(POSES['3'])).pass).toBe(false);
+    expect(judge('2', feats({ ...two(8), transforms: [] })).pass).toBe(false);
+  });
+
+  it('leaves V and U as they were: the letters still need the gap to be told apart', () => {
+    expect(classifyLetter(feats(POSES.v))).toBe('v');
+    expect(classifyLetter(feats(POSES.u))).toBe('u');
+    const narrowV = feats({ ...POSES.v, fingers: { ...POSES.v.fingers, index: [0, 4, 4, 4], middle: [0, 4, 4, -4] } });
+    expect(evaluate('v', narrowV).pass).toBe(false);
+  });
+});
+
+describe('10 needs the thumb raised, not standing tall', () => {
+  /** A fist with the thumb along `line`, turned as given (a thumbs up by default). */
+  const fist = (line: [number, number, number], transforms: Pose['transforms'] = [{ rotateZ: -90 }]): Pose => ({
+    fingers: fist4,
+    thumb: { line },
+    transforms,
+  });
+  const lazy: Record<string, Pose> = {
+    halfRaised: fist([1, -0.7, 0]),
+    lowThumb: fist([0.6, -1, 0]),
+    uprightFist: fist([0.5, -1, 0], []),
+    leaning: fist([1, -0.15, 0], [{ rotateZ: -50 }]),
+    leaningBack: fist([1, -0.15, 0], [{ rotateZ: -125 }]),
+    thumbForward: fist([1, -0.3, -0.5]),
+  };
+
+  it('reads each lazy 10 as a 10', () => {
+    for (const [name, pose] of Object.entries(lazy)) {
+      const f = feats(pose);
+      expect(thumbRaised(f), name).toBe(true);
+      expect(readLetter(f, READABLE_NUMBERS)?.letter, name).toBe('10');
+    }
+  });
+
+  it('used to want the thumb half a palm clear of the fist, pointing straight up', () => {
+    const old = (f: ReturnType<typeof feats>) => f.thumbDirection === 'up' && f.thumbClear.up >= 0.38;
+    const rejected = Object.entries(lazy).filter(([, pose]) => !old(feats(pose))).map(([name]) => name);
+    expect(rejected).toEqual(expect.arrayContaining(['lowThumb', 'uprightFist']));
+    expect(old(feats(POSES['10']))).toBe(true);
+  });
+
+  it('still does not take a fist letter for a 10', () => {
+    for (const id of ['a', 's', 'e', 'm', 'n', 't', 'x']) {
+      const f = feats(POSES[id]);
+      expect(thumbRaised(f), id).toBe(false);
+      expect(readLetter(f, READABLE_NUMBERS), id).toBeUndefined();
+    }
+    for (const name of ['t', 'tLoose', 'tHigh', 'xLazy']) expect(thumbRaised(feats(REAL[name])), name).toBe(false);
+    // A turned on its side or tilted is still an A: its thumb lies along the fist.
+    for (const transforms of [[{ rotateY: 90 }], [{ rotateZ: -40 }], [{ rotateZ: -90 }]]) {
+      expect(thumbRaised(feats({ ...POSES.a, transforms })), JSON.stringify(transforms)).toBe(false);
+    }
+  });
+
+  it('is not a 10 with the thumb pointing down', () => {
+    expect(evaluate('10', feats(fist([1, -0.15, 0], [{ rotateZ: 90 }]))).pass).toBe(false);
+  });
+
+  it('leaves the letters reading as themselves', () => {
+    for (const id of ['a', 's', 'e', 'm', 'n', 't']) expect(classifyLetter(feats(POSES[id])), id).toBe(id);
+    expect(judge('a', feats(POSES.a)).pass).toBe(true);
+  });
+});
+
+describe('a lazy 3 is not a 2', () => {
+  /** A 3, palm toward you, with the thumb along `line`. */
+  const three = (line: [number, number, number], gap = 18): Pose => ({
+    ...POSES['3'],
+    fingers: { ...POSES['3'].fingers, index: [0, 4, 4, gap / 2], middle: [0, 4, 4, -gap / 2] },
+    thumb: { line },
+  });
+  const lazy: Record<string, Pose> = {
+    thumbBarelyOut: three([0.5, -1, 0]),
+    thumbLower: three([0.35, -1, 0]),
+    thumbForward: three([0.6, -1, -0.5]),
+    fingersClose: three([1, -0.4, 0], 8),
+    all: three([0.45, -1, -0.2], 8),
+  };
+
+  it('reads each lazy 3 as a 3', () => {
+    for (const [name, pose] of Object.entries(lazy)) {
+      const f = feats(pose);
+      expect(readLetter(f, READABLE_NUMBERS)?.letter, name).toBe('3');
+      expect(evaluate('2', f).pass, `${name} is not a 2`).toBe(false);
+    }
+  });
+
+  it('used to read several of them as a 2, or as nothing', () => {
+    // The old 3 wanted the thumb stuck straight out and the fingers 12 degrees apart; the old 2 took any thumb that wasn't.
+    const wasThree = (f: ReturnType<typeof feats>) => thumbSticksOut(f) && f.spread.im >= T.spreadMin;
+    const lost = Object.entries(lazy).filter(([, pose]) => !wasThree(feats(pose))).map(([name]) => name);
+    expect(lost.length).toBeGreaterThanOrEqual(3);
+    expect(Object.values(lazy).some((pose) => !thumbSticksOut(feats(pose)))).toBe(true);
+  });
+
+  it('still reads a 2 as a 2, with the thumb holding the fingers or resting beside them', () => {
+    expect(readLetter(feats(POSES['2']), READABLE_NUMBERS)?.letter).toBe('2');
+    expect(readLetter(feats(REAL.two), READABLE_NUMBERS)?.letter).toBe('2');
+    const beside = feats({ ...POSES['2'], thumb: { line: [0.15, -1, 0] } });
+    expect(openThumbOut(beside)).toBe(false);
+    expect(readLetter(beside, READABLE_NUMBERS)?.letter).toBe('2');
+  });
+
+  it('never lets one hand be both a 2 and a 3, however the thumb lies', () => {
+    for (let deg = -80; deg <= 90; deg += 5) {
+      const a = (deg * Math.PI) / 180;
+      const thumb = { line: [Math.sin(a), -Math.cos(a) * 0.8, deg < 0 ? -0.4 : 0] as [number, number, number] };
+      for (const base of [REAL.two, POSES['3'], lazy.all]) {
+        const f = feats({ ...base, thumb });
+        expect(evaluate('2', f).pass && evaluate('3', f).pass, `2 and 3 at ${deg}`).toBe(false);
+      }
+    }
+  });
+});
+
+describe("Q's index finger may bend at the knuckle", () => {
+  /** Q with the index bent this far at its knuckle, the thumb leaning the same way to stay beside it. */
+  const q = (knuckle: number, joints = 4): Pose => ({
+    ...POSES.q,
+    fingers: { ...POSES.q.fingers, index: [knuckle, joints, joints, 0] },
+    thumb: { line: [0.05, -1, -Math.tan((knuckle * Math.PI) / 180)] },
+  });
+
+  it('reads Q with the index bent 30 to 60 degrees at the knuckle, which it used to turn down', () => {
+    for (const knuckle of [30, 45, 60]) {
+      const f = feats(q(knuckle, 10));
+      expect(classifyLetter(f), `${knuckle} degrees`).toBe('q');
+      expect(judge('q', f).pass, `${knuckle} degrees`).toBe(true);
+    }
+    // The old rule counted the knuckle in the finger's bend.
+    expect(feats(q(60, 10)).curl.index).toBeGreaterThan(T.extendedMax.index);
+  });
+
+  it('still wants the finger itself straight, and pointing down', () => {
+    const hooked = judge('q', feats({ ...POSES.q, fingers: { ...POSES.q.fingers, index: [20, 70, 50, 0] } }));
+    expect(hooked.pass).toBe(false);
+    expect(hooked.hint).toBe('Keep your index finger straight; bend it only where it meets your hand.');
+    expect(judge('q', feats(POSES.g)).hint).toBe('Tip your hand so your index finger points down.');
+  });
+
+  it('is still told from P and G', () => {
+    expect(classifyLetter(feats(POSES.p))).toBe('p');
+    expect(classifyLetter(feats(POSES.g))).toBe('g');
+    expect(evaluate('q', feats(POSES.p)).pass).toBe(false);
+    for (const name of ['pSteep', 'pHidden']) expect(evaluate('q', feats(REAL[name])).pass, name).toBe(false);
+  });
+});
+
+describe('G and Q take a relaxed thumb', () => {
+  const thumbs: Record<string, Pose['thumb']> = {
+    angledAway45: { line: [1, -1, 0] },
+    angledAway55: { line: [1, -0.7, 0] },
+    leaningForward: { line: [0.05, -1, -1.2] },
+    touchingTheFingertip: { to: (p) => front(p.indexTip, 0.008) },
+    closeAlongTheFinger: { to: (p) => front(mid(p.indexPip, p.indexDip), 0.012) },
+  };
+
+  it('reads G and Q with the thumb angled away, leaning, or touching the finger', () => {
+    for (const id of ['g', 'q']) {
+      for (const [name, thumb] of Object.entries(thumbs)) {
+        expect(classifyLetter(feats({ ...POSES[id], thumb })), `${id} ${name}`).toBe(id);
+      }
+    }
+  });
+
+  it('used to turn most of those down', () => {
+    // The old rule: within 40 degrees of the index finger, and a quarter of a palm from its tip.
+    const old = (f: ReturnType<typeof feats>) => f.thumbIndexAngle <= 40 && f.thumbTo.indexTip >= 0.25;
+    const rejected = Object.entries(thumbs).filter(([, thumb]) => !old(feats({ ...POSES.g, thumb }))).map(([name]) => name);
+    expect(rejected).toEqual(['angledAway45', 'angledAway55', 'leaningForward', 'touchingTheFingertip']);
+  });
+
+  it('still turns down a thumb stuck out across the index, as in L', () => {
+    for (const id of ['g', 'q']) {
+      const j = judge(id, feats({ ...POSES[id], thumb: { line: [1, -0.15, 0] } }));
+      expect(j.pass, id).toBe(false);
+      expect(j.hint, id).toBe('Point your thumb the same way as your index finger.');
+    }
+  });
+
+  it('leaves the neighbors reading as themselves', () => {
+    for (const id of ['g', 'q', 'h', 'p', 'l', 'd', 'k']) expect(classifyLetter(feats(POSES[id])), id).toBe(id);
+    // An L on its side is not a G: its thumb is out across the index.
+    expect(classifyLetter(feats({ ...POSES.l, transforms: POSES.g.transforms }))).not.toBe('g');
   });
 });

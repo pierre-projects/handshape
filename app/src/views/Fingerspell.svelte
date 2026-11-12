@@ -1,10 +1,11 @@
 <script lang="ts">
   import { routes } from '../lib/routes';
   // Fingerspelling landing (#/fingerspelling). Sign Five, the daily word game,
-  // leads the page with today's board; under it are the two drills (reading
-  // and spelling), then the word lists they use. Each is its own page:
-  // SignFive (#/fingerspelling/sign-five), ReadHome and its levels
-  // (#/fingerspelling/read) and SpellDrill (#/fingerspelling/spell).
+  // leads the page with today's board; under it are the drills (reading,
+  // spelling and the numbers game), then the word lists they use. Each is its
+  // own page: SignFive (#/fingerspelling/sign-five), ReadHome and its levels
+  // (#/fingerspelling/read), SpellDrill (#/fingerspelling/spell) and SignSums
+  // (#/fingerspelling/sums).
   import { onMount } from 'svelte';
   import { getStore } from '../lib/app';
   import { spellingSummary } from '../lib/spelling';
@@ -124,6 +125,19 @@
     </div>
     <span class="go">Start spelling<Icon name="arrow-right" size={18} /></span>
   </a>
+
+  <a class="mode-card spell" href={routes.sums}>
+    <div class="art" aria-hidden="true">
+      <span class="sum-art">3 + 4 =</span><span class="tile now">?</span>
+      <span class="art-icon"><Icon name="camera" size={22} /></span>
+    </div>
+    <div class="mode-body">
+      <span class="kicker"><Icon name="signs" size={15} />Numbers</span>
+      <h2>Sign the answer</h2>
+      <p>A sum appears and you sign the answer to your camera. Ten sums a round, with the numbers 0 to 10.</p>
+    </div>
+    <span class="go">Start counting<Icon name="arrow-right" size={18} /></span>
+  </a>
 </div>
 
 <h2 class="section-title">Words to practice</h2>
@@ -152,7 +166,7 @@
   .hub-head { margin: 4px 0 16px; }
   .hub-head h1 { margin: 0 0 4px; }
   .hub-head p { margin: 0; }
-  .modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }
   .mode-card {
     display: grid; grid-template-rows: auto 1fr auto; overflow: hidden;
     border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
@@ -176,6 +190,7 @@
     border: 1px solid var(--line-strong); background: var(--surface); font-size: 1.7rem; font-weight: 700; color: var(--ink-3);
   }
   .tile.ok { border-color: var(--good); background: var(--good-soft); color: var(--good); }
+  .sum-art { font-size: 2rem; font-weight: 750; color: var(--m); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .tile.now { border: 2px solid var(--m); color: var(--m); box-shadow: 0 0 0 3px color-mix(in srgb, var(--m) 18%, transparent); }
   .mode-body { padding: 16px 18px 4px; }
   .mode-body h2 { margin: 4px 0 6px; font-size: 1.4rem; }
@@ -228,6 +243,10 @@
   .section-title { font-size: 1.05rem; margin: 0 0 10px; }
   .weak { margin-top: 16px; padding: 12px 16px; }
   .weak p { margin: 0; }
+  /* Three cards need the full width; on a narrower screen the third sits under the first two. */
+  @media (max-width: 940px) {
+    .modes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
   @media (max-width: 760px) {
     .modes { grid-template-columns: 1fr; }
     .art { height: 104px; }

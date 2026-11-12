@@ -1,18 +1,24 @@
 <script lang="ts">
-  // How to make a letter's handshape, in a small card that floats by the key or
-  // tile it belongs to. The words come from the alphabet content, so they match
-  // the Learn pages.
-  import { letters } from '../lib/fingerspell';
+  // How to make a letter's or a number's handshape, in a small card that floats
+  // by the key or tile it belongs to. The words come from the content, so they
+  // match the Signs pages.
+  import { content } from '../lib/content';
   import SignPicture from './SignPicture.svelte';
 
   let {
-    letter,
+    sign,
     anchor,
     mirror = false,
     id = 'letter-tip',
-  }: { letter: string; anchor: DOMRect; mirror?: boolean; id?: string } = $props();
+  }: {
+    /** The sign's id in the content: a lower-case letter or a number. */
+    sign: string;
+    anchor: DOMRect;
+    mirror?: boolean;
+    id?: string;
+  } = $props();
 
-  const item = $derived(letters.get(letter.toUpperCase()));
+  const item = $derived(content.byId.get(sign));
   /** The first two tips at most: one line is usually enough, P needs its second. */
   const tips = $derived((item?.tips ?? []).slice(0, 2));
 
@@ -39,7 +45,7 @@
       <span class="pic"><SignPicture id={item.id} size="100%" {mirror} /></span>
       <div>
         <p class="eyebrow">How to sign</p>
-        <p class="letter">{letter.toUpperCase()}</p>
+        <p class="letter">{item.answer}</p>
       </div>
     </div>
     <p class="shape">{item.handshape}</p>

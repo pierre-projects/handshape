@@ -3,6 +3,9 @@
   // held steady, and types J and Z when they're drawn in the air. A thumbs up
   // held the same way is Enter, and a thumbs down is Delete. Fast movement,
   // unclear shapes and long holds don't type.
+  //
+  // With mode "numbers" it reads the numbers 0 to 10 instead. There is nothing
+  // to enter or delete then, and the thumbs up is the number 10.
   import { onDestroy } from 'svelte';
   import { computeFeatures } from '../lib/engine/features';
   import { isCommand, type Command } from '../lib/engine/gestures';
@@ -10,7 +13,7 @@
   import { cameraSupported, drawHand, drawTrail, HandTracker, problemMessage } from '../lib/engine/camera';
   import type { MoveId, Pt } from '../lib/engine/movement';
   import { Smoother, Steady } from '../lib/engine/tracker';
-  import { CameraTyper, isMoving, type TyperState } from '../lib/engine/reader';
+  import { CameraTyper, isMoving, READABLE_NUMBERS, type NearMiss, type TyperState } from '../lib/engine/reader';
 
   let {
     enabled = true,
@@ -21,6 +24,7 @@
     onCommand,
     compact = false,
     confirmWord = '',
+    mode = 'letters',
   }: {
     /** When false, nothing is read at all (game over). */
     enabled?: boolean;
@@ -36,7 +40,11 @@
     compact?: boolean;
     /** The word a thumbs up would enter, shown large while the thumbs up is held. Empty when there's nothing to enter yet. */
     confirmWord?: string;
+    /** What the camera reads: the letters (with the Enter and Delete gestures), or the numbers 0 to 10 alone. */
+    mode?: 'letters' | 'numbers';
   } = $props();
+
+  const numbers = $derived(mode === 'numbers');
 
   let status = $state<'off' | 'loading' | 'running' | 'error'>('off');
   let error = $state('');
@@ -52,6 +60,8 @@
   let waiting = $state(false);
   /** The held letter is a loose match, so it needs a longer hold. */
   let unsure = $state(false);
+  /** Numbers only: the number the hand is one fix away from, and the fix. */
+  let near = $state<NearMiss>();
   let drawing = $state<MoveId>();
   let trail: Pt[] = [];
   let flash = $state<string>();
@@ -86,7 +96,7 @@
     const result = await tracker.start();
     if (result !== 'ok') {
       status = 'error';
-      error = problemMessage(result, 'You can still type with the keyboard.');
+      error = problemMessage(result, numbers ? 'You can still tap the numbers.' : 'You can still type with the keyboard.');
       return;
     }
     status = 'running';
@@ -111,7 +121,10 @@
     prevPoints = frame.image;
     prevTime = now;
     const smooth = smoother.push(frame);
-    if (enabled) apply(typer.update(smooth, computeFeatures(smooth), moving, now, { letters }));
+    if (enabled) {
+      const what = numbers ? { signs: READABLE_NUMBERS, commands: false } : {};
+      apply(typer.update(smooth, computeFeatures(smooth), moving, now, { letters, raw: frame, ...what }));
+    }
     draw(smooth);
     settle(now);
   }
@@ -127,6 +140,9 @@
     progress = s.progress;
     waiting = s.waitingForRelease;
     unsure = !!s.unsure;
+    near = s.near;
+    // A hand shaking a 10 is moving on purpose: don't tell it to hold still.
+    if (s.moving === false) moving = false;
     drawing = s.drawing;
     trail = s.trail;
     if (s.command) onCommand?.(s.command);
@@ -186,8 +202,12 @@
                     ? unsure
                       ? `Hold ${reading.toUpperCase()} a little longer…`
                       : `Hold ${reading.toUpperCase()}…`
-                    : letters
-                      ? 'Make a letter'
+                    : near
+                      ? `Almost ${near.sign.toUpperCase()}. ${near.hint}`
+                      : letters
+                        ? numbers
+                          ? 'Sign a number'
+                          : 'Make a letter'
                       : 'Thumbs up to enter, thumbs down to delete',
   );
   /** A thumbs up is being held over a full word: show the word at once, so it can be read before it enters. */
@@ -197,11 +217,17 @@
 </script>
 
 {#if !supported}
-  <p class="small muted">Camera typing needs a secure (https) page. Use the keyboard instead.</p>
+  <p class="small muted">Camera typing needs a secure (https) page. {numbers ? 'Tap the numbers instead.' : 'Use the keyboard instead.'}</p>
 {:else if status === 'off' || status === 'error'}
   <div class="off" class:compact>
-    <button class="primary" onclick={start}>Spell with camera</button>
-    {#if !compact}<span class="small muted">Hold each letter for about a second to type it. Thumbs up enters, thumbs down deletes. Video stays on this device.</span>{/if}
+    <button class="primary" onclick={start}>{numbers ? 'Sign with camera' : 'Spell with camera'}</button>
+    {#if !compact}
+      <span class="small muted">
+        {numbers
+          ? 'Hold each number for about a second to answer. Video stays on this device.'
+          : 'Hold each letter for about a second to type it. Thumbs up enters, thumbs down deletes. Video stays on this device.'}
+      </span>
+    {/if}
     {#if error}<p class="small err" role="alert">{error}</p>{/if}
   </div>
 {:else}

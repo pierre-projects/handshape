@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { clearReturn, parseRoute, routes, type Route } from './lib/routes';
+  import { FEEDBACK_URL } from './lib/roadmap';
   import About from './views/About.svelte';
   import Home from './views/Home.svelte';
   import Review from './views/Review.svelte';
@@ -11,6 +12,7 @@
   import ReadSession from './views/ReadSession.svelte';
   import SpellDrill from './views/SpellDrill.svelte';
   import SignFive from './views/SignFive.svelte';
+  import SignSums from './views/SignSums.svelte';
   import Progress from './views/Progress.svelte';
   import Practice from './views/Practice.svelte';
   import Icon from './components/Icon.svelte';
@@ -84,6 +86,8 @@
         <SpellDrill />
       {:else if route.name === 'fingerspelling' && route.param === 'sign-five'}
         <SignFive />
+      {:else if route.name === 'fingerspelling' && route.param === 'sums'}
+        <SignSums />
       {:else if route.name === 'fingerspelling'}
         <Fingerspell />
       {:else if route.name === 'dashboard'}
@@ -100,6 +104,7 @@
 <footer class="wrap small muted">
   <span>Camera video and your progress stay on this device. Nothing is uploaded.</span>
   <a href={routes.about} aria-current={route.name === 'about' ? 'page' : undefined}>About Handshape</a>
+  {#if FEEDBACK_URL}<a href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">Send feedback</a>{/if}
 </footer>
 
 <nav class="tabbar" aria-label="Main">

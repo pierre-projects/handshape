@@ -34,7 +34,7 @@ export interface SignSpec {
   checks: Check[];
   /**
    * Signs with movement (J, Z, 10). These checks cover the starting handshape;
-   * J and Z's drawn letter is checked in movement.ts, 10's shake isn't checked yet.
+   * the movement itself is checked in movement.ts: J and Z's drawn letter, and 10's shake.
    */
   movement?: string;
 }
@@ -85,7 +85,8 @@ export const T = {
   thumbAsideMax: -0.1,
   /** Least total spread across the four fingers (degrees) for an open, fanned hand. */
   fanMin: 20,
-  thumbParallelMax: 40,
+  /** G and Q: most angle between the thumb and the index finger. A relaxed thumb is 30 to 55 degrees off; an L's is 80. */
+  thumbParallelMax: 60,
   crossMin: 0.05,
   /** Degrees from straight up; 100 is just below horizontal. */
   tippedDownMin: 100,
@@ -96,6 +97,43 @@ export const T = {
    */
   raiseKnuckleMin: 40,
   raiseTipMin: 0.3,
+  /**
+   * 10: the thumb is raised off the fist. It doesn't have to stand tall: what
+   * sets it apart from every fist letter is where it is. In A it lies along the
+   * fist (5 degrees from the hand, tip 0.3 outside the index knuckle); in S, E,
+   * M, N and T it sits over or under the fingers (tip inside that knuckle). A
+   * raised thumb, even a lazy one, is 20 degrees or more from the hand with its
+   * tip 0.8 or more outside.
+   */
+  ten: {
+    thumbOutMin: 20,
+    thumbAcrossMax: -0.5,
+  },
+  /**
+   * 2: the least angle between the index and middle fingers for a full match.
+   * V has to be told from U, so it needs spreadMin; with the palm toward you
+   * there is no number or letter made with the two fingers together, so 2
+   * needs only a small gap, and with none it still counts as a loose match.
+   */
+  twoSpreadMin: 6,
+  /**
+   * 5 is an open hand, and an open hand held without effort is not a flat,
+   * fanned one: the fingers curve, sit close together and lean, the thumb rests
+   * a little way out, and the palm turns part of the way round. Nothing else
+   * from 0 to 10 looks like that, so 5 can take all of it. What still makes it
+   * a 5 and not a 4 is the thumb: its tip outside the index knuckle.
+   */
+  five: {
+    /** Most bend in a finger. A C is curved to about 100 on purpose; a relaxed open finger stays under this. */
+    curlMax: { index: 90, middle: 90, ring: 95, pinky: 100 } as Record<Finger, number>,
+    /** Least angle between the thumb and the hand's long axis. A resting thumb is only 20 to 30 degrees out. */
+    thumbOutMin: 20,
+    thumbBendMax: 90,
+    /** A thumb tip this far outside the index knuckle is out, whatever its angle or bend reads as. */
+    thumbClearlyAside: -0.5,
+    /** Most lean of the hand from straight up, either way. */
+    tiltMax: 75,
+  },
   /**
    * C is a firm, even cup. The plain bent() range (35 to 200) takes in almost
    * any relaxed hand, so C has its own: clearly curved but not near a fist, all
@@ -313,14 +351,61 @@ const thumbIn: Check = {
   reliable: true,
 };
 
-/** 4: the thumb must not stick out, or it is a 5. */
-const thumbTuckedIn: Check = { ...thumbIn, id: 'thumb-tucked', hint: 'Fold your thumb across your palm.' };
+/**
+ * The thumb is out, however lazily: its tip well outside the index knuckle,
+ * or a little outside it and angled away from the hand. It is the only thing
+ * between 4 and 5, and between 2 and 3: 5 and 3 require it, 4 and 2 forbid it,
+ * so one hand is never both. (L, Y and the letters keep the stricter
+ * thumbSticksOut.)
+ */
+export function openThumbOut(f: Features): boolean {
+  if (f.thumbAcross <= T.five.thumbClearlyAside) return true;
+  return f.thumbAcross <= T.thumbAsideMax && f.thumbOut >= T.five.thumbOutMin && f.thumbBend <= T.five.thumbBendMax;
+}
 
+/** 10: the thumb is raised off the fist (see T.ten). */
+export function thumbRaised(f: Features): boolean {
+  return f.thumbBend <= T.thumbStraightMax && f.thumbOut >= T.ten.thumbOutMin && f.thumbAcross <= T.ten.thumbAcrossMax;
+}
+
+/** 2: the thumb holds the other fingers, or at least isn't out; with it out the hand is a 3. */
+const thumbNotOut: Check = { ...thumbIn, id: 'thumb-not-out', test: (f) => !openThumbOut(f) };
+
+/** 4: the thumb must not be out, or it is a 5. */
+const thumbTuckedIn: Check = { ...thumbIn, id: 'thumb-tucked', test: (f) => !openThumbOut(f), hint: 'Fold your thumb across your palm.' };
+
+/** 5: the thumb only has to be out, not stuck straight out to the side. */
+const thumbOpen: Check = {
+  id: 'thumb-open',
+  param: 'handshape',
+  test: openThumbOut,
+  hint: 'Move your thumb out to the side, away from your palm.',
+  parts: ['thumb'],
+  reliable: true,
+};
+
+/** 5: an open finger, straight or relaxed into a curve, but not folded. */
+const open = (finger: Finger): Check => ({
+  id: `${finger}-open`,
+  param: 'handshape',
+  test: (f) => f.curl[finger] <= T.five.curlMax[finger],
+  hint: `Open your ${NAMES[finger]} finger.`,
+  parts: [finger],
+  reliable: true,
+});
+
+/**
+ * G and Q: the thumb goes the same way as the index finger, give or take. How
+ * close it sits to the finger doesn't matter: fluent signers hold it anywhere
+ * from touching to well apart, and no other letter is made sideways or
+ * pointing down with these fingers, so there is nothing to mistake it for.
+ * Only a thumb stuck out across the index, as in L, is turned down.
+ */
 const thumbParallel: Check = {
   id: 'thumb-parallel',
   param: 'handshape',
-  test: (f) => f.thumbIndexAngle <= T.thumbParallelMax && f.thumbTo.indexTip >= 0.25,
-  hint: 'Hold your thumb straight, parallel to your index finger, with a small gap.',
+  test: (f) => f.thumbIndexAngle <= T.thumbParallelMax,
+  hint: 'Point your thumb the same way as your index finger.',
   parts: ['thumb'],
   reliable: true,
 };
@@ -394,6 +479,16 @@ const fanned = (hint: string): Check => ({
   parts: ['index', 'middle', 'ring', 'pinky'],
   reliable: true,
 });
+
+/** 2: a small gap between the two fingers is enough, and it is advice, not a condition (see T.twoSpreadMin). */
+const twoApart: Check = {
+  id: 'apart-im',
+  param: 'handshape',
+  test: (f) => f.spread.im >= T.twoSpreadMin,
+  hint: 'Spread your index and middle fingers apart.',
+  parts: ['index', 'middle'],
+  reliable: false,
+};
 
 const crossed: Check = {
   id: 'crossed',
@@ -557,6 +652,12 @@ const cThumbUnder: Check = {
   reliable: true,
 };
 
+/** 5: the palm toward you or turned part of the way, but not toward the camera. */
+const palmNotOut: Check = { ...palmIn, id: 'palm-not-out', test: (f) => f.facing !== 'out' };
+
+/** 5: fingers up, give or take a lean. */
+const upright: Check = { ...pointsUp, id: 'upright', test: (f) => Math.abs(f.handAngle) <= T.five.tiltMax };
+
 const curledAll = (...fs: Finger[]) => fs.map(curled);
 const extendedAll = (...fs: Finger[]) => fs.map(extended);
 /** The same check as advice only: reported, never blocking. */
@@ -695,7 +796,16 @@ const S: SignSpec[] = [
   },
   {
     id: 'q',
-    checks: [extended('index'), ...curledAll('middle', 'ring', 'pinky'), middleFolded, thumbParallel, indexDown],
+    checks: [
+      // Q is G tipped down, and tipping the hand down bends the index at its knuckle; the camera
+      // also looks along the finger, as it does in P. So the index only has to be straight in
+      // itself. Which way it points is checked by indexDown.
+      straight('index'),
+      ...curledAll('middle', 'ring', 'pinky'),
+      middleFolded,
+      thumbParallel,
+      indexDown,
+    ],
   },
   {
     id: 'r',
@@ -797,22 +907,17 @@ const S: SignSpec[] = [
       palmIn,
       pointsUp,
       ...extendedAll('index', 'middle'),
-      apart('im', 'Spread your index and middle fingers apart.'),
+      twoApart,
       notCrossed,
-      thumbIn,
+      thumbNotOut,
       ...curledAll('ring', 'pinky'),
     ],
   },
   {
     id: '3',
-    checks: [
-      palmIn,
-      pointsUp,
-      ...extendedAll('index', 'middle'),
-      apart('im', 'Spread your index and middle fingers apart.'),
-      thumbOut,
-      ...curledAll('ring', 'pinky'),
-    ],
+    // The thumb only has to be out (see openThumbOut), and the two fingers need only a small
+    // gap, as in 2: a 3 made without effort used to read as a 2.
+    checks: [palmIn, pointsUp, ...extendedAll('index', 'middle'), twoApart, thumbOpen, ...curledAll('ring', 'pinky')],
   },
   {
     id: '4',
@@ -827,13 +932,10 @@ const S: SignSpec[] = [
   },
   {
     id: '5',
-    checks: [
-      palmIn,
-      pointsUp,
-      ...extendedAll('index', 'middle', 'ring', 'pinky'),
-      fanned('Spread all your fingers apart.'),
-      thumbOut,
-    ],
+    // A relaxed open hand counts (see T.five). Spreading the fingers is still what the sign
+    // asks for, so a hand with them together matches loosely: it is held a little longer
+    // before it types, and the camera pages say to spread them.
+    checks: [palmNotOut, upright, ...FOUR.map(open), thumbOpen, advice(fanned('Spread all your fingers apart.'))],
   },
   {
     id: '6',
@@ -856,13 +958,16 @@ const S: SignSpec[] = [
     movement: 'Shake your thumb slightly.',
     checks: [
       ...curledAll('index', 'middle', 'ring', 'pinky'),
+      // The thumb raised off the fist is what makes a fist a 10 (see T.ten). Without it any
+      // closed fist counted as a 10 wherever only numbers are read. It need not stand tall or
+      // point straight up, only not down: that is a thumbs down.
       {
         id: 'thumb-up',
-        param: 'orientation',
-        test: (f) => f.thumbBend <= T.thumbStraightMax && f.thumbDirection === 'up' && f.facing !== 'out',
-        hint: 'Point your thumb straight up, with your fist turned sideways.',
-        parts: ['thumb', 'hand'],
-        reliable: false,
+        param: 'handshape',
+        test: (f) => thumbRaised(f) && f.thumbDirection !== 'down',
+        hint: 'Lift your thumb off your fist and point it up.',
+        parts: ['thumb'],
+        reliable: true,
       },
     ],
   },
@@ -945,16 +1050,21 @@ export function judge(target: string, features: Features, candidates: Iterable<s
   return { ...e, pass: false, hint: doubt?.hint ?? e.hint, focus: doubt?.parts ?? e.focus, rivals };
 }
 
+/** Letters drawn in the air. They start from another letter's handshape (I, D), so a still hand is never "really" one of them. */
+const DRAWN = new Set(['j', 'z']);
+
 /**
  * Other signs the current hand matches fully, so feedback can say
- * "that looks like S". Signs with movement are left out.
+ * "that looks like S". The drawn letters J and Z are left out. 10 is not: a
+ * fist with the thumb standing up is a 10 whether or not it is being shaken,
+ * and must not pass loosely for A, S and the other fist letters.
  */
 export function looksLike(features: Features, candidates: Iterable<string>, exclude?: string): string[] {
   const out: string[] = [];
   for (const id of candidates) {
     if (id === exclude) continue;
     const spec = SPECS.get(id);
-    if (!spec || spec.movement) continue;
+    if (!spec || DRAWN.has(id)) continue;
     if (evaluate(id, features).passAll) out.push(id);
   }
   return out;

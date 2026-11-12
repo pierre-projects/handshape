@@ -6,6 +6,7 @@ Every file here is run by `tests/fixtures.test.ts`:
 
 - a **still sign** must match on most of its frames;
 - a **drawn letter** (J or Z, marked `"movement": true`) is replayed and must be recognized.
+- a **shaken 10** (also marked `"movement": true`) is replayed and its shake must be seen.
 
 ## Adding a sample
 
@@ -15,9 +16,10 @@ leaves it out.
 1. Run `npm run dev` and open **Camera practice** (Signs, then "Practice on camera") and pick the sign, or open a
    "Sign it" card in Review. Turn on the camera.
 2. Make the sign correctly. For J and Z, hold the handshape still for a moment, then draw the
-   letter. The camera should not need to accept it for the sample to be useful.
+   letter. For 10, hold the thumb-up fist for a moment, then shake it as you naturally would.
+   The camera should not need to accept it for the sample to be useful.
 3. Open **Details** and press **Save sample** straight away. This downloads the last second of
-   hand points (about three seconds for J and Z) as JSON.
+   hand points (about three seconds for J, Z and 10) as JSON.
 4. Put the file in this folder and run `npm test`.
 
 If the test fails, the checks are too strict for real hands. Look at the failing check in the
@@ -42,6 +44,9 @@ a correct sign is missing.
   (`indexStandsUp`, thresholds `raiseKnuckleMin` and `raiseTipMin`). Details shows the two numbers
   live as "index raise". Samples of both letters set the boundary.
 - **J and Z**, drawn at your natural size and speed.
+- **10, shaken.** Its shake is checked by `REPEATS['10']` in `movement.ts`: how far the thumb tip
+  must swing (`swing`), how many times it must turn round (`turns`) and how quickly (`windowMs`).
+  These are first estimates with no recordings behind them yet.
 
 ## Format
 
@@ -55,4 +60,4 @@ a correct sign is missing.
 }
 ```
 
-`t` is milliseconds since the first frame. `movement` is only present (and `true`) for J and Z.
+`t` is milliseconds since the first frame. `movement` is only present (and `true`) for J, Z and 10.

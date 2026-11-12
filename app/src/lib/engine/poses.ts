@@ -110,5 +110,6 @@ export const POSES: Record<string, Pose> = {
     thumb: { to: (p) => front(p.middleTip, 0.006) },
   },
   '9': f,
-  '10': { ...a, transforms: [{ rotateY: 90 }] },
+  // A fist on its side with the thumb standing straight up, clear of it.
+  '10': { fingers: fist4, thumb: { line: [1, -0.15, 0] }, transforms: [{ rotateZ: -90 }] },
 };

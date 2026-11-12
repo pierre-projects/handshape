@@ -19,6 +19,8 @@ export const routes = {
   readFree: '#/fingerspelling/read/free',
   spell: '#/fingerspelling/spell',
   signFive: '#/fingerspelling/sign-five',
+  /** Sign the answer: sums answered by signing a number. */
+  sums: '#/fingerspelling/sums',
   dashboard: '#/dashboard',
   lists: '#/dashboard/lists',
   list: (id: string) => `#/dashboard/lists/${encodeURIComponent(id)}`,
@@ -70,7 +72,7 @@ export function pageTitle(hash: string): string {
   const { name, param, sub } = parseRoute(hash);
   if (name === 'fingerspelling') {
     if (param === 'read') return sub === 'free' ? 'Free reading practice' : 'Reading';
-    return { spell: 'Spell drill', 'sign-five': 'Sign Five' }[param ?? ''] ?? 'Fingerspelling';
+    return { spell: 'Spell drill', 'sign-five': 'Sign Five', sums: 'Sign the answer' }[param ?? ''] ?? 'Fingerspelling';
   }
   return (
     { '': 'Today', review: 'Review', signs: 'Signs', camera: 'Camera practice', dashboard: 'Dashboard', about: 'About' }[name] ?? 'Today'

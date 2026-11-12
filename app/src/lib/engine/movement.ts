@@ -1,10 +1,13 @@
-// Movement checks for letters drawn in the air: J (with the pinky) and Z (with
+// Movement checks. Letters drawn in the air: J (with the pinky) and Z (with
 // the index finger). A fingertip is followed from frame to frame; when it has
-// drawn a stroke, the stroke's shape is compared with the letter's.
+// drawn a stroke, the stroke's shape is compared with the letter's. And, at the
+// end of the file, small movements made twice: the shake in 10.
 //
 // Points are in image space: x to the right of the camera picture, y down, with
 // x already multiplied by the picture's aspect ratio so distances are true.
 // The camera picture is not mirrored, so the signer's right is the picture's left.
+import { dist } from './geometry';
+import { screenScale } from './guide';
 import { LM, type HandFrame } from './hand';
 
 export interface Pt {
@@ -411,4 +414,149 @@ export class StrokeTracker {
     }
     return this.state();
   }
+}
+
+// ---- Repeats: a small movement made twice (10's shake) ----
+//
+// A drawn letter is a path; a shake is not. What marks it is one measurement
+// swinging one way, back, and out again inside a second or so. The same check
+// will serve the flicks and taps of the numbers above 10, each on its own
+// measurement (see docs/numbers-plan.md).
+
+export interface RepeatOptions {
+  /** The smallest swing that counts, in the measurement's own units. Tracking jitter must stay under it. */
+  swing: number;
+  /** How many times the measurement must turn round. 2 is out, back and out again. */
+  turns: number;
+  /** The turns must all fall inside this long. */
+  windowMs: number;
+  /** How long the measurement may be missing (hand lost, handshape dropped) before the count starts again. */
+  graceMs: number;
+}
+
+export interface RepeatState {
+  /** Turns counted so far. */
+  turns: number;
+  /** 0 to 1 toward a match, for a progress ring. */
+  progress: number;
+  /** Set on the one update the movement is complete. */
+  matched: boolean;
+}
+
+/**
+ * Counts how often one measurement turns round. Feed it every frame: the
+ * measurement, or undefined while the hand is away or not in the handshape.
+ * A slow drift never turns, a single nudge turns once, and wobble smaller than
+ * `swing` is ignored, so none of them match.
+ */
+export class RepeatTracker {
+  /** Which way the measurement is heading: +1 up, -1 down, 0 not yet known. */
+  private dir = 0;
+  /** The furthest it has got that way since the last turn. */
+  private extreme = 0;
+  /** Lowest and highest seen while the direction is still unknown. */
+  private low = 0;
+  private high = 0;
+  private started = false;
+  /** When this movement began: the first swing, which no turn marks. */
+  private since = 0;
+  private turnsAt: number[] = [];
+  private lastSeen?: number;
+
+  constructor(readonly opts: RepeatOptions) {}
+
+  reset(): void {
+    this.dir = 0;
+    this.started = false;
+    this.turnsAt = [];
+    this.lastSeen = undefined;
+  }
+
+  private state(matched = false): RepeatState {
+    const strokes = this.dir === 0 ? 0 : this.turnsAt.length + 1;
+    return { turns: this.turnsAt.length, progress: Math.min(1, strokes / (this.opts.turns + 1)), matched };
+  }
+
+  update(value: number | undefined, now: number): RepeatState {
+    const o = this.opts;
+    if (value === undefined || !Number.isFinite(value)) {
+      if (this.lastSeen !== undefined && now - this.lastSeen > o.graceMs) this.reset();
+      return this.state();
+    }
+    this.lastSeen = now;
+
+    if (!this.started) {
+      this.started = true;
+      this.low = this.high = value;
+      return this.state();
+    }
+
+    if (this.dir === 0) {
+      this.low = Math.min(this.low, value);
+      this.high = Math.max(this.high, value);
+      if (this.high - this.low >= o.swing) {
+        // The first swing: it sets the direction but is not a turn.
+        this.dir = value >= this.high ? 1 : -1;
+        this.extreme = value;
+        this.since = now;
+      }
+      return this.state();
+    }
+
+    // A movement that never finished is forgotten, so a nudge now and another much later are not a shake.
+    const last = this.turnsAt.length ? this.turnsAt[this.turnsAt.length - 1] : this.since;
+    if (now - last > o.windowMs) {
+      this.dir = 0;
+      this.turnsAt = [];
+      this.low = this.high = value;
+      return this.state();
+    }
+
+    if ((value - this.extreme) * this.dir > 0) {
+      this.extreme = value;
+    } else if ((this.extreme - value) * this.dir >= o.swing) {
+      this.turnsAt.push(now);
+      this.dir = -this.dir;
+      this.extreme = value;
+    }
+    this.turnsAt = this.turnsAt.filter((t) => now - t <= o.windowMs);
+    if (this.turnsAt.length < o.turns) return this.state();
+
+    const done = this.state(true);
+    this.reset();
+    return { ...done, progress: 1 };
+  }
+}
+
+export interface RepeatSpec {
+  /** The measurement that swings, read from one frame. Use the frame as the camera gave it: smoothing flattens a quick movement. */
+  measure: (frame: HandFrame) => number;
+  options: RepeatOptions;
+  /** Shown once the handshape is held. */
+  prompt: string;
+}
+
+/** The palm's real length in the picture, even when the fist points at the camera. */
+export function screenPalm(frame: HandFrame): number {
+  return screenScale(frame) * dist(frame.world[LM.WRIST], frame.world[LM.MIDDLE_MCP]);
+}
+
+/**
+ * Signs made by repeating a small movement. First estimates, to be set from
+ * recorded samples (fixtures/handshapes).
+ *
+ * 10: the thumb-up fist shaken from side to side. The thumb tip's place across
+ * the picture, in palm lengths, swings whether the wrist twists or the whole
+ * fist wags. A twist of 10 degrees each way moves it about 0.2 either side.
+ */
+export const REPEATS: Record<string, RepeatSpec> = {
+  '10': {
+    measure: (frame) => imagePoint(frame, LM.THUMB_TIP).x / (screenPalm(frame) || 1),
+    options: { swing: 0.12, turns: 2, windowMs: 1500, graceMs: 300 },
+    prompt: 'Now give it a small shake, side to side.',
+  },
+};
+
+export function hasRepeat(id: string): boolean {
+  return id in REPEATS;
 }

@@ -5,10 +5,13 @@ import type { Features } from './features';
 import { classifyCommand, isCommand, type Command } from './gestures';
 import type { HandFrame } from './hand';
 import { evaluate, judge, SPECS } from './handshapes';
-import { imagePalm, imagePoint, MOVES, StrokeTracker, thumbSide, type MoveId, type Pt } from './movement';
+import { imagePalm, imagePoint, MOVES, REPEATS, RepeatTracker, StrokeTracker, thumbSide, type MoveId, type Pt } from './movement';
 
 /** Letters the camera can read from a still hand. J and Z are drawn in the air; see CameraTyper. */
 export const READABLE_LETTERS = [...'abcdefghiklmnopqrstuvwxy'].filter((l) => SPECS.has(l));
+
+/** The numbers the camera can read from a still hand, for games that ask for a number and not a letter. */
+export const READABLE_NUMBERS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'].filter((n) => SPECS.has(n));
 
 export interface LetterReading {
   letter: string;
@@ -33,6 +36,43 @@ export function readLetter(features: Features, letters: string[] = READABLE_LETT
 
 export function classifyLetter(features: Features, letters: string[] = READABLE_LETTERS): string | undefined {
   return readLetter(features, letters)?.letter;
+}
+
+export interface NearMiss {
+  sign: string;
+  /** The one thing to fix. */
+  hint: string;
+}
+
+/**
+ * When the hand is no sign yet but close to one: that sign and the fix, so a
+ * game can say "Almost 5. Turn your palm to face you." instead of waiting in
+ * silence.
+ *
+ * A hand that makes a sign's shape and is only turned the wrong way comes
+ * first: that is the usual mistake (1 to 5 shown palm out), and an open hand
+ * shown palm out is also one finger away from 6, 7 and 8. Failing that, the
+ * one sign that is a single fix away. Nothing when two signs are equally
+ * close, since the hint would be a guess, and nothing for a hand at rest.
+ */
+/**
+ * Signs a hand at rest is one fix away from. A relaxed hand is a loose fist,
+ * and a fist is a 10 but for the thumb, so "Almost 10" came up whenever the
+ * hand was doing nothing. These are never offered as a single-fix near miss.
+ */
+const AT_REST = new Set(['10']);
+
+export function nearMiss(features: Features, signs: string[]): NearMiss | undefined {
+  const turned: NearMiss[] = [];
+  const oneFix: NearMiss[] = [];
+  for (const sign of signs) {
+    const failed = evaluate(sign, features).results.filter((r) => r.reliable && !r.pass);
+    if (!failed.length) continue;
+    if (failed.every((r) => r.param === 'orientation')) turned.push({ sign, hint: failed[0].hint });
+    else if (failed.length === 1 && !AT_REST.has(sign)) oneFix.push({ sign, hint: failed[0].hint });
+  }
+  if (turned.length) return turned.length === 1 ? turned[0] : undefined;
+  return oneFix.length === 1 ? oneFix[0] : undefined;
 }
 
 export interface ReaderOptions {
@@ -207,6 +247,11 @@ export class LetterReader {
    * until the hand leaves that letter's handshapes, `sameAs`: after a J, the
    * still-held I handshape must not go on to type an I.
    */
+  /** True while this letter has just typed and its handshape hasn't been let go of yet. */
+  isHolding(letter: string): boolean {
+    return this.needRelease && this.held.has(letter);
+  }
+
   typedNow(letter: string, sameAs: string[] = []): void {
     this.lastTyped = letter;
     this.held = new Set([letter, ...sameAs]);
@@ -252,6 +297,10 @@ export interface TyperState extends ReaderState {
    * (I before J, D before Z). The drawn letter should replace it, not follow it.
    */
   replaces?: string;
+  /** With `signs`, while nothing is being read: the one sign the hand is a single fix away from. */
+  near?: NearMiss;
+  /** False when a fast-moving hand was read anyway, because it was a sign that is made by moving (a shaken 10). */
+  moving?: boolean;
 }
 
 /**
@@ -264,6 +313,8 @@ export interface TyperState extends ReaderState {
 export class CameraTyper {
   private reader: LetterReader;
   private strokes = [new StrokeTracker(MOVES.j), new StrokeTracker(MOVES.z)];
+  /** One tracker per sign made by a repeated movement (10's shake). */
+  private repeats = new Map(Object.keys(REPEATS).map((id) => [id, new RepeatTracker(REPEATS[id].options)]));
   private lastStill?: { letter: string; at: number };
 
   constructor(opts: Partial<ReaderOptions> = {}) {
@@ -273,6 +324,7 @@ export class CameraTyper {
   reset(): void {
     this.reader.reset();
     this.strokes.forEach((s) => s.reset());
+    this.repeats.forEach((r) => r.reset());
     this.lastStill = undefined;
   }
 
@@ -281,21 +333,53 @@ export class CameraTyper {
    * view. `moving` is true while the whole hand is traveling fast. With
    * `letters` false only the command gestures are read, for when there is no
    * room for another letter but the word still has to be entered or fixed.
+   *
+   * `signs` reads a different set of signs than the letters (the numbers, say).
+   * Nothing is drawn in the air then, since only J and Z are. `commands` false
+   * leaves out thumbs up and thumbs down, for a game with nothing to enter or
+   * delete; the number 10 is a thumbs up, so a numbers game needs that.
+   *
+   * A sign in `signs` that is made by moving (10 is shaken) types as soon as
+   * the movement is seen, without waiting out the hold; held still, it types
+   * after the hold like any other. `raw` is the frame as the camera gave it,
+   * for measuring that movement: smoothing flattens a quick shake.
    */
   update(
     frame: HandFrame | undefined,
     features: Features | undefined,
     moving: boolean,
     now: number,
-    { letters = true }: { letters?: boolean } = {},
+    {
+      letters = true,
+      signs,
+      commands = true,
+      raw,
+    }: { letters?: boolean; signs?: string[]; commands?: boolean; raw?: HandFrame } = {},
   ): TyperState {
     if (!frame || !features) {
       this.strokes.forEach((s) => s.update(undefined, 1, false, 0, now));
+      this.repeats.forEach((r) => r.update(undefined, now));
       return { ...this.reader.update(undefined, now), trail: [] };
     }
 
+    // Signs made by a repeated movement. While the hand is in one of their handshapes a fast
+    // hand is not "between signs": the movement is the sign, so it is read, not ignored.
+    let inMotionSign = false;
+    for (const [id, tracker] of this.repeats) {
+      if (!signs?.includes(id)) continue;
+      const shaped = evaluate(id, features).pass;
+      inMotionSign ||= shaped;
+      const st = tracker.update(shaped ? REPEATS[id].measure(raw ?? frame) : undefined, now);
+      // Already typed from a still hold and not yet let go of: the shake that follows is the same 10.
+      if (!st.matched || this.reader.isHolding(id)) continue;
+      this.reader.typedNow(id);
+      this.lastStill = undefined;
+      return { letter: id, progress: 1, waitingForRelease: true, typed: id, trail: [], moving: false };
+    }
+    if (inMotionSign) moving = false;
+
     // A command gesture is held like a letter, and nothing else is read while it shows.
-    const command = moving ? undefined : classifyCommand(frame, features);
+    const command = moving || !commands ? undefined : classifyCommand(frame, features);
     if (command || !letters) {
       this.strokes.forEach((s) => s.reset());
       const state = this.reader.update(command, now);
@@ -307,7 +391,7 @@ export class CameraTyper {
     let drawing: MoveId | undefined;
     let trail: Pt[] = [];
     const palm = imagePalm(frame);
-    for (const stroke of this.strokes) {
+    for (const stroke of signs ? [] : this.strokes) {
       const id = stroke.move.id;
       const st = stroke.update(imagePoint(frame, stroke.move.tip), palm, evaluate(id, features).pass, thumbSide(frame), now);
       if (st.matched) {
@@ -325,10 +409,12 @@ export class CameraTyper {
       }
     }
 
-    const read = moving || drawing ? undefined : readLetter(features);
+    const read = moving || drawing ? undefined : readLetter(features, signs ?? READABLE_LETTERS);
     const state = this.reader.update(read?.letter, now, read?.sure ?? true);
     if (state.typed) this.lastStill = { letter: state.typed, at: now };
-    return { ...state, drawing, trail };
+    // Only for a chosen set of signs: among all the letters a near miss is too often a guess.
+    const near = signs && !moving && !read && !state.letter && !state.waitingForRelease ? nearMiss(features, signs) : undefined;
+    return { ...state, drawing, trail, near, moving };
   }
 }
 

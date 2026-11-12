@@ -3,9 +3,7 @@
 // not ASL letters, and they were chosen because no letter looks like them.
 // (The "OK" ring of thumb and index finger is the letter F, so it can't be Enter.)
 import type { Features } from './features';
-import { dist } from './geometry';
-import { screenScale } from './guide';
-import { FINGERS, LM, type HandFrame } from './hand';
+import { FINGERS, type HandFrame } from './hand';
 
 export type Command = 'enter' | 'delete';
 
@@ -27,29 +25,15 @@ export const GESTURE = {
   clearBy: 0.38,
 };
 
-/** Landmarks of the thumb's free part, left out when measuring "the rest of the hand". */
-const THUMB_FREE = new Set<number>([LM.THUMB_MCP, LM.THUMB_IP, LM.THUMB_TIP]);
-
 /**
  * The command this hand is giving, if any: a fist with the thumb held straight
  * and standing clear of it, pointing up (enter) or down (delete).
  */
-export function classifyCommand(frame: HandFrame, f: Features): Command | undefined {
+export function classifyCommand(_frame: HandFrame, f: Features): Command | undefined {
   if (f.thumbDirection === 'side' || f.thumbBend > GESTURE.thumbStraightMax) return undefined;
   if (FINGERS.some((finger) => f.curl[finger] < GESTURE.curledMin)) return undefined;
-
-  // The palm's real length on screen, even when the fist points at the camera.
-  const palm = screenScale(frame) * dist(frame.world[LM.WRIST], frame.world[LM.MIDDLE_MCP]);
-  if (!(palm > 0)) return undefined;
-  let top = Infinity;
-  let bottom = -Infinity;
-  frame.image.forEach((p, i) => {
-    if (THUMB_FREE.has(i)) return;
-    top = Math.min(top, p.y);
-    bottom = Math.max(bottom, p.y);
-  });
-  const tip = frame.image[LM.THUMB_TIP].y;
-  if (f.thumbDirection === 'up' && (top - tip) / palm >= GESTURE.clearBy) return 'enter';
-  if (f.thumbDirection === 'down' && (tip - bottom) / palm >= GESTURE.clearBy) return 'delete';
+  // How far the thumb clears the fist is measured with the other features (Features.thumbClear).
+  if (f.thumbDirection === 'up' && f.thumbClear.up >= GESTURE.clearBy) return 'enter';
+  if (f.thumbDirection === 'down' && f.thumbClear.down >= GESTURE.clearBy) return 'delete';
   return undefined;
 }

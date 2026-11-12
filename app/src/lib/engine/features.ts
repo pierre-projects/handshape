@@ -2,6 +2,7 @@
 // Shape measurements use world landmarks (meters); direction and palm facing
 // use image landmarks, because they are about how the hand looks to a viewer.
 import { angleBetween, bendAt, cross, dist, dot, lerp, normalize, projectT, sub, type Point } from './geometry';
+import { screenScale } from './guide';
 import { FINGER_JOINTS, FINGERS, LM, type Finger, type HandFrame } from './hand';
 
 export type Direction = 'up' | 'down' | 'side';
@@ -64,6 +65,14 @@ export interface Features {
   thumbFront: number;
   /** Which way the thumb points in the image. */
   thumbDirection: Direction;
+  /**
+   * How far the thumb tip stands clear of the rest of the hand in the picture,
+   * above it (up) or below it (down), in palm lengths as seen on screen.
+   * Negative when it doesn't clear it. A thumbs up clears the fist by half a
+   * palm; in A the thumb lies beside the fist and barely clears the knuckles,
+   * and in S it lies across the front and doesn't clear them at all.
+   */
+  thumbClear: { up: number; down: number };
   /** Index tip lateral position minus middle tip lateral position. Positive means crossed. */
   crossIM: number;
   /** Which way the hand points in the image (wrist to middle knuckle), and the angle (0 up, 180 down). */
@@ -94,6 +103,9 @@ export function classifyDirection(angle: number): Direction {
   if (a >= 135) return 'down';
   return 'side';
 }
+
+/** Landmarks of the thumb's free part, left out when measuring "the rest of the hand". */
+const THUMB_FREE = new Set<number>([LM.THUMB_MCP, LM.THUMB_IP, LM.THUMB_TIP]);
 
 export function computeFeatures(frame: HandFrame): Features {
   const w = frame.world;
@@ -141,6 +153,19 @@ export function computeFeatures(frame: HandFrame): Features {
   const knuckleFront = lerp(w[LM.INDEX_PIP], w[LM.MIDDLE_PIP], 0.5);
   const thumbFront = dot(sub(w[LM.THUMB_TIP], knuckleFront), palmSide) / palmSize;
 
+  // The palm's real length on screen, even when the fist points at the camera.
+  const palmOnScreen = screenScale(frame) * palmSize;
+  let top = Infinity;
+  let bottom = -Infinity;
+  img.forEach((p, i) => {
+    if (THUMB_FREE.has(i)) return;
+    top = Math.min(top, p.y);
+    bottom = Math.max(bottom, p.y);
+  });
+  const thumbY = img[LM.THUMB_TIP].y;
+  const thumbClear =
+    palmOnScreen > 0 ? { up: (top - thumbY) / palmOnScreen, down: (thumbY - bottom) / palmOnScreen } : { up: -Infinity, down: -Infinity };
+
   const handAngle = imageAngle(img[LM.WRIST], img[LM.MIDDLE_MCP], frame.aspect);
   const middleAngle = imageAngle(img[LM.MIDDLE_MCP], img[LM.MIDDLE_TIP], frame.aspect);
 
@@ -171,6 +196,7 @@ export function computeFeatures(frame: HandFrame): Features {
     thumbAlong: projectT(w[LM.THUMB_TIP], w[LM.WRIST], w[LM.MIDDLE_MCP]),
     thumbFront,
     thumbDirection: classifyDirection(imageAngle(img[LM.THUMB_MCP], img[LM.THUMB_TIP], frame.aspect)),
+    thumbClear,
     crossIM: lateral(w[LM.INDEX_TIP]) - lateral(w[LM.MIDDLE_TIP]),
     handDirection: classifyDirection(handAngle),
     handAngle,

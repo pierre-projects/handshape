@@ -1,6 +1,6 @@
 <script lang="ts">
-  // Live camera check of one sign: its handshape and, for J and Z, the letter
-  // drawn in the air. The finger a hint is about is picked out on the tracked
+  // Live camera check of one sign: its handshape and its movement, if it has
+  // one: for J and Z the letter drawn in the air, for 10 the small shake. The finger a hint is about is picked out on the tracked
   // hand, and an optional guide hand shows the target shape over your own.
   // Video is processed on this device and never stored. On the local dev
   // server only, Details can save a sample of hand points for tuning.
@@ -10,7 +10,7 @@
   import type { HandFrame, HandPart, Handedness } from '../lib/engine/hand';
   import { cameraSupported, clearOverlay, drawGuide, drawHand, drawTrail, HandTracker, problemMessage } from '../lib/engine/camera';
   import { guideHand, hasGuide } from '../lib/engine/guide';
-  import { imagePalm, imagePoint, isMoveId, MOVES, StrokeTracker, thumbSide, type Pt } from '../lib/engine/movement';
+  import { imagePalm, imagePoint, isMoveId, MOVES, REPEATS, RepeatTracker, StrokeTracker, thumbSide, type Pt } from '../lib/engine/movement';
   import { HoldTimer, Smoother, Steady } from '../lib/engine/tracker';
   import { content } from '../lib/content';
 
@@ -84,6 +84,10 @@
   let moveHint = $state<string>();
   let mirroredNote = $state(false);
 
+  // 10: once the handshape is held, its small movement has to be made twice (a shake).
+  const repeat = $derived(REPEATS[target]);
+  let repeater: RepeatTracker | undefined;
+
   const smoother = new Smoother(0.5);
   const hold = new HoldTimer(600);
   type Message = { tone: string; text: string };
@@ -118,6 +122,7 @@
 
   function resetStroke() {
     stroke = move ? new StrokeTracker(move) : undefined;
+    repeater = repeat ? new RepeatTracker(repeat.options) : undefined;
     trail = [];
     movePhase = 'idle';
     moveHint = undefined;
@@ -150,6 +155,7 @@
       smoother.reset();
       progress = hold.update(false, now);
       if (stroke && !matched) followStroke(undefined, false, now);
+      repeater?.update(undefined, now);
       draw(undefined, false);
       settle(now);
       return;
@@ -157,8 +163,8 @@
     handSeen = true;
     if (RECORDING) {
       recent.push({ frame, t: now });
-      // About a second for a still sign; long enough to hold a whole drawn letter otherwise.
-      if (recent.length > (move ? 100 : 30)) recent.shift();
+      // About a second for a still sign; long enough to hold a whole drawn letter or a shake otherwise.
+      if (recent.length > (move || repeat ? 100 : 30)) recent.shift();
     }
     const smooth = smoother.push(frame);
     features = computeFeatures(smooth);
@@ -174,6 +180,15 @@
     if (evaluation.pass) similar = [];
     if (stroke) {
       if (!matched) followStroke(smooth, evaluation.pass, now);
+    } else if (repeater && repeat) {
+      // Measured on the frame as the camera gave it: smoothing would flatten a quick shake.
+      const st = repeater.update(evaluation.pass && !matched ? repeat.measure(frame) : undefined, now);
+      if (!matched) progress = st.progress;
+      if (st.matched && !matched) {
+        matched = true;
+        progress = 1;
+        onMatch?.();
+      }
     } else {
       progress = hold.update(evaluation.pass, now);
       if (progress >= 1 && !matched) {
@@ -245,7 +260,7 @@
     if (!recent.length) return;
     const data = {
       sign: target,
-      ...(move ? { movement: true } : {}),
+      ...(move || repeat ? { movement: true } : {}),
       note: 'Landmarks only, no video. Add to fixtures/handshapes/ to help tune the checks.',
       recordedAt: new Date().toISOString(),
       frames: recent.map(({ frame: f, t }) => ({
@@ -277,6 +292,7 @@
       if (movePhase === 'ready') return { tone: moveHint ? 'info' : 'good', text: moveHint ? `${moveHint} Try again.` : move.prompt };
       if (evaluation.pass) return { tone: 'good', text: moveHint ?? 'Hold it still…' };
     }
+    if (repeat && evaluation.pass) return { tone: 'good', text: repeat.prompt };
     if (evaluation.pass) {
       return evaluation.unsure.length
         ? { tone: 'good', text: `Close. Check yourself: ${evaluation.unsure[0]}` }
@@ -289,7 +305,7 @@
   const r2 = (n: number) => Math.round(n * 100) / 100;
   const display = $derived(shown ?? message);
   /** Signs with a movement the camera doesn't follow yet (10). Known from the sign itself, so the note doesn't pop in when a hand appears. */
-  const unchecked = $derived(move ? undefined : SPECS.get(target)?.movement);
+  const unchecked = $derived(move || repeat ? undefined : SPECS.get(target)?.movement);
 </script>
 
 {#if !supported}

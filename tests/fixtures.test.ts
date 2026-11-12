@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { computeFeatures } from '../app/src/lib/engine/features';
 import { evaluate } from '../app/src/lib/engine/handshapes';
-import { imagePalm, imagePoint, isMoveId, MOVES, StrokeTracker, thumbSide } from '../app/src/lib/engine/movement';
+import { imagePalm, imagePoint, isMoveId, MOVES, REPEATS, RepeatTracker, StrokeTracker, thumbSide } from '../app/src/lib/engine/movement';
 import { Smoother } from '../app/src/lib/engine/tracker';
 import type { HandFrame } from '../app/src/lib/engine/hand';
 
@@ -43,6 +43,19 @@ describe('recorded samples', () => {
           hint = st.hint ?? hint;
         });
         expect(matched, `the drawn ${data.sign.toUpperCase()} was not recognized${hint ? `: "${hint}"` : ''}`).toBe(true);
+        return;
+      }
+
+      // A sign made by a repeated movement (10's shake): replay the frames and expect the movement to be seen.
+      if (data.movement && REPEATS[data.sign]) {
+        const spec = REPEATS[data.sign];
+        const tracker = new RepeatTracker(spec.options);
+        let matched = false;
+        frames.forEach((raw, i) => {
+          const ok = evaluate(data.sign, computeFeatures(sm.push(raw))).pass;
+          matched ||= tracker.update(ok ? spec.measure(raw) : undefined, data.frames[i].t ?? i * 33).matched;
+        });
+        expect(matched, `the movement in ${data.sign} was not seen`).toBe(true);
         return;
       }
 
