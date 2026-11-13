@@ -83,11 +83,18 @@ export interface ReaderOptions {
   /** After typing, how long the hand must show something else (or nothing) before the next letter. */
   releaseMs: number;
   /**
-   * How long the held letter may go unread before the hold starts to drain, and
-   * how long a different letter must be read before it takes over. In time, not
-   * frames, so a slow camera is judged like a fast one.
+   * How long the held letter may go unread before the hold starts to drain. In
+   * time, not frames, so a slow camera is judged like a fast one.
    */
   graceMs: number;
+  /**
+   * How long a different letter must be read, with no sight of the held one,
+   * before it takes over. Longer than graceMs: where two letters are close (R
+   * and V, the fist letters) the reading flickers between them, and each
+   * flicker used to throw the hold away. Taking over costs the new letter
+   * nothing, since the time it was read while waiting counts toward its hold.
+   */
+  switchMs: number;
   /**
    * How fast a hold drains once the letter has gone unread for longer than
    * graceMs, as a share of how fast it fills. At 1 a letter has to be read more
@@ -97,7 +104,7 @@ export interface ReaderOptions {
   drain: number;
 }
 
-export const READER_DEFAULTS: ReaderOptions = { holdMs: 900, unsureHoldMs: 1300, releaseMs: 300, graceMs: 130, drain: 1 };
+export const READER_DEFAULTS: ReaderOptions = { holdMs: 900, unsureHoldMs: 1300, releaseMs: 300, graceMs: 130, switchMs: 300, drain: 1 };
 
 /** The most time one frame may add to or take from a hold, so a stalled camera can't type or wipe a letter in one step. */
 const MAX_STEP_MS = 250;
@@ -121,7 +128,7 @@ export interface ReaderState {
  *  - a wobble doesn't restart the hold. While the letter goes unread the hold
  *    pauses for graceMs, then drains; when the letter comes back it carries on
  *    from what is left. Only time the letter was actually read counts;
- *  - a different letter read for longer than graceMs takes over, and starts
+ *  - a different letter read for longer than switchMs takes over, and starts
  *    its own hold from nothing;
  *  - after typing, nothing types until the hand changes shape or drops for
  *    releaseMs, so one long hold types one letter, and a double letter needs a
@@ -195,7 +202,7 @@ export class LetterReader {
         this.rivalMs = 0;
         this.rivalUnsureMs = 0;
       }
-      if (this.rivalMs > this.opts.graceMs) {
+      if (this.rivalMs > this.opts.switchMs) {
         this.hold(this.rival, this.rivalMs, this.rivalUnsureMs);
         return;
       }

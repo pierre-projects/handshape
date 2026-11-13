@@ -1,7 +1,93 @@
 // Frame-to-frame helpers: smooth out landmark jitter, and require a match to
 // be held briefly so a hand passing through a shape doesn't count.
 import type { Point } from './geometry';
-import type { HandFrame } from './hand';
+import type { HandFrame, Handedness } from './hand';
+
+/** One of the hands the tracker found in a frame. */
+export type SeenHand = Pick<HandFrame, 'image' | 'world' | 'handedness'>;
+
+/** Wrist and the four finger knuckles: the palm, whose middle and size don't change with the handshape. */
+const PALM = [0, 5, 9, 13, 17];
+
+function palm(hand: SeenHand): { x: number; y: number; size: number } {
+  const x = PALM.reduce((sum, i) => sum + hand.image[i].x, 0) / PALM.length;
+  const y = PALM.reduce((sum, i) => sum + hand.image[i].y, 0) / PALM.length;
+  const size = Math.hypot(hand.image[9].x - hand.image[0].x, hand.image[9].y - hand.image[0].y);
+  return { x, y, size };
+}
+
+export interface FollowOptions {
+  /** How long the hand may be out of sight before the next one seen counts as a new hand. */
+  lostMs: number;
+  /** The furthest the hand may move between frames and still be the same hand, in palm lengths. */
+  jump: number;
+  /** How many frames in a row the tracker must call it the other hand before that is believed. */
+  flipAfter: number;
+}
+
+export const FOLLOW_DEFAULTS: FollowOptions = { lostMs: 600, jump: 2.5, flipAfter: 6 };
+
+/**
+ * Picks which hand to read when the tracker sees more than one, and stays with
+ * it. The tracker says "left" or "right" for each hand in each frame, and that
+ * guess flips, most of all on a phone, where the hand holding it can be in the
+ * picture too. Choosing by that label afresh every frame made the reading jump
+ * from one hand to the other and back. So:
+ *
+ *  - a new hand is chosen by the label (the signer's own signing hand), or the
+ *    bigger hand when the label doesn't settle it;
+ *  - after that the choice follows that hand by where it is, whatever it is
+ *    called from frame to frame;
+ *  - and which hand it is called changes only after several frames agree, so a
+ *    one-frame flip doesn't turn "palm out" into "palm in".
+ */
+export class HandFollower {
+  private opts: FollowOptions;
+  private last?: { x: number; y: number; size: number; t: number };
+  private label?: Handedness;
+  private against = 0;
+
+  constructor(opts: Partial<FollowOptions> = {}) {
+    this.opts = { ...FOLLOW_DEFAULTS, ...opts };
+  }
+
+  reset(): void {
+    this.last = undefined;
+    this.label = undefined;
+    this.against = 0;
+  }
+
+  pick(hands: SeenHand[], preferred: Handedness, now: number): SeenHand | undefined {
+    if (this.last && now - this.last.t > this.opts.lostMs) this.reset();
+    if (!hands.length) return undefined;
+
+    let chosen: SeenHand | undefined;
+    if (this.last) {
+      const last = this.last;
+      const near = hands
+        .map((hand) => ({ hand, d: Math.hypot(palm(hand).x - last.x, palm(hand).y - last.y) }))
+        .sort((a, b) => a.d - b.d)[0];
+      if (near.d <= this.opts.jump * last.size) chosen = near.hand;
+    }
+
+    if (!chosen) {
+      // A new hand: the signing hand if the tracker names just one as that, otherwise the bigger one.
+      const mine = hands.filter((h) => h.handedness === preferred);
+      const pool = mine.length === 1 ? mine : hands;
+      chosen = [...pool].sort((a, b) => palm(b).size - palm(a).size)[0];
+      this.label = chosen.handedness;
+      this.against = 0;
+    } else if (chosen.handedness === this.label) {
+      this.against = 0;
+    } else if (++this.against >= this.opts.flipAfter) {
+      this.label = chosen.handedness;
+      this.against = 0;
+    }
+
+    this.last = { ...palm(chosen), t: now };
+    return { ...chosen, handedness: this.label ?? chosen.handedness };
+  }
+}
 
 /** Exponential moving average over landmarks. Resets when the hand changes or disappears. */
 export class Smoother {

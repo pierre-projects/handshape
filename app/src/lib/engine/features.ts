@@ -75,6 +75,13 @@ export interface Features {
   thumbClear: { up: number; down: number };
   /** Index tip lateral position minus middle tip lateral position. Positive means crossed. */
   crossIM: number;
+  /**
+   * Index fingertip to middle fingertip, in palm lengths. About 0.25 with the
+   * two fingers side by side (U), 0.4 and up when they are spread (V), and
+   * under 0.2 when they cross or lean into each other (R). The angle between
+   * the fingers can't tell V from R: crossed fingers are at an angle too.
+   */
+  tipGapIM: number;
   /** Which way the hand points in the image (wrist to middle knuckle), and the angle (0 up, 180 down). */
   handDirection: Direction;
   handAngle: number;
@@ -198,6 +205,7 @@ export function computeFeatures(frame: HandFrame): Features {
     thumbDirection: classifyDirection(imageAngle(img[LM.THUMB_MCP], img[LM.THUMB_TIP], frame.aspect)),
     thumbClear,
     crossIM: lateral(w[LM.INDEX_TIP]) - lateral(w[LM.MIDDLE_TIP]),
+    tipGapIM: rel(LM.INDEX_TIP, LM.MIDDLE_TIP),
     handDirection: classifyDirection(handAngle),
     handAngle,
     indexDirection: classifyDirection(imageAngle(img[LM.INDEX_MCP], img[LM.INDEX_TIP], frame.aspect)),

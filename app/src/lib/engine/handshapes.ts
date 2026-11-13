@@ -88,6 +88,20 @@ export const T = {
   /** G and Q: most angle between the thumb and the index finger. A relaxed thumb is 30 to 55 degrees off; an L's is 80. */
   thumbParallelMax: 60,
   crossMin: 0.05,
+  /**
+   * R, U and V all hold up the index and middle fingers; what differs is how
+   * the two sit against each other.
+   *  - V: spread, so the tips are well apart (vTipGapMin).
+   *  - U: side by side, hardly any angle between them.
+   *  - R: crossed. The camera often can't see the tips swap sides, but it does
+   *    see the fingers lean into each other: an angle between them (rLeanMin)
+   *    with the tips still together (rTipGapMax). That used to read as V,
+   *    which only asked for the angle.
+   * rTipGapMax is below vTipGapMin, so one hand is never both R and V.
+   */
+  rLeanMin: 11,
+  rTipGapMax: 0.35,
+  vTipGapMin: 0.4,
   /** Degrees from straight up; 100 is just below horizontal. */
   tippedDownMin: 100,
   /**
@@ -490,10 +504,15 @@ const twoApart: Check = {
   reliable: false,
 };
 
+/** Whether the index and middle fingers cross, or lean into each other so far that they must (see T.rLeanMin). */
+export function fingersCross(f: Features): boolean {
+  return f.crossIM >= T.crossMin || (f.spread.im >= T.rLeanMin && f.tipGapIM <= T.rTipGapMax);
+}
+
 const crossed: Check = {
   id: 'crossed',
   param: 'handshape',
-  test: (f) => f.crossIM >= T.crossMin,
+  test: fingersCross,
   hint: 'Cross your middle finger over your index finger.',
   parts: ['index', 'middle'],
   reliable: true,
@@ -502,8 +521,18 @@ const crossed: Check = {
 const notCrossed: Check = {
   id: 'not-crossed',
   param: 'handshape',
-  test: (f) => f.crossIM < T.crossMin,
+  test: (f) => !fingersCross(f),
   hint: 'Uncross your fingers.',
+  parts: ['index', 'middle'],
+  reliable: true,
+};
+
+/** V: the two fingertips are well apart, not just the fingers at an angle. */
+const tipsApart: Check = {
+  id: 'tips-apart',
+  param: 'handshape',
+  test: (f) => f.tipGapIM >= T.vTipGapMin,
+  hint: 'Spread your index and middle fingers apart.',
   parts: ['index', 'middle'],
   reliable: true,
 };
@@ -849,6 +878,7 @@ const S: SignSpec[] = [
     checks: [
       ...extendedAll('index', 'middle'),
       apart('im', 'Spread your index and middle fingers apart.'),
+      tipsApart,
       notCrossed,
       thumbIn,
       thumbApartFrom('middlePip', 'Hold your thumb against your folded fingers, not between your raised ones.'),

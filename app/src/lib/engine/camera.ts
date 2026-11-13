@@ -4,6 +4,7 @@
 // own (checking one target sign, reading any letter, recording a take).
 import type { HandLandmarker } from '@mediapipe/tasks-vision';
 import { HAND_CONNECTIONS, PALM_OUTLINE, PART_POINTS, type HandFrame, type HandPart, type Handedness } from './hand';
+import { HandFollower } from './tracker';
 
 export const cameraSupported = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
@@ -50,6 +51,8 @@ export class HandTracker {
   private stream?: MediaStream;
   private landmarker?: HandLandmarker;
   private detect?: typeof import('./landmarker').detectHand;
+  /** Which of the hands in view is being read, kept from frame to frame. */
+  private follower = new HandFollower();
 
   constructor(
     private onFrame: (frame: HandFrame | undefined, now: number) => void,
@@ -85,7 +88,7 @@ export class HandTracker {
       const now = performance.now();
       let frame: HandFrame | undefined;
       try {
-        frame = this.detect(this.landmarker, video, now, this.preferredHand());
+        frame = this.detect(this.landmarker, video, now, this.preferredHand(), this.follower);
       } catch {
         return;
       }
@@ -98,6 +101,7 @@ export class HandTracker {
   stop(): void {
     stopStream(this.stream);
     this.stream = undefined;
+    this.follower.reset();
   }
 }
 

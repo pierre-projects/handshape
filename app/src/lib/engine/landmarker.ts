@@ -5,6 +5,7 @@ import wasmLoaderPath from '@mediapipe/tasks-vision/vision_wasm_internal.js?url'
 import wasmBinaryPath from '@mediapipe/tasks-vision/vision_wasm_internal.wasm?url';
 import modelAssetPath from '../../../../models/hand_landmarker.task?url';
 import type { HandFrame, Handedness } from './hand';
+import type { HandFollower } from './tracker';
 
 let instance: Promise<HandLandmarker> | undefined;
 
@@ -30,24 +31,23 @@ export function loadHandLandmarker(): Promise<HandLandmarker> {
 }
 
 /**
- * Detects hands in the current video frame and returns the preferred hand,
- * or the only hand if just one is visible.
+ * Detects hands in the current video frame and returns the one to read. With
+ * more than one in view, `follower` chooses the signer's signing hand and then
+ * stays with it (see HandFollower).
  */
 export function detectHand(
   landmarker: HandLandmarker,
   video: HTMLVideoElement,
   timestamp: number,
   preferred: Handedness,
+  follower: HandFollower,
 ): HandFrame | undefined {
   const r = landmarker.detectForVideo(video, timestamp);
-  if (!r.landmarks.length) return undefined;
-  const labels = r.handedness.map((h) => h[0]?.categoryName as Handedness);
-  let i = labels.indexOf(preferred);
-  if (i < 0) i = 0;
-  return {
-    image: r.landmarks[i],
+  const hands = r.landmarks.map((image, i) => ({
+    image,
     world: r.worldLandmarks[i],
-    handedness: labels[i] ?? preferred,
-    aspect: video.videoWidth / video.videoHeight || 4 / 3,
-  };
+    handedness: (r.handedness[i]?.[0]?.categoryName as Handedness | undefined) ?? preferred,
+  }));
+  const hand = follower.pick(hands, preferred, timestamp);
+  return hand && { ...hand, aspect: video.videoWidth / video.videoHeight || 4 / 3 };
 }
